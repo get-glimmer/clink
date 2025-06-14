@@ -24,11 +24,10 @@ jobs:
       - name: Install SwiftLint
         run: brew install swiftlint
 
-      - name: Run SwiftLint with some rules disabled
+      - name: Run SwiftLint with rules disabled (no file committed)
         run: |
-          swiftlint \
-          --disable-rule static_over_final_class \
-          --disable-rule line_length
+          echo "disabled_rules:\n  - static_over_final_class\n  - line_length" > .swiftlint.yml
+          swiftlint
 
       - name: Build SwiftUI app
         run: |
