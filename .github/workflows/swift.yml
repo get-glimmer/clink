@@ -31,7 +31,7 @@ jobs:
 
       - name: Build SwiftUI app
         run: |
-          xcodebuild build \
+          xcodebuild build \gh
           -project mobile.xcodeproj \
           -scheme mobile \
           -destination 'platform=iOS Simulator,name=iPhone 15'
