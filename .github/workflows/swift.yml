@@ -31,11 +31,11 @@ jobs:
 
       - name: Build SwiftUI app
         run: |
-          xcodebuild build \gh
+          xcodebuild build \
           -project mobile.xcodeproj \
           -scheme mobile \
           -destination 'platform=iOS Simulator,name=iPhone 15'
-
+          
       # - name: Run Tests (commented out for now)
       #   run: |
       #     xcodebuild test \
