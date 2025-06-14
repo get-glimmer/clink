@@ -7,40 +7,40 @@
 	objects = {
 
 /* Begin PBXContainerItemProxy section */
-		B4C8AA092DFD14AB00CEAEA9 /* PBXContainerItemProxy */ = {
+		B443471A2DFD212F00644724 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
-			containerPortal = B4C8A9F32DFD14A900CEAEA9 /* Project object */;
+			containerPortal = B44347042DFD212E00644724 /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = B4C8A9FA2DFD14A900CEAEA9;
+			remoteGlobalIDString = B443470B2DFD212E00644724;
 			remoteInfo = mobile;
 		};
-		B4C8AA132DFD14AB00CEAEA9 /* PBXContainerItemProxy */ = {
+		B44347242DFD212F00644724 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
-			containerPortal = B4C8A9F32DFD14A900CEAEA9 /* Project object */;
+			containerPortal = B44347042DFD212E00644724 /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = B4C8A9FA2DFD14A900CEAEA9;
+			remoteGlobalIDString = B443470B2DFD212E00644724;
 			remoteInfo = mobile;
 		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		B4C8A9FB2DFD14A900CEAEA9 /* mobile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = mobile.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		B4C8AA082DFD14AB00CEAEA9 /* mobileTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = mobileTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		B4C8AA122DFD14AB00CEAEA9 /* mobileUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = mobileUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B443470C2DFD212E00644724 /* mobile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = mobile.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B44347192DFD212F00644724 /* mobileTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = mobileTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B44347232DFD212F00644724 /* mobileUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = mobileUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		B4C8A9FD2DFD14A900CEAEA9 /* mobile */ = {
+		B443470E2DFD212E00644724 /* mobile */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = mobile;
 			sourceTree = "<group>";
 		};
-		B4C8AA0B2DFD14AB00CEAEA9 /* mobileTests */ = {
+		B443471C2DFD212F00644724 /* mobileTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = mobileTests;
 			sourceTree = "<group>";
 		};
-		B4C8AA152DFD14AB00CEAEA9 /* mobileUITests */ = {
+		B44347262DFD212F00644724 /* mobileUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = mobileUITests;
 			sourceTree = "<group>";
@@ -48,21 +48,21 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		B4C8A9F82DFD14A900CEAEA9 /* Frameworks */ = {
+		B44347092DFD212E00644724 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		B4C8AA052DFD14AB00CEAEA9 /* Frameworks */ = {
+		B44347162DFD212F00644724 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		B4C8AA0F2DFD14AB00CEAEA9 /* Frameworks */ = {
+		B44347202DFD212F00644724 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -72,22 +72,22 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		B4C8A9F22DFD14A900CEAEA9 = {
+		B44347032DFD212E00644724 = {
 			isa = PBXGroup;
 			children = (
-				B4C8A9FD2DFD14A900CEAEA9 /* mobile */,
-				B4C8AA0B2DFD14AB00CEAEA9 /* mobileTests */,
-				B4C8AA152DFD14AB00CEAEA9 /* mobileUITests */,
-				B4C8A9FC2DFD14A900CEAEA9 /* Products */,
+				B443470E2DFD212E00644724 /* mobile */,
+				B443471C2DFD212F00644724 /* mobileTests */,
+				B44347262DFD212F00644724 /* mobileUITests */,
+				B443470D2DFD212E00644724 /* Products */,
 			);
 			sourceTree = "<group>";
 		};
-		B4C8A9FC2DFD14A900CEAEA9 /* Products */ = {
+		B443470D2DFD212E00644724 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				B4C8A9FB2DFD14A900CEAEA9 /* mobile.app */,
-				B4C8AA082DFD14AB00CEAEA9 /* mobileTests.xctest */,
-				B4C8AA122DFD14AB00CEAEA9 /* mobileUITests.xctest */,
+				B443470C2DFD212E00644724 /* mobile.app */,
+				B44347192DFD212F00644724 /* mobileTests.xctest */,
+				B44347232DFD212F00644724 /* mobileUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -95,134 +95,134 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		B4C8A9FA2DFD14A900CEAEA9 /* mobile */ = {
+		B443470B2DFD212E00644724 /* mobile */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = B4C8AA1C2DFD14AB00CEAEA9 /* Build configuration list for PBXNativeTarget "mobile" */;
+			buildConfigurationList = B443472D2DFD212F00644724 /* Build configuration list for PBXNativeTarget "mobile" */;
 			buildPhases = (
-				B4C8A9F72DFD14A900CEAEA9 /* Sources */,
-				B4C8A9F82DFD14A900CEAEA9 /* Frameworks */,
-				B4C8A9F92DFD14A900CEAEA9 /* Resources */,
+				B44347082DFD212E00644724 /* Sources */,
+				B44347092DFD212E00644724 /* Frameworks */,
+				B443470A2DFD212E00644724 /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				B4C8A9FD2DFD14A900CEAEA9 /* mobile */,
+				B443470E2DFD212E00644724 /* mobile */,
 			);
 			name = mobile;
 			packageProductDependencies = (
 			);
 			productName = mobile;
-			productReference = B4C8A9FB2DFD14A900CEAEA9 /* mobile.app */;
+			productReference = B443470C2DFD212E00644724 /* mobile.app */;
 			productType = "com.apple.product-type.application";
 		};
-		B4C8AA072DFD14AB00CEAEA9 /* mobileTests */ = {
+		B44347182DFD212F00644724 /* mobileTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = B4C8AA1F2DFD14AB00CEAEA9 /* Build configuration list for PBXNativeTarget "mobileTests" */;
+			buildConfigurationList = B44347302DFD212F00644724 /* Build configuration list for PBXNativeTarget "mobileTests" */;
 			buildPhases = (
-				B4C8AA042DFD14AB00CEAEA9 /* Sources */,
-				B4C8AA052DFD14AB00CEAEA9 /* Frameworks */,
-				B4C8AA062DFD14AB00CEAEA9 /* Resources */,
+				B44347152DFD212F00644724 /* Sources */,
+				B44347162DFD212F00644724 /* Frameworks */,
+				B44347172DFD212F00644724 /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				B4C8AA0A2DFD14AB00CEAEA9 /* PBXTargetDependency */,
+				B443471B2DFD212F00644724 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				B4C8AA0B2DFD14AB00CEAEA9 /* mobileTests */,
+				B443471C2DFD212F00644724 /* mobileTests */,
 			);
 			name = mobileTests;
 			packageProductDependencies = (
 			);
 			productName = mobileTests;
-			productReference = B4C8AA082DFD14AB00CEAEA9 /* mobileTests.xctest */;
+			productReference = B44347192DFD212F00644724 /* mobileTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		B4C8AA112DFD14AB00CEAEA9 /* mobileUITests */ = {
+		B44347222DFD212F00644724 /* mobileUITests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = B4C8AA222DFD14AB00CEAEA9 /* Build configuration list for PBXNativeTarget "mobileUITests" */;
+			buildConfigurationList = B44347332DFD212F00644724 /* Build configuration list for PBXNativeTarget "mobileUITests" */;
 			buildPhases = (
-				B4C8AA0E2DFD14AB00CEAEA9 /* Sources */,
-				B4C8AA0F2DFD14AB00CEAEA9 /* Frameworks */,
-				B4C8AA102DFD14AB00CEAEA9 /* Resources */,
+				B443471F2DFD212F00644724 /* Sources */,
+				B44347202DFD212F00644724 /* Frameworks */,
+				B44347212DFD212F00644724 /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				B4C8AA142DFD14AB00CEAEA9 /* PBXTargetDependency */,
+				B44347252DFD212F00644724 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				B4C8AA152DFD14AB00CEAEA9 /* mobileUITests */,
+				B44347262DFD212F00644724 /* mobileUITests */,
 			);
 			name = mobileUITests;
 			packageProductDependencies = (
 			);
 			productName = mobileUITests;
-			productReference = B4C8AA122DFD14AB00CEAEA9 /* mobileUITests.xctest */;
+			productReference = B44347232DFD212F00644724 /* mobileUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		B4C8A9F32DFD14A900CEAEA9 /* Project object */ = {
+		B44347042DFD212E00644724 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1640;
 				LastUpgradeCheck = 1640;
 				TargetAttributes = {
-					B4C8A9FA2DFD14A900CEAEA9 = {
+					B443470B2DFD212E00644724 = {
 						CreatedOnToolsVersion = 16.4;
 					};
-					B4C8AA072DFD14AB00CEAEA9 = {
+					B44347182DFD212F00644724 = {
 						CreatedOnToolsVersion = 16.4;
-						TestTargetID = B4C8A9FA2DFD14A900CEAEA9;
+						TestTargetID = B443470B2DFD212E00644724;
 					};
-					B4C8AA112DFD14AB00CEAEA9 = {
+					B44347222DFD212F00644724 = {
 						CreatedOnToolsVersion = 16.4;
-						TestTargetID = B4C8A9FA2DFD14A900CEAEA9;
+						TestTargetID = B443470B2DFD212E00644724;
 					};
 				};
 			};
-			buildConfigurationList = B4C8A9F62DFD14A900CEAEA9 /* Build configuration list for PBXProject "mobile" */;
+			buildConfigurationList = B44347072DFD212E00644724 /* Build configuration list for PBXProject "mobile" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
 				Base,
 			);
-			mainGroup = B4C8A9F22DFD14A900CEAEA9;
+			mainGroup = B44347032DFD212E00644724;
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
-			productRefGroup = B4C8A9FC2DFD14A900CEAEA9 /* Products */;
+			productRefGroup = B443470D2DFD212E00644724 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				B4C8A9FA2DFD14A900CEAEA9 /* mobile */,
-				B4C8AA072DFD14AB00CEAEA9 /* mobileTests */,
-				B4C8AA112DFD14AB00CEAEA9 /* mobileUITests */,
+				B443470B2DFD212E00644724 /* mobile */,
+				B44347182DFD212F00644724 /* mobileTests */,
+				B44347222DFD212F00644724 /* mobileUITests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		B4C8A9F92DFD14A900CEAEA9 /* Resources */ = {
+		B443470A2DFD212E00644724 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		B4C8AA062DFD14AB00CEAEA9 /* Resources */ = {
+		B44347172DFD212F00644724 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		B4C8AA102DFD14AB00CEAEA9 /* Resources */ = {
+		B44347212DFD212F00644724 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -232,21 +232,21 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		B4C8A9F72DFD14A900CEAEA9 /* Sources */ = {
+		B44347082DFD212E00644724 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		B4C8AA042DFD14AB00CEAEA9 /* Sources */ = {
+		B44347152DFD212F00644724 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		B4C8AA0E2DFD14AB00CEAEA9 /* Sources */ = {
+		B443471F2DFD212F00644724 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -256,20 +256,20 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		B4C8AA0A2DFD14AB00CEAEA9 /* PBXTargetDependency */ = {
+		B443471B2DFD212F00644724 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = B4C8A9FA2DFD14A900CEAEA9 /* mobile */;
-			targetProxy = B4C8AA092DFD14AB00CEAEA9 /* PBXContainerItemProxy */;
+			target = B443470B2DFD212E00644724 /* mobile */;
+			targetProxy = B443471A2DFD212F00644724 /* PBXContainerItemProxy */;
 		};
-		B4C8AA142DFD14AB00CEAEA9 /* PBXTargetDependency */ = {
+		B44347252DFD212F00644724 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = B4C8A9FA2DFD14A900CEAEA9 /* mobile */;
-			targetProxy = B4C8AA132DFD14AB00CEAEA9 /* PBXContainerItemProxy */;
+			target = B443470B2DFD212E00644724 /* mobile */;
+			targetProxy = B44347242DFD212F00644724 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
-		B4C8AA1A2DFD14AB00CEAEA9 /* Debug */ = {
+		B443472B2DFD212F00644724 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -332,7 +332,7 @@
 			};
 			name = Debug;
 		};
-		B4C8AA1B2DFD14AB00CEAEA9 /* Release */ = {
+		B443472C2DFD212F00644724 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -388,7 +388,7 @@
 			};
 			name = Release;
 		};
-		B4C8AA1D2DFD14AB00CEAEA9 /* Debug */ = {
+		B443472E2DFD212F00644724 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -415,7 +415,7 @@
 			};
 			name = Debug;
 		};
-		B4C8AA1E2DFD14AB00CEAEA9 /* Release */ = {
+		B443472F2DFD212F00644724 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -442,7 +442,7 @@
 			};
 			name = Release;
 		};
-		B4C8AA202DFD14AB00CEAEA9 /* Debug */ = {
+		B44347312DFD212F00644724 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -460,7 +460,7 @@
 			};
 			name = Debug;
 		};
-		B4C8AA212DFD14AB00CEAEA9 /* Release */ = {
+		B44347322DFD212F00644724 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -478,7 +478,7 @@
 			};
 			name = Release;
 		};
-		B4C8AA232DFD14AB00CEAEA9 /* Debug */ = {
+		B44347342DFD212F00644724 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
@@ -494,7 +494,7 @@
 			};
 			name = Debug;
 		};
-		B4C8AA242DFD14AB00CEAEA9 /* Release */ = {
+		B44347352DFD212F00644724 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
@@ -513,43 +513,43 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		B4C8A9F62DFD14A900CEAEA9 /* Build configuration list for PBXProject "mobile" */ = {
+		B44347072DFD212E00644724 /* Build configuration list for PBXProject "mobile" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				B4C8AA1A2DFD14AB00CEAEA9 /* Debug */,
-				B4C8AA1B2DFD14AB00CEAEA9 /* Release */,
+				B443472B2DFD212F00644724 /* Debug */,
+				B443472C2DFD212F00644724 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		B4C8AA1C2DFD14AB00CEAEA9 /* Build configuration list for PBXNativeTarget "mobile" */ = {
+		B443472D2DFD212F00644724 /* Build configuration list for PBXNativeTarget "mobile" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				B4C8AA1D2DFD14AB00CEAEA9 /* Debug */,
-				B4C8AA1E2DFD14AB00CEAEA9 /* Release */,
+				B443472E2DFD212F00644724 /* Debug */,
+				B443472F2DFD212F00644724 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		B4C8AA1F2DFD14AB00CEAEA9 /* Build configuration list for PBXNativeTarget "mobileTests" */ = {
+		B44347302DFD212F00644724 /* Build configuration list for PBXNativeTarget "mobileTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				B4C8AA202DFD14AB00CEAEA9 /* Debug */,
-				B4C8AA212DFD14AB00CEAEA9 /* Release */,
+				B44347312DFD212F00644724 /* Debug */,
+				B44347322DFD212F00644724 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		B4C8AA222DFD14AB00CEAEA9 /* Build configuration list for PBXNativeTarget "mobileUITests" */ = {
+		B44347332DFD212F00644724 /* Build configuration list for PBXNativeTarget "mobileUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				B4C8AA232DFD14AB00CEAEA9 /* Debug */,
-				B4C8AA242DFD14AB00CEAEA9 /* Release */,
+				B44347342DFD212F00644724 /* Debug */,
+				B44347352DFD212F00644724 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
-	rootObject = B4C8A9F32DFD14A900CEAEA9 /* Project object */;
+	rootObject = B44347042DFD212E00644724 /* Project object */;
 }
