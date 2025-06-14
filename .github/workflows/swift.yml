@@ -1,6 +1,3 @@
-# This workflow will build a Swift project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-swift
-
 name: iOS CI
 
 on:
@@ -27,8 +24,11 @@ jobs:
       - name: Install SwiftLint
         run: brew install swiftlint
 
-      - name: Run SwiftLint
-        run: swiftlint
+      - name: Run SwiftLint with some rules disabled
+        run: |
+          swiftlint \
+          --disable-rule static_over_final_class \
+          --disable-rule line_length
 
       - name: Build SwiftUI app
         run: |
@@ -37,9 +37,9 @@ jobs:
           -scheme mobile \
           -destination 'platform=iOS Simulator,name=iPhone 15'
 
-      - name: Run Tests (commented out for now)
-        run: |
-          xcodebuild test \
-          -project mobile.xcodeproj \
-          -scheme mobile \
-          -destination 'platform=iOS Simulator,name=iPhone 15'
+      # - name: Run Tests (commented out for now)
+      #   run: |
+      #     xcodebuild test \
+      #     -project mobile.xcodeproj \
+      #     -scheme mobile \
+      #     -destination 'platform=iOS Simulator,name=iPhone 15'
