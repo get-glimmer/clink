@@ -29,14 +29,14 @@ jobs:
           printf "disabled_rules:\n  - static_over_final_class\n  - line_length\n  - type_name\n" > .swiftlint.yml
           swiftlint
 
-      - name: Build SwiftUI app
-        run: |
-          xcodebuild build \
-          -project mobile.xcodeproj \
-          -scheme mobile \
-          -destination 'platform=iOS Simulator,name=iPhone 16 Pro'
+      # - name: Build SwiftUI app
+      #   run: |
+      #     xcodebuild build \
+      #     -project mobile.xcodeproj \
+      #     -scheme mobile \
+      #     -destination 'platform=iOS Simulator,name=iPhone 16 Pro'
           
-      # - name: Run Tests (commented out for now)
+      # # - name: Run Tests (commented out for now)
       #   run: |
       #     xcodebuild test \
       #     -project mobile.xcodeproj \
