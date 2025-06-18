@@ -7,21 +7,12 @@
 
 import SwiftUI
 
-struct homeView: View {
+struct HomeView: View {
     var body: some View {
-        NavigationStack {
-            VStack {
-                Text("Home View")
-
-                NavigationLink("Go to Settings") {
-                    ContentView()
-                }
-            }
-            .navigationTitle("Home")
-        }
+        Text("Home View")
     }
 }
 
 #Preview {
-    homeView()
+    AppRouter()
 }
