@@ -3,14 +3,23 @@ import SwiftUI
 struct AppRouter: View {
     var body: some View {
         TabView {
-            HomeView()
+            TaskView()
                 .tabItem {
-                    Label("Home", systemImage: "house")
+                    Label("Task", systemImage: "house")
                 }
-            HomeView()
+            TrackerView()
                 .tabItem {
-                    Label("Home1", systemImage: "house")
+                    Label("Tracker", systemImage: "calendar")
+                }
+            CommunityView()
+                .tabItem {
+                    Label("Community", systemImage: "person.3.sequence.fill")
+                }
+            ProfileView()
+                .tabItem {
+                    Label("Profile", systemImage: "person.crop.circle.fill")
                 }
         }
     }
 }
+
