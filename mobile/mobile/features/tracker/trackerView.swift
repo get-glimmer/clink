@@ -7,9 +7,9 @@
 
 import SwiftUI
 
-struct HomeView: View {
+struct TrackerView: View {
     var body: some View {
-        Text("Home View")
+        Text("Tracker View")
     }
 }
 
