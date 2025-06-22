@@ -8,7 +8,18 @@
 import SwiftUI
 
 struct authView: View {
+    @Binding var isAuthenticated: Bool
     var body: some View {
-        Text(/*@START_MENU_TOKEN@*/"Hello, World!"/*@END_MENU_TOKEN@*/)
+        VStack(spacing: 20) {
+            Button("Login") {
+                isAuthenticated = true
+            }
+            .buttonStyle(.borderedProminent)
+            Button("Sign In") {
+                isAuthenticated = true
+            }
+            .buttonStyle(.bordered)
+        }
+        .padding()
     }
 }

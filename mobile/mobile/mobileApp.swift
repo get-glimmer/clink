@@ -12,7 +12,9 @@ struct mobileApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     var body: some Scene {
         WindowGroup {
-            AppRouter()
+            RootView()
         }
     }
 }
+
+
