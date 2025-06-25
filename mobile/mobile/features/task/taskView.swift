@@ -13,6 +13,3 @@ struct TaskView: View {
     }
 }
 
-#Preview {
-    AppRouter()
-}
