@@ -1,2 +1,12 @@
 .DS_store
 .env
+
+# Xcode user data
+*.xcuserstate
+*.xcuserdatad/
+*.xccheckout
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcscmblueprint
+*.xcdebugger
+**/*.xcodeproj/xcshareddata/

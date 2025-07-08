@@ -8,8 +8,17 @@
 import SwiftUI
 
 struct TaskView: View {
+    @StateObject private var viewModel = TaskViewModel()
+    
     var body: some View {
-        Text("Task View")
+        VStack(spacing: 20) {
+            Text("Task View")
+                .font(.title)
+            Text(viewModel.statusMessage)
+                .foregroundColor(viewModel.isSupabaseConnected ? .green : .red)
+                .font(.headline)
+        }
+        .padding()
     }
 }
 
