@@ -6,7 +6,8 @@ struct RootView: View {
         if isAuthenticated {
             AppRouter()
         } else {
-            authView(isAuthenticated: $isAuthenticated)
+            // AuthView(viewModel: AuthViewModel(), isAuthenticated: $isAuthenticated)
+            AppRouter()
         }
     }
 }

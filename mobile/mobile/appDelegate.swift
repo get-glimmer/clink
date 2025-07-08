@@ -7,7 +7,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil
     ) -> Bool {
         // Initialize Supabase client
-        // SupabaseClientManager.shared.initialize()
+        SupabaseClientManager.shared.initialize()
         return true
     }
 }
