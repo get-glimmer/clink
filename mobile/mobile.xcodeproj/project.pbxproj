@@ -6,6 +6,16 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		01463A062E1AAFCD004B5FFB /* ElegantCalendar in Frameworks */ = {isa = PBXBuildFile; productRef = 01463A052E1AAFCD004B5FFB /* ElegantCalendar */; };
+		0168FE3C2E1A3F2C00497E95 /* Auth in Frameworks */ = {isa = PBXBuildFile; productRef = 0168FE3B2E1A3F2C00497E95 /* Auth */; };
+		0168FE3E2E1A3F2C00497E95 /* Functions in Frameworks */ = {isa = PBXBuildFile; productRef = 0168FE3D2E1A3F2C00497E95 /* Functions */; };
+		0168FE402E1A3F2C00497E95 /* PostgREST in Frameworks */ = {isa = PBXBuildFile; productRef = 0168FE3F2E1A3F2C00497E95 /* PostgREST */; };
+		0168FE422E1A3F2C00497E95 /* Realtime in Frameworks */ = {isa = PBXBuildFile; productRef = 0168FE412E1A3F2C00497E95 /* Realtime */; };
+		0168FE442E1A3F2C00497E95 /* Storage in Frameworks */ = {isa = PBXBuildFile; productRef = 0168FE432E1A3F2C00497E95 /* Storage */; };
+		019B0AFB2E1A404D004E2AC5 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 019B0AFA2E1A404D004E2AC5 /* Supabase */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		B443471A2DFD212F00644724 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +62,13 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0168FE402E1A3F2C00497E95 /* PostgREST in Frameworks */,
+				01463A062E1AAFCD004B5FFB /* ElegantCalendar in Frameworks */,
+				0168FE3E2E1A3F2C00497E95 /* Functions in Frameworks */,
+				019B0AFB2E1A404D004E2AC5 /* Supabase in Frameworks */,
+				0168FE3C2E1A3F2C00497E95 /* Auth in Frameworks */,
+				0168FE442E1A3F2C00497E95 /* Storage in Frameworks */,
+				0168FE422E1A3F2C00497E95 /* Realtime in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -72,12 +89,20 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		019B0AF92E1A4045004E2AC5 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		B44347032DFD212E00644724 = {
 			isa = PBXGroup;
 			children = (
 				B443470E2DFD212E00644724 /* mobile */,
 				B443471C2DFD212F00644724 /* mobileTests */,
 				B44347262DFD212F00644724 /* mobileUITests */,
+				019B0AF92E1A4045004E2AC5 /* Frameworks */,
 				B443470D2DFD212E00644724 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -112,6 +137,13 @@
 			);
 			name = mobile;
 			packageProductDependencies = (
+				0168FE3B2E1A3F2C00497E95 /* Auth */,
+				0168FE3D2E1A3F2C00497E95 /* Functions */,
+				0168FE3F2E1A3F2C00497E95 /* PostgREST */,
+				0168FE412E1A3F2C00497E95 /* Realtime */,
+				0168FE432E1A3F2C00497E95 /* Storage */,
+				019B0AFA2E1A404D004E2AC5 /* Supabase */,
+				01463A052E1AAFCD004B5FFB /* ElegantCalendar */,
 			);
 			productName = mobile;
 			productReference = B443470C2DFD212E00644724 /* mobile.app */;
@@ -195,6 +227,10 @@
 			);
 			mainGroup = B44347032DFD212E00644724;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				0168FE3A2E1A3DB900497E95 /* XCRemoteSwiftPackageReference "supabase-swift" */,
+				01463A042E1AAFCD004B5FFB /* XCRemoteSwiftPackageReference "ElegantCalendar" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = B443470D2DFD212E00644724 /* Products */;
 			projectDirPath = "";
@@ -410,7 +446,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = Soohyeuk.mobile;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
@@ -437,7 +473,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = Soohyeuk.mobile;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
@@ -550,6 +586,63 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		01463A042E1AAFCD004B5FFB /* XCRemoteSwiftPackageReference "ElegantCalendar" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ThasianX/ElegantCalendar";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 4.3.2;
+			};
+		};
+		0168FE3A2E1A3DB900497E95 /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.5.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		01463A052E1AAFCD004B5FFB /* ElegantCalendar */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 01463A042E1AAFCD004B5FFB /* XCRemoteSwiftPackageReference "ElegantCalendar" */;
+			productName = ElegantCalendar;
+		};
+		0168FE3B2E1A3F2C00497E95 /* Auth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0168FE3A2E1A3DB900497E95 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Auth;
+		};
+		0168FE3D2E1A3F2C00497E95 /* Functions */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0168FE3A2E1A3DB900497E95 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Functions;
+		};
+		0168FE3F2E1A3F2C00497E95 /* PostgREST */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0168FE3A2E1A3DB900497E95 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = PostgREST;
+		};
+		0168FE412E1A3F2C00497E95 /* Realtime */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0168FE3A2E1A3DB900497E95 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Realtime;
+		};
+		0168FE432E1A3F2C00497E95 /* Storage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0168FE3A2E1A3DB900497E95 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Storage;
+		};
+		019B0AFA2E1A404D004E2AC5 /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0168FE3A2E1A3DB900497E95 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = B44347042DFD212E00644724 /* Project object */;
 }

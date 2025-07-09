@@ -7,14 +7,17 @@ struct AppRouter: View {
                 .tabItem {
                     Label("Task", systemImage: "house")
                 }
+            
             TrackerView()
                 .tabItem {
                     Label("Tracker", systemImage: "calendar")
                 }
+            
             CommunityView()
                 .tabItem {
                     Label("Community", systemImage: "person.3.sequence.fill")
                 }
+            
             ProfileView()
                 .tabItem {
                     Label("Profile", systemImage: "person.crop.circle.fill")
@@ -22,4 +25,3 @@ struct AppRouter: View {
         }
     }
 }
-
