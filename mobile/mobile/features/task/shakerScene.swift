@@ -23,7 +23,7 @@ final class shakerScene: SKScene {
 
     // MARK: - Edge-loop inset
     private let inset: CGFloat = 14
-    private let lidHeight: CGFloat = 26
+    private let lidHeight: CGFloat = 0
 
     // MARK: - Life-cycle
     override init(size: CGSize) {
@@ -47,6 +47,7 @@ final class shakerScene: SKScene {
 
         physicsWorld.gravity = airGravity
     }
+    
 
     // MARK: - Public toggles
     func toggleShaker() {
@@ -71,17 +72,33 @@ final class shakerScene: SKScene {
             physicsWorld.gravity = CGVector(dx: filteredGravity.dx * self.oilGravityScale,
                                             dy: filteredGravity.dy * self.oilGravityScale)
             
-            /* 2. shakiing → apply force to each marble */
+            /* 2. shaking → apply force to each marble */
             let ua = dm.userAcceleration
-            // 가속·감속 순간만 사용, remove noise
             let ax = abs(ua.x) > 0.02 ? ua.x : 0
             let ay = abs(ua.y) > 0.02 ? ua.y : 0
-            if ax != 0 || ay != 0 {
-                let force = CGVector(dx: ax * self.accScale,
-                                     dy: ay * self.accScale)
-                // apply force to each emoji node
+            let mag = hypot(ax, ay)
+
+            // 임계값 이상일 때만 힘 주입
+            if mag > 0.02 {
+                let baseForce = CGVector(dx: ax * accScale,
+                                         dy: ay * accScale)
+                
                 for case let label as SKLabelNode in self.children {
-                    label.physicsBody?.applyForce(force)
+                    guard let body = label.physicsBody else { continue }
+                    
+                    // ➜ 무작위 각도 ±15° 회전, 길이는 80~120 % 랜덤
+                    let angleJitter = CGFloat.random(in: -(.pi/12)...(.pi/12))
+                    let lenFactor   = CGFloat.random(in: 0.7...1.3)
+                    
+                    let rotated = CGVector(dx:  baseForce.dx * cos(angleJitter)
+                                                  - baseForce.dy * sin(angleJitter),
+                                           dy:  baseForce.dx * sin(angleJitter)
+                                                  + baseForce.dy * cos(angleJitter))
+                    
+                    let final = CGVector(dx: rotated.dx * lenFactor,
+                                         dy: rotated.dy * lenFactor)
+                    
+                    body.applyForce(final)
                 }
             }
         }
@@ -102,7 +119,7 @@ final class shakerScene: SKScene {
 
         let node = SKLabelNode(fontNamed: "AppleColorEmoji")
         node.text = symbol
-        node.fontSize = 57.5
+        node.fontSize = 57
         node.verticalAlignmentMode = .center
         node.position = CGPoint(x: spawnX, y: spawnY)
         node.zPosition = 50
@@ -120,7 +137,7 @@ final class shakerScene: SKScene {
         if isMotionOn {
             body.restitution = 0.5
             body.friction = 0.9
-            body.linearDamping = 0.95
+            body.linearDamping = 0.8
             body.angularDamping = 0.9
         } else {
             body.restitution = 0.05
