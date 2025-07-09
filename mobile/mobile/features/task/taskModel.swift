@@ -4,7 +4,7 @@ struct TaskItem: Codable, Identifiable {
     let id: UUID
     let title: String
     let content: String
-    let isCompleted: Bool
+    var isCompleted: Bool
     let dueDate: Date?
 
     enum CodingKeys: String, CodingKey {
