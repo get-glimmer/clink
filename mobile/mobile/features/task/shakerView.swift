@@ -40,9 +40,9 @@ struct shakerView: View {
             // Control buttons
             /* ── 1st row ── */
             HStack(spacing: 24) {
-                ForEach([1, 2, 3], id: \.self) { n in
-                    Button("\(n)") {
-                        if let emoji = emojiMap[n] { scene.dropEmoji(emoji) }
+                ForEach([1, 2, 3], id: \.self) { num in
+                    Button("\(num)") {
+                        if let emoji = emojiMap[num] { scene.dropEmoji(emoji) }
                     }
                     .font(.title)
                     .frame(width: 56, height: 56)
