@@ -25,3 +25,9 @@ struct AppRouter: View {
         }
     }
 }
+
+struct AppRouterPreview: PreviewProvider {
+    static var previews: some View {
+        AppRouter()
+    }
+}
