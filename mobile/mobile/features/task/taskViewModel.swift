@@ -32,6 +32,7 @@ class TaskViewModel: ObservableObject {
                     .from("category")
                     .select()
                     .eq("userid", value: userId)
+                    .order("createdat", ascending: true)
                     .execute()
                     .value
 
@@ -42,6 +43,7 @@ class TaskViewModel: ObservableObject {
                         .select()
                         .eq("userid", value: userId)
                         .eq("categoryid", value: category.id.uuidString)
+                        .order("createdat", ascending: true)
                         .execute()
                         .value
                     result.append(CategoryWithTasks(id: category.id, category: category, tasks: tasks))
@@ -62,6 +64,23 @@ class TaskViewModel: ObservableObject {
                 }
                 break
             }
+        }
+    }
+    func createTask(categoryId: UUID) async {
+        guard let client = self.client else { return }
+        guard let userId = self.userId else { return }
+        do {
+            // TODO: Current hardcoded title and content should be dynamic
+            try await client.from("task").insert([
+                "categoryid": categoryId.uuidString,
+                "userid": userId,
+                "tasktitle": "New Task",
+                "taskcontent": "New Task Content"
+            ]).execute()
+            fetchCategoriesAndTasks()
+        } catch {
+            // Handle error if needed
+            print("Failed to insert task: \(error)")
         }
     }
 

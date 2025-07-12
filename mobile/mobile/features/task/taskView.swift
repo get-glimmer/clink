@@ -41,8 +41,10 @@ struct TaskView: View {
                         .frame(width: 370, height: 368)
                         .foregroundColor(.primary.opacity(0.05))
                     
-                    Text("Daily Task")
-                        .font(.headline)
+                    HStack {
+                        Text("Daily Task")
+                            .font(.headline)
+                    }
 
                     ForEach(viewModel.categoriesWithTasks) { categoryWithTasks in
                         VStack(alignment: .leading, spacing: 8) {
@@ -50,6 +52,18 @@ struct TaskView: View {
                                 Text(categoryWithTasks.category.emoji)
                                 Text(categoryWithTasks.category.name)
                                     .font(.headline)
+                                Spacer()
+                                Button(action: {
+                                    // TODO: Allow user to create task with title and content in a pop up
+                                    Task {
+                                        await viewModel.createTask(categoryId: categoryWithTasks.category.id)
+                                    }
+                                }) { 
+                                    Image(systemName: "plus")
+                                        .imageScale(.small)
+                                        .frame(width: 20, height: 30)
+                                        .foregroundColor(.primary)
+                                }
                             }
                             ForEach(categoryWithTasks.tasks) { task in
                                 HStack {
