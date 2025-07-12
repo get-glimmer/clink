@@ -30,10 +30,3 @@ struct AuthView: View {
         .padding()
     }
 }
-
-// Preview
-struct AuthView_Previews: PreviewProvider {
-    static var previews: some View {
-        AuthView(isAuthenticated: .constant(false))
-    }
-}

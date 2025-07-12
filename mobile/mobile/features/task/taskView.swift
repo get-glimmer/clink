@@ -8,7 +8,6 @@
 import SwiftUI
 
 struct TaskView: View {
-    @State private var userId = getUserId()
     @StateObject private var viewModel: TaskViewModel
     
     init() {
@@ -33,8 +32,9 @@ struct TaskView: View {
                     }
                     .padding(.trailing)
                 }
+                .frame(maxWidth: .infinity, alignment: .center)
             }
-
+            .frame(maxWidth: .infinity, alignment: .center)
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     RoundedRectangle(cornerRadius: 16)
