@@ -4,32 +4,51 @@ import Combine
 @MainActor
 class TaskViewModel: ObservableObject {
     @Published var isSupabaseConnected: Bool = false
-    @Published var tasks: [TaskItem] = []
+    @Published var categoriesWithTasks: [CategoryWithTasks] = []
 
     private var cancellables = Set<AnyCancellable>()
     private let client = SupabaseClientManager.shared.client
+    private let userId: String?
 
-    init() {
-        fetchTasks()
+    init(userId: String?) {
+        self.userId = userId
+        fetchCategoriesAndTasks()
     }
 
-    func fetchTasks() {
+    func fetchCategoriesAndTasks() {
         guard let client = self.client else {
             self.isSupabaseConnected = false
             return
         }
-        
-        self.isSupabaseConnected = true // Tentatively set to true
+        guard let userId = self.userId else {
+            self.isSupabaseConnected = false
+            return
+        }
+        self.isSupabaseConnected = true
 
         Task {
             do {
-                let response: [TaskItem] = try await client
-                    .from("task")
+                let categories: [CategoryItem] = try await client
+                    .from("category")
                     .select()
+                    .eq("userid", value: userId)
+                    .order("createdat", ascending: true)
                     .execute()
                     .value
-                
-                tasks = response
+
+                var result: [CategoryWithTasks] = []
+                for category in categories {
+                    let tasks: [TaskItem] = try await client
+                        .from("task")
+                        .select()
+                        .eq("userid", value: userId)
+                        .eq("categoryid", value: category.id.uuidString)
+                        .order("createdat", ascending: true)
+                        .execute()
+                        .value
+                    result.append(CategoryWithTasks(id: category.id, category: category, tasks: tasks))
+                }
+                categoriesWithTasks = result
             } catch {
                 isSupabaseConnected = false
             }
@@ -37,20 +56,43 @@ class TaskViewModel: ObservableObject {
     }
 
     func toggleTaskCompletion(task: TaskItem) {
-        guard let index = tasks.firstIndex(where: { $0.id == task.id }) else { return }
-        tasks[index].isCompleted.toggle()
-        Task {
-            await updateTaskCompletionStatus(task: tasks[index])
+        for (catIdx, cat) in categoriesWithTasks.enumerated() {
+            if let taskIdx = cat.tasks.firstIndex(where: { $0.id == task.id }) {
+                categoriesWithTasks[catIdx].tasks[taskIdx].isCompleted.toggle()
+                Task {
+                    await updateTaskCompletionStatus(task: categoriesWithTasks[catIdx].tasks[taskIdx])
+                }
+                break
+            }
+        }
+    }
+    func createTask(categoryId: UUID) async {
+        guard let client = self.client else { return }
+        guard let userId = self.userId else { return }
+        do {
+            // TODO: Current hardcoded title and content should be dynamic
+            try await client.from("task").insert([
+                "categoryid": categoryId.uuidString,
+                "userid": userId,
+                "tasktitle": "New Task",
+                "taskcontent": "New Task Content"
+            ]).execute()
+            fetchCategoriesAndTasks()
+        } catch {
+            // Handle error if needed
+            print("Failed to insert task: \(error)")
         }
     }
 
     func updateTaskCompletionStatus(task: TaskItem) async {
         guard let client = self.client else { return }
+        guard let userId = self.userId else { return }
         do {
             try await client
                 .from("task")
                 .update(["iscompleted": task.isCompleted])
                 .eq("taskid", value: task.id)
+                .eq("userid", value: userId)
                 .execute()
         } catch {
             // Handle error if needed
@@ -59,15 +101,20 @@ class TaskViewModel: ObservableObject {
 
     func deleteTask(task: TaskItem) async {
         guard let client = self.client else { return }
+        guard let userId = self.userId else { return }
         do {
             try await client
                 .from("task")
                 .delete()
                 .eq("taskid", value: task.id)
+                .eq("userid", value: userId)
                 .execute()
             // Remove from local list after successful deletion
-            if let index = tasks.firstIndex(where: { $0.id == task.id }) {
-                tasks.remove(at: index)
+            for (catIdx, cat) in categoriesWithTasks.enumerated() {
+                if let taskIdx = cat.tasks.firstIndex(where: { $0.id == task.id }) {
+                    categoriesWithTasks[catIdx].tasks.remove(at: taskIdx)
+                    break
+                }
             }
         } catch {
             // Handle error if needed
