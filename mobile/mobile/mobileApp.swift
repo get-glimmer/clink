@@ -12,8 +12,8 @@ struct mobileApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     var body: some Scene {
         WindowGroup {
-            //RootView()
-            shakerView()
+            RootView()
+//            shakerView()
         }
     }
 }
