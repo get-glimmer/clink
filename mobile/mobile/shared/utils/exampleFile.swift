@@ -19,3 +19,18 @@ func saveUserName() {
 func getUserName() -> String? {
     return UserDefaults.standard.string(forKey: "userName")
 }
+
+// Date utility for PostgreSQL date formats
+func dateFromPostgreSQL(_ dateString: String?) -> Date? {
+    guard let dateString = dateString else { return nil }
+    let formatter = DateFormatter()
+    formatter.dateFormat = "yyyy-MM-dd"
+    return formatter.date(from: dateString)
+}
+
+// Utility to get today's date as yyyy-MM-dd string
+func todayString() -> String {
+    let formatter = DateFormatter()
+    formatter.dateFormat = "yyyy-MM-dd"
+    return formatter.string(from: Date())
+}

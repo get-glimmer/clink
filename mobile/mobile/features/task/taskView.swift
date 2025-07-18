@@ -9,7 +9,8 @@ import SwiftUI
 
 struct TaskView: View {
     @StateObject private var viewModel: TaskViewModel
-    
+    @State private var editingTexts: [UUID: String] = [:]
+    @FocusState private var focusedTaskId: UUID?
     init() {
         let userId = getUserId()
         _viewModel = StateObject(wrappedValue: TaskViewModel(userId: userId))
@@ -32,9 +33,8 @@ struct TaskView: View {
                     }
                     .padding(.trailing)
                 }
-                .frame(maxWidth: .infinity, alignment: .center)
             }
-            .frame(maxWidth: .infinity, alignment: .center)
+
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     RoundedRectangle(cornerRadius: 16)
@@ -59,9 +59,7 @@ struct TaskView: View {
                                         .font(.headline)
                                     Spacer()
                                     Button(action: {
-                                        Task {
-                                            await viewModel.createTask(categoryId: categoryWithTasks.category.id)
-                                        }
+                                        viewModel.createTemporaryTask(categoryId: categoryWithTasks.category.id)
                                     }) {
                                         Image(systemName: "plus")
                                             .imageScale(.small)
@@ -72,37 +70,69 @@ struct TaskView: View {
                                 ForEach(categoryWithTasks.tasks) { task in
                                     HStack(spacing: 12) {
                                         Button(action: {
-                                            viewModel.toggleTaskCompletion(task: task)
+                                            if !task.isTemporary {
+                                                viewModel.toggleTaskCompletion(task: task)
+                                            }
                                         }) {
                                             Image(systemName: task.isCompleted ? "checkmark.circle" : "circle")
                                                 .foregroundColor(.primary)
                                                 .imageScale(.large)
                                         }
                                         .buttonStyle(PlainButtonStyle())
-                                        Text(task.title)
-                                            .font(.body)
-                                            .strikethrough(task.isCompleted, color: .primary)
-                                            .foregroundColor(.primary)
-                                        Spacer()
-                                        Menu {
-                                            Button("Delete") {
-                                                Task {
-                                                    await viewModel.deleteTask(task: task)
+                                        .disabled(task.isTemporary)
+                                        
+                                        if task.isTemporary {
+                                            ZStack {
+                                                RoundedRectangle(cornerRadius: 8)
+                                                    .foregroundColor(Color(.systemGray6))
+                                                TextField("Type...", text: Binding(
+                                                    get: { editingTexts[task.id] ?? "" },
+                                                    set: { editingTexts[task.id] = $0 }
+                                                ))
+                                                .font(.body)
+                                                .padding(8)
+                                                .background(Color.clear)
+                                                .textFieldStyle(PlainTextFieldStyle())
+                                                .focused($focusedTaskId, equals: task.id)
+                                                .onAppear {
+                                                    editingTexts[task.id] = ""
+                                                    focusedTaskId = task.id
+                                                }
+                                                .onSubmit {
+                                                    handleTaskSubmit(task: task)
                                                 }
                                             }
-                                        } label: {
-                                            Image(systemName: "ellipsis")
+                                            .frame(height: 36)
+                                        } else {
+                                            Text(task.title)
+                                                .font(.body)
+                                                .strikethrough(task.isCompleted, color: .primary)
                                                 .foregroundColor(.primary)
-                                                .imageScale(.small)
-                                                .frame(width: 20, height: 30)
                                         }
-                                        .contentShape(Rectangle())
+                                        
+                                        Spacer()
+                                        
+                                        if !task.isTemporary {
+                                            Menu {
+                                                Button("Delete") {
+                                                    Task {
+                                                        await viewModel.deleteTask(task: task)
+                                                    }
+                                                }
+                                            } label: {
+                                                Image(systemName: "ellipsis")
+                                                    .foregroundColor(.primary)
+                                                    .imageScale(.small)
+                                                    .frame(width: 20, height: 30)
+                                            }
+                                            .contentShape(Rectangle())
+                                        }
                                     }
                                 }
                             }
                             .padding(20)
                         }
-                        .frame(maxWidth: .infinity, minHeight: 120)
+                        .frame(maxWidth: .infinity, minHeight: categoryWithTasks.tasks.isEmpty ? 60 : 120)
                         .padding(.vertical, 4)
                     }
                 }
@@ -111,5 +141,17 @@ struct TaskView: View {
         }
         .padding()
     }
+    
+    private func handleTaskSubmit(task: TaskItem) {
+        let text = editingTexts[task.id] ?? ""
+        if !text.isEmpty {
+            Task {
+                await viewModel.saveTemporaryTask(task: task, newTitle: text)
+            }
+        } else {
+            viewModel.removeTemporaryTask(task: task)
+        }
+        editingTexts.removeValue(forKey: task.id)
+        focusedTaskId = nil
+    }
 }
-

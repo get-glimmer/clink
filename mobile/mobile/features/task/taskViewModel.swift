@@ -43,6 +43,7 @@ class TaskViewModel: ObservableObject {
                         .select()
                         .eq("userid", value: userId)
                         .eq("categoryid", value: category.id.uuidString)
+                        .eq("duedate", value: todayString()) // Use util function
                         .order("createdat", ascending: true)
                         .execute()
                         .value
@@ -66,23 +67,71 @@ class TaskViewModel: ObservableObject {
             }
         }
     }
-    func createTask(categoryId: UUID) async {
+
+    func createTemporaryTask(categoryId: UUID) {
+        // Create a temporary task locally without server communication
+        let temporaryTask = TaskItem(
+            id: UUID(),
+            title: "",
+            isCompleted: false,
+            dueDate: nil,
+            isTemporary: true
+        )
+        
+        // Find the category and add the temporary task
+        for (catIdx, cat) in categoriesWithTasks.enumerated() {
+            if cat.category.id == categoryId {
+                categoriesWithTasks[catIdx].tasks.append(temporaryTask)
+                break
+            }
+        }
+    }
+    
+    func saveTemporaryTask(task: TaskItem, newTitle: String) async {
         guard let client = self.client else { return }
         guard let userId = self.userId else { return }
+        guard task.isTemporary else { return }
+        
+        // Find the category this task belongs to
+        var categoryId: UUID?
+        var categoryEmoji: String? = nil
+        for cat in categoriesWithTasks {
+            if cat.tasks.contains(where: { $0.id == task.id }) {
+                categoryId = cat.category.id
+                categoryEmoji = cat.category.emoji
+                break
+            }
+        }
+        
+        guard let categoryId = categoryId else { return }
+        
         do {
-            // TODO: Current hardcoded title and content should be dynamic
+            // Save to server
             try await client.from("task").insert([
                 "categoryid": categoryId.uuidString,
                 "userid": userId,
-                "tasktitle": "New Task",
-                "taskcontent": "New Task Content"
+                "tasktitle": newTitle
             ]).execute()
+            
+            // Remove temporary task and refresh from server
+            removeTemporaryTask(task: task)
             fetchCategoriesAndTasks()
         } catch {
-            // Handle error if needed
-            print("Failed to insert task: \(error)")
+            print("Failed to save task: \(error)")
+            // Keep the temporary task if save failed
         }
     }
+    
+    func removeTemporaryTask(task: TaskItem) {
+        for (catIdx, cat) in categoriesWithTasks.enumerated() {
+            if let taskIdx = cat.tasks.firstIndex(where: { $0.id == task.id }) {
+                categoriesWithTasks[catIdx].tasks.remove(at: taskIdx)
+                break
+            }
+        }
+    }
+
+
 
     func updateTaskCompletionStatus(task: TaskItem) async {
         guard let client = self.client else { return }
