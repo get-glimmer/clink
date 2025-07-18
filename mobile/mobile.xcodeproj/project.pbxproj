@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		01463A062E1AAFCD004B5FFB /* ElegantCalendar in Frameworks */ = {isa = PBXBuildFile; productRef = 01463A052E1AAFCD004B5FFB /* ElegantCalendar */; };
 		0168FE3C2E1A3F2C00497E95 /* Auth in Frameworks */ = {isa = PBXBuildFile; productRef = 0168FE3B2E1A3F2C00497E95 /* Auth */; };
 		0168FE3E2E1A3F2C00497E95 /* Functions in Frameworks */ = {isa = PBXBuildFile; productRef = 0168FE3D2E1A3F2C00497E95 /* Functions */; };
 		0168FE402E1A3F2C00497E95 /* PostgREST in Frameworks */ = {isa = PBXBuildFile; productRef = 0168FE3F2E1A3F2C00497E95 /* PostgREST */; };
@@ -63,7 +62,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				0168FE402E1A3F2C00497E95 /* PostgREST in Frameworks */,
-				01463A062E1AAFCD004B5FFB /* ElegantCalendar in Frameworks */,
 				0168FE3E2E1A3F2C00497E95 /* Functions in Frameworks */,
 				019B0AFB2E1A404D004E2AC5 /* Supabase in Frameworks */,
 				0168FE3C2E1A3F2C00497E95 /* Auth in Frameworks */,
@@ -143,7 +141,6 @@
 				0168FE412E1A3F2C00497E95 /* Realtime */,
 				0168FE432E1A3F2C00497E95 /* Storage */,
 				019B0AFA2E1A404D004E2AC5 /* Supabase */,
-				01463A052E1AAFCD004B5FFB /* ElegantCalendar */,
 			);
 			productName = mobile;
 			productReference = B443470C2DFD212E00644724 /* mobile.app */;
@@ -229,7 +226,6 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				0168FE3A2E1A3DB900497E95 /* XCRemoteSwiftPackageReference "supabase-swift" */,
-				01463A042E1AAFCD004B5FFB /* XCRemoteSwiftPackageReference "ElegantCalendar" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = B443470D2DFD212E00644724 /* Products */;
@@ -588,14 +584,6 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		01463A042E1AAFCD004B5FFB /* XCRemoteSwiftPackageReference "ElegantCalendar" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/ThasianX/ElegantCalendar";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 4.3.2;
-			};
-		};
 		0168FE3A2E1A3DB900497E95 /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/supabase/supabase-swift";
@@ -607,11 +595,6 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		01463A052E1AAFCD004B5FFB /* ElegantCalendar */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 01463A042E1AAFCD004B5FFB /* XCRemoteSwiftPackageReference "ElegantCalendar" */;
-			productName = ElegantCalendar;
-		};
 		0168FE3B2E1A3F2C00497E95 /* Auth */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 0168FE3A2E1A3DB900497E95 /* XCRemoteSwiftPackageReference "supabase-swift" */;
