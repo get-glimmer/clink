@@ -5,8 +5,9 @@
 
 import SpriteKit
 import CoreMotion
+import Combine
 
-final class shakerScene: SKScene {
+final class shakerScene: SKScene, ObservableObject {
 
     // MARK: - Motion
     private let motion = CMMotionManager()
@@ -29,6 +30,7 @@ final class shakerScene: SKScene {
     override init(size: CGSize) {
         super.init(size: size)
         anchorPoint = .init(x: 0.5, y: 0.5)
+        backgroundColor = .white // For debug: show scene is visible
     }
     required init?(coder: NSCoder) { fatalError("not implemented") }
 
@@ -111,6 +113,7 @@ final class shakerScene: SKScene {
 
     // MARK: - Drop new marble
     func dropEmoji(_ symbol: String) {
+        print("dropEmoji called with symbol: \(symbol)")
         let margin: CGFloat = 14
         let minX = -size.width/2 + margin
         let maxX =  size.width/2 - margin
@@ -119,14 +122,15 @@ final class shakerScene: SKScene {
 
         let node = SKLabelNode(fontNamed: "AppleColorEmoji")
         node.text = symbol
-        node.fontSize = 57
+        node.fontSize = 57 // Default or smaller for better fit
         node.verticalAlignmentMode = .center
         node.position = CGPoint(x: spawnX, y: spawnY)
-        node.zPosition = 50
+        node.zPosition = 100 // Keep on top
 
         //let radius: CGFloat = 27
         node.physicsBody = makeBody()
         addChild(node)
+        print("post dropEmoji called with symbol: \(symbol)")
     }
 
     // MARK: - Helpers
@@ -162,3 +166,6 @@ final class shakerScene: SKScene {
         }
     }
 }
+
+
+// change the completed_tasks to an empty array

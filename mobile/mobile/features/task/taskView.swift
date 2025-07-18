@@ -11,7 +11,6 @@ struct TaskView: View {
     @StateObject private var viewModel: TaskViewModel
     @State private var editingTexts: [UUID: String] = [:]
     @FocusState private var focusedTaskId: UUID?
-    
     init() {
         let userId = getUserId()
         _viewModel = StateObject(wrappedValue: TaskViewModel(userId: userId))
@@ -38,10 +37,7 @@ struct TaskView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    RoundedRectangle(cornerRadius: 16)
-                        .frame(width: 370, height: 368)
-                        .foregroundColor(.primary.opacity(0.05))
-                    
+                    shakerView(emojiToDrop: viewModel.emojiToDrop)
                     HStack {
                         Text("Daily Task")
                             .font(.headline)

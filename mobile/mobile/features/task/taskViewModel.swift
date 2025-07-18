@@ -5,6 +5,7 @@ import Combine
 class TaskViewModel: ObservableObject {
     @Published var isSupabaseConnected: Bool = false
     @Published var categoriesWithTasks: [CategoryWithTasks] = []
+    @Published var emojiToDrop: String? = nil
 
     private var cancellables = Set<AnyCancellable>()
     private let client = SupabaseClientManager.shared.client
@@ -58,9 +59,21 @@ class TaskViewModel: ObservableObject {
     func toggleTaskCompletion(task: TaskItem) {
         for (catIdx, cat) in categoriesWithTasks.enumerated() {
             if let taskIdx = cat.tasks.firstIndex(where: { $0.id == task.id }) {
+                let wasCompleted = categoriesWithTasks[catIdx].tasks[taskIdx].isCompleted
                 categoriesWithTasks[catIdx].tasks[taskIdx].isCompleted.toggle()
+                let isNowCompleted = categoriesWithTasks[catIdx].tasks[taskIdx].isCompleted
                 Task {
                     await updateTaskCompletionStatus(task: categoriesWithTasks[catIdx].tasks[taskIdx])
+                }
+                // Only trigger emoji drop when marking as completed
+                if !wasCompleted && isNowCompleted {
+                    let emoji = cat.category.emoji
+                    DispatchQueue.main.async {
+                        self.emojiToDrop = emoji
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            self.emojiToDrop = nil
+                        }
+                    }
                 }
                 break
             }
@@ -93,9 +106,11 @@ class TaskViewModel: ObservableObject {
         
         // Find the category this task belongs to
         var categoryId: UUID?
+        var categoryEmoji: String? = nil
         for cat in categoriesWithTasks {
             if cat.tasks.contains(where: { $0.id == task.id }) {
                 categoryId = cat.category.id
+                categoryEmoji = cat.category.emoji
                 break
             }
         }
