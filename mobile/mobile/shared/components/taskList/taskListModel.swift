@@ -1,6 +1,6 @@
 import Foundation
 
-struct TaskItem: Codable, Identifiable {
+struct TaskListItem: Codable, Identifiable {
     let id: UUID
     let title: String
     var isCompleted: Bool
@@ -54,5 +54,5 @@ struct CategoryItem: Codable, Identifiable {
 struct CategoryWithTasks: Identifiable {
     let id: UUID
     let category: CategoryItem
-    var tasks: [TaskItem]
+    var tasks: [TaskListItem]
 }
