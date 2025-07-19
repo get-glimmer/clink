@@ -1,2 +1,6 @@
 .DS_store
+
+# Ignore all user-specific Xcode settings
 *.xcuserstate
+*.xcuserdatad/
+xcuserdata/
