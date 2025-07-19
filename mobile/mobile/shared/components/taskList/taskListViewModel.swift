@@ -133,8 +133,6 @@ class TaskListViewModel: ObservableObject {
         }
     }
 
-
-
     func updateTaskCompletionStatus(task: TaskListItem) async {
         guard let client = self.client else { return }
         guard let userId = self.userId else { return }
