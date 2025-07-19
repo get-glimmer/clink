@@ -52,6 +52,17 @@ class TrackerViewModel: ObservableObject {
     // fetches shakers and saves shaker's date and progress percentage in dict
     func fetchShakers() async throws {
         do {
+            let rawData = try await supabase
+                .from("shaker")
+                .select()
+                .execute()
+                .data
+
+            if let json = try? JSONSerialization.jsonObject(with: rawData, options: []) {
+                print(json)
+            }
+
+            
             let fetchedShakers: [Shaker] = try await supabase
                 .from("shaker")
                 .select()
@@ -59,11 +70,11 @@ class TrackerViewModel: ObservableObject {
                 .value
             
             var record: [String: String] = [:]
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd"
             
             for shaker in fetchedShakers {
-                let shakerDate = formatter.string(from: shaker.date)
+                // this is used when the accepted shaker.date is Date. However, for some reason it's treating as String?
+//                let shakerDate = formattedDate(shaker.date)
+                let shakerDate = shaker.date
                 let shakerProgress = String(format: "%.0f%%", Double(shaker.completed_tasks.count) / Double(shaker.total_tasks) * 100)
                 
                 record[shakerDate] = shakerProgress
@@ -74,6 +85,7 @@ class TrackerViewModel: ObservableObject {
             
         } catch {
             self.isErrorLoadingShakers = error.localizedDescription
+            print(isErrorLoadingShakers)
         }
         isLoadingShakers = false
     }
