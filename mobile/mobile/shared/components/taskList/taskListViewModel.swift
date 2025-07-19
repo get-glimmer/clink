@@ -2,7 +2,7 @@ import Foundation
 import Combine
 
 @MainActor
-class TaskViewModel: ObservableObject {
+class TaskListViewModel: ObservableObject {
     @Published var isSupabaseConnected: Bool = false
     @Published var categoriesWithTasks: [CategoryWithTasks] = []
 
@@ -38,11 +38,12 @@ class TaskViewModel: ObservableObject {
 
                 var result: [CategoryWithTasks] = []
                 for category in categories {
-                    let tasks: [TaskItem] = try await client
+                    let tasks: [TaskListItem] = try await client
                         .from("task")
                         .select()
                         .eq("userid", value: userId)
                         .eq("categoryid", value: category.id.uuidString)
+                        .eq("duedate", value: todayString()) // Use util function
                         .order("createdat", ascending: true)
                         .execute()
                         .value
@@ -55,7 +56,7 @@ class TaskViewModel: ObservableObject {
         }
     }
 
-    func toggleTaskCompletion(task: TaskItem) {
+    func toggleTaskCompletion(task: TaskListItem) {
         for (catIdx, cat) in categoriesWithTasks.enumerated() {
             if let taskIdx = cat.tasks.firstIndex(where: { $0.id == task.id }) {
                 categoriesWithTasks[catIdx].tasks[taskIdx].isCompleted.toggle()
@@ -69,11 +70,12 @@ class TaskViewModel: ObservableObject {
 
     func createTemporaryTask(categoryId: UUID) {
         // Create a temporary task locally without server communication
-        let temporaryTask = TaskItem(
+        let today = dateFromPostgreSQL(todayString())
+        let temporaryTask = TaskListItem(
             id: UUID(),
             title: "",
             isCompleted: false,
-            dueDate: nil,
+            dueDate: today,
             isTemporary: true
         )
         
@@ -86,16 +88,18 @@ class TaskViewModel: ObservableObject {
         }
     }
     
-    func saveTemporaryTask(task: TaskItem, newTitle: String) async {
+    func saveTemporaryTask(task: TaskListItem, newTitle: String) async {
         guard let client = self.client else { return }
         guard let userId = self.userId else { return }
         guard task.isTemporary else { return }
         
         // Find the category this task belongs to
         var categoryId: UUID?
+        var categoryEmoji: String? = nil
         for cat in categoriesWithTasks {
             if cat.tasks.contains(where: { $0.id == task.id }) {
                 categoryId = cat.category.id
+                categoryEmoji = cat.category.emoji
                 break
             }
         }
@@ -107,6 +111,7 @@ class TaskViewModel: ObservableObject {
             try await client.from("task").insert([
                 "categoryid": categoryId.uuidString,
                 "userid": userId,
+                "duedate": todayString(),
                 "tasktitle": newTitle
             ]).execute()
             
@@ -119,7 +124,7 @@ class TaskViewModel: ObservableObject {
         }
     }
     
-    func removeTemporaryTask(task: TaskItem) {
+    func removeTemporaryTask(task: TaskListItem) {
         for (catIdx, cat) in categoriesWithTasks.enumerated() {
             if let taskIdx = cat.tasks.firstIndex(where: { $0.id == task.id }) {
                 categoriesWithTasks[catIdx].tasks.remove(at: taskIdx)
@@ -128,9 +133,7 @@ class TaskViewModel: ObservableObject {
         }
     }
 
-
-
-    func updateTaskCompletionStatus(task: TaskItem) async {
+    func updateTaskCompletionStatus(task: TaskListItem) async {
         guard let client = self.client else { return }
         guard let userId = self.userId else { return }
         do {
@@ -145,7 +148,7 @@ class TaskViewModel: ObservableObject {
         }
     }
 
-    func deleteTask(task: TaskItem) async {
+    func deleteTask(task: TaskListItem) async {
         guard let client = self.client else { return }
         guard let userId = self.userId else { return }
         do {
