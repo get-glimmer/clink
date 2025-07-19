@@ -72,8 +72,6 @@ class TrackerViewModel: ObservableObject {
             var record: [String: String] = [:]
             
             for shaker in fetchedShakers {
-                // this is used when the accepted shaker.date is Date. However, for some reason it's treating as String?
-//                let shakerDate = formattedDate(shaker.date)
                 let shakerDate = shaker.date
                 let shakerProgress = String(format: "%.0f%%", Double(shaker.completed_tasks.count) / Double(shaker.total_tasks) * 100)
                 
@@ -85,7 +83,7 @@ class TrackerViewModel: ObservableObject {
             
         } catch {
             self.isErrorLoadingShakers = error.localizedDescription
-            print(isErrorLoadingShakers)
+        
         }
         isLoadingShakers = false
     }
