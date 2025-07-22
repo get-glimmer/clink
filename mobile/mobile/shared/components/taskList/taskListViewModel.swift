@@ -9,9 +9,16 @@ class TaskListViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private let client = SupabaseClientManager.shared.client
     private let userId: String?
+    private var targetDate: Date
 
-    init(userId: String?) {
+    init(userId: String?, date: Date = todayDate()) {
         self.userId = userId
+        self.targetDate = date
+        fetchCategoriesAndTasks()
+    }
+    
+    func updateDate(_ newDate: Date) {
+        targetDate = newDate
         fetchCategoriesAndTasks()
     }
 
@@ -43,7 +50,7 @@ class TaskListViewModel: ObservableObject {
                         .select()
                         .eq("userid", value: userId)
                         .eq("categoryid", value: category.id.uuidString)
-                        .eq("duedate", value: todayString()) // Use util function
+                        .eq("duedate", value: dateToPostgreSQLString(targetDate))
                         .order("createdat", ascending: true)
                         .execute()
                         .value
@@ -70,12 +77,11 @@ class TaskListViewModel: ObservableObject {
 
     func createTemporaryTask(categoryId: UUID) {
         // Create a temporary task locally without server communication
-        let today = dateFromPostgreSQL(todayString())
         let temporaryTask = TaskListItem(
             id: UUID(),
             title: "",
             isCompleted: false,
-            dueDate: today,
+            dueDate: targetDate,
             isTemporary: true
         )
         
@@ -107,11 +113,11 @@ class TaskListViewModel: ObservableObject {
         guard let categoryId = categoryId else { return }
         
         do {
-            // Save to server
+            // Save to server using the target date
             try await client.from("task").insert([
                 "categoryid": categoryId.uuidString,
                 "userid": userId,
-                "duedate": todayString(),
+                "duedate": dateToPostgreSQLString(targetDate),
                 "tasktitle": newTitle
             ]).execute()
             
