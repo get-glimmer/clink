@@ -109,7 +109,7 @@ struct ShakerView: View {
             }
         }
     }
-    
+    /*
     private func gradientFromScene() -> [Color] {
         
         //        let ui = scene.marbleDominantColors(maxCount: 2)
@@ -135,21 +135,47 @@ struct ShakerView: View {
             let c = Color(ui[0]); return [c, c.opacity(0.7)]
         }
         return [.black, .gray]      // none found
-        
-        //        //1) grab up to 3 dominant colors
-        //        let ui = scene.dominantColors(maxCount: 3)
-        //        // 2) Normal case: use #2 and #3
-        //        if ui.count >= 3 {
-        //            return [Color(ui[1]), Color(ui[2])]
-        //        }
-        //
-        //        // 3) Fallbacks
-        //        if ui.count == 2 {          // two colors → use both
-        //            return ui.map { Color($0) }
-        //        }
-        //        if ui.count == 1 {          // one → duplicate with opacity
-        //            let c = Color(ui[0]); return [c, c.opacity(0.7)]
-        //        }
-        //        return [.black, .gray]      // none found
+    }
+     */
+    
+    private func gradientFromScene() -> [Color] {
+        // Grab up to 6 candidate colors
+        let ui = scene.marbleDominantColors(maxCount: 6)
+        guard let first = ui.first else { return [.black, .gray] }
+
+        // Threshold: gives hue difference
+        let threshold: CGFloat = 0.18
+
+        // Find the first colour perceptually far enough from `first`
+        if let distinct = ui.dropFirst().first(where: {
+            $0.perceptualDistance(to: first) >= threshold
+        }) {
+            return [Color(first), Color(distinct)]
+        }
+
+        // Fallbacks: not enough variety
+        if ui.count >= 2 { return ui.prefix(2).map { Color($0) } }
+        if ui.count == 1  { let c = Color(first); return [c, c.opacity(0.7)] }
+        return [.black, .gray]
+    }
+}
+// MARK: - Color helpers
+private extension UIColor {
+    /// Returns HSBA components in 0‥1 range
+    var hsba: (h: CGFloat, s: CGFloat, b: CGFloat, a: CGFloat) {
+        var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        getHue(&h, saturation: &s, brightness: &b, alpha: &a)
+        return (h, s, b, a)
+    }
+
+    /// Quick perceptual distance (Hue + Saturation)
+    func perceptualDistance(to other: UIColor) -> CGFloat {
+        let lhs = self.hsba
+        let rhs = other.hsba
+        // Hue wrap-around handled via min(|Δh|, 1-|Δh|)
+        let dh = abs(lhs.h - rhs.h)
+        let hueDist = min(dh, 1 - dh)
+        let satDist = abs(lhs.s - rhs.s)
+        return hueDist * 0.7 + satDist * 0.3     // weighted
     }
 }
