@@ -10,15 +10,7 @@ struct TrackerView: View {
     let columns = Array(repeating: GridItem(.flexible()), count: 7)
     let weekdaySymbols = Calendar.current.shortStandaloneWeekdaySymbols
     
-    var weekDateRangeString: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d"
-
-        let start = trackerViewModel.selectedWeekStartDate
-        let end = Calendar.current.date(byAdding: .day, value: 6, to: start)!
-
-        return "\(formatter.string(from: start)) - \(formatter.string(from: end))"
-    }
+    
     
     init() {
         let userId = getUserId()
@@ -35,7 +27,7 @@ struct TrackerView: View {
                     showMonthPicker = true
                 }) {
                     HStack(spacing: 4) {
-                        Text(formattedMonthYear(trackerViewModel.currentMonth))
+                        Text(formattedMonthYear(trackerViewModel.selectedMonth))
                             .font(.title2)
                             .fontWeight(.semibold)
                             .foregroundColor(.primary)
@@ -48,7 +40,7 @@ struct TrackerView: View {
                 }
                 .sheet(isPresented: $showMonthPicker) {
                     MonthYearPicker(
-                        selectedDate: $trackerViewModel.currentMonth,
+                        selectedDate: $trackerViewModel.selectedDate,
                         isPresented: $showMonthPicker
                     )
                 }
@@ -58,14 +50,24 @@ struct TrackerView: View {
                 if isWeeklyView {
                     HStack(spacing: 16) {
                         Button(action: {
-                            trackerViewModel.selectedWeekStartDate = Calendar.current.date(byAdding: .day, value: -7, to: trackerViewModel.selectedWeekStartDate)!
+                            trackerViewModel.selectedDate = Calendar.current.date(
+                                byAdding: .weekOfYear,
+                                value: -1,
+                                to: trackerViewModel.selectedWeek
+                            )!
+
                         }) {
                             Image(systemName: "chevron.left")
                         }
 
                 
                         Button(action: {
-                            trackerViewModel.selectedWeekStartDate = Calendar.current.date(byAdding: .day, value: 7, to: trackerViewModel.selectedWeekStartDate)!
+                            trackerViewModel.selectedDate = Calendar.current.date(
+                                byAdding: .weekOfYear,
+                                value: 1,
+                                to: trackerViewModel.selectedWeek
+                            )!
+
                         }) {
                             Image(systemName: "chevron.right")
                         }
@@ -93,8 +95,8 @@ struct TrackerView: View {
                         .frame(maxWidth: .infinity)
                 }
                 
-                // days
-                ForEach(isWeeklyView ? trackerViewModel.daysThisWeek : trackerViewModel.days, id: \.self) { date in
+                // days of weekly/monthly view
+                ForEach(isWeeklyView ? trackerViewModel.daysInWeek : trackerViewModel.daysInMonth, id: \.self) { date in
                     if let date = date {
                         VStack {
                             Text("\(calendar.component(.day, from: date))")

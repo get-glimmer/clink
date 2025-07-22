@@ -5,7 +5,7 @@ struct MonthYearPicker: View {
     @Binding var selectedDate: Date
     @Binding var isPresented: Bool
     
-    // temporary variables before users click "done" button.
+    // gets updated when users click "done" button.
     @State private var tempMonth = Calendar.current.component(.month, from: Date())
     @State private var tempYear = Calendar.current.component(.year, from: Date())
     
@@ -54,9 +54,9 @@ struct MonthYearPicker: View {
     
     // updates "selectedDate" when done button is clicked
     func updateSelectedDate() {
-        let components = DateComponents(year: tempYear, month: tempMonth)
+        let components = DateComponents(year: tempYear, month: tempMonth, day: 1)
         if let newDate = Calendar.current.date(from: components) {
-            selectedDate = Calendar.current.startOfMonth(for: newDate)
+            selectedDate = newDate
         }
     }
 }
