@@ -10,8 +10,7 @@ struct TrackerView: View {
     let columns = Array(repeating: GridItem(.flexible()), count: 7)
     let weekdaySymbols = Calendar.current.shortStandaloneWeekdaySymbols
     
-    
-    
+
     init() {
         let userId = getUserId()
         _viewModel = StateObject(wrappedValue: TaskListViewModel(userId: userId))
@@ -121,7 +120,7 @@ struct TrackerView: View {
             .task {
                 try? await trackerViewModel.fetchShakers()
             }
-            TaskListView(viewModel: viewModel)
+//            TaskListView(viewModel: viewModel)
         }
         .frame(maxHeight: .infinity, alignment: .top)
     }
