@@ -5,7 +5,7 @@ struct TaskView: View {
     @StateObject private var viewModel: TaskListViewModel
     init() {
         let userId = getUserId()
-        _viewModel = StateObject(wrappedValue: TaskListViewModel(userId: userId))
+        _viewModel = StateObject(wrappedValue: TaskListViewModel(userId: userId, date: todayDate()))
     }
     
     var body: some View {
