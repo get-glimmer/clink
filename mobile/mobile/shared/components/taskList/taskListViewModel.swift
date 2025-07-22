@@ -16,12 +16,19 @@ class TaskListViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private let client = SupabaseClientManager.shared.client
     private let userId: String?
+    private var targetDate: Date
 
-    init(userId: String?) {
+    init(userId: String?, date: Date = todayDate()) {
         self.userId = userId
+        self.targetDate = date
+         fetchCategoriesAndTasks()
+     }
+     
+     func updateDate(_ newDate: Date) {
+         targetDate = newDate
         fetchCategoriesAndTasks()
     }
-
+    
     func fetchCategoriesAndTasks() {
         guard let client = self.client else {
             self.isSupabaseConnected = false
@@ -50,7 +57,7 @@ class TaskListViewModel: ObservableObject {
                         .select()
                         .eq("userid", value: userId)
                         .eq("categoryid", value: category.id.uuidString)
-                        .eq("duedate", value: todayString()) // Use util function
+                        .eq("duedate", value: dateToPostgreSQLString(targetDate))
                         .order("createdat", ascending: true)
                         .execute()
                         .value
@@ -84,15 +91,24 @@ class TaskListViewModel: ObservableObject {
 
     // Supabase: shaker table sync
     private func syncShakerCompletion() async {
-        guard let client, let userId else { return }
+        guard let client = client, let userId = userId else { return }
+
+        struct ShakerRow: Codable {
+            let userid: String
+            let date: String
+            let iscompleted: Bool // whether to seal the jar or not
+        }
+
+        let row = ShakerRow(
+            userid: userId,
+            date: dateToPostgreSQLString(targetDate),
+            iscompleted: isAllCompleted
+        )
+
         do {
             try await client
                 .from("shaker")
-                .upsert([
-                    "userid": userId,
-                    "date": todayString(),
-                    //"iscompleted": isAllCompleted
-                ])
+                .upsert(row)
                 .execute()
         } catch {
             print("[ShakerSync] upsert failed: \(error)")
@@ -102,12 +118,11 @@ class TaskListViewModel: ObservableObject {
 
     func createTemporaryTask(categoryId: UUID) {
         // Create a temporary task locally without server communication
-        let today = dateFromPostgreSQL(todayString())
         let temporaryTask = TaskListItem(
             id: UUID(),
             title: "",
             isCompleted: false,
-            dueDate: today,
+            dueDate: targetDate,
             isTemporary: true
         )
         
@@ -139,11 +154,11 @@ class TaskListViewModel: ObservableObject {
         guard let categoryId = categoryId else { return }
         
         do {
-            // Save to server
+            // Save to server using the target date
             try await client.from("task").insert([
                 "categoryid": categoryId.uuidString,
                 "userid": userId,
-                "duedate": todayString(),
+                "duedate": dateToPostgreSQLString(targetDate),
                 "tasktitle": newTitle
             ]).execute()
             

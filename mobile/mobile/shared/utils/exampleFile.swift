@@ -28,9 +28,14 @@ func dateFromPostgreSQL(_ dateString: String?) -> Date? {
     return formatter.date(from: dateString)
 }
 
-// Utility to get today's date as yyyy-MM-dd string
-func todayString() -> String {
+// Utility to get today's date as Date object
+func todayDate() -> Date {
+    return Date()
+}
+
+// Utility to convert any Date to PostgreSQL string format
+func dateToPostgreSQLString(_ date: Date) -> String {
     let formatter = DateFormatter()
     formatter.dateFormat = "yyyy-MM-dd"
-    return formatter.string(from: Date())
+    return formatter.string(from: date)
 }
