@@ -4,7 +4,14 @@ import Combine
 @MainActor
 class TaskListViewModel: ObservableObject {
     @Published var isSupabaseConnected: Bool = false
-    @Published var categoriesWithTasks: [CategoryWithTasks] = []
+    @Published var categoriesWithTasks: [CategoryWithTasks] = [] {
+        didSet { updateAllCompleted() }   // auto‑recalculate
+    }
+    @Published var isAllCompleted: Bool = false {
+        didSet {
+            if oldValue != isAllCompleted { Task { await syncShakerCompletion() } }
+        }
+    }
 
     private var cancellables = Set<AnyCancellable>()
     private let client = SupabaseClientManager.shared.client
@@ -66,7 +73,32 @@ class TaskListViewModel: ObservableObject {
                 break
             }
         }
+        updateAllCompleted()
     }
+    
+    // All‑completed checker
+    private func updateAllCompleted() {
+        let concrete = categoriesWithTasks.flatMap { $0.tasks }.filter { !$0.isTemporary }
+        isAllCompleted = !concrete.isEmpty && concrete.allSatisfy { $0.isCompleted }
+    }
+
+    // Supabase: shaker table sync
+    private func syncShakerCompletion() async {
+        guard let client, let userId else { return }
+        do {
+            try await client
+                .from("shaker")
+                .upsert([
+                    "userid": userId,
+                    "date": todayString(),
+                    //"iscompleted": isAllCompleted
+                ])
+                .execute()
+        } catch {
+            print("[ShakerSync] upsert failed: \(error)")
+        }
+    }
+
 
     func createTemporaryTask(categoryId: UUID) {
         // Create a temporary task locally without server communication

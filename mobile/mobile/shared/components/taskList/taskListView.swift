@@ -15,9 +15,9 @@ struct TaskListView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                RoundedRectangle(cornerRadius: 16)
-                    .frame(width: 370, height: 368)
-                    .foregroundColor(.primary.opacity(0.05))
+//                RoundedRectangle(cornerRadius: 16)
+//                    .frame(width: 370, height: 368)
+//                    .foregroundColor(.primary.opacity(0.05))
                 
                 HStack {
                     Text("Daily Task")
