@@ -39,3 +39,10 @@ func dateToPostgreSQLString(_ date: Date) -> String {
     formatter.dateFormat = "yyyy-MM-dd"
     return formatter.string(from: date)
 }
+
+// returns string of current month of give date
+func formattedDate(_ date: Date) -> String {
+    let formatter = DateFormatter()
+    formatter.dateFormat = "yyyy-MM-dd"
+    return formatter.string(from: date)
+}
