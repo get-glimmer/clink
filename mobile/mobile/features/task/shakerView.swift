@@ -111,23 +111,10 @@ struct ShakerView: View {
     }
     /*
     private func gradientFromScene() -> [Color] {
-        
-        //        let ui = scene.marbleDominantColors(maxCount: 2)
-        //
-        //        if ui.count == 2 { return ui.map { Color($0) } }
-        //        if ui.count == 1 {
-        //            let c = Color(ui[0]); return [c, c.opacity(0.7)]
-        //        }
-        //        return [.black, .gray]
-        
-        //1) grab up to 3 dominant colors
         let ui = scene.marbleDominantColors(maxCount: 3)
-        // 2) Normal case: use #1 and #3
-        if ui.count >= 3 {
+        if ui.count >= 3 {          // two colors → use #1 and #3
             return [Color(ui[0]), Color(ui[2])]
         }
-        
-        // 3) Fallbacks
         if ui.count == 2 {          // two colors → use both
             return ui.map { Color($0) }
         }

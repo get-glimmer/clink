@@ -85,7 +85,7 @@ final class ShakerScene: SKScene {
         }
     }
     
-    // MARK: - Public API
+    // MARK: - Marble handlers
     /// Drops an emoji into the scene identified by taskId. If already exists it will be ignored.
     func addEmoji(_ symbol: String, for taskId: UUID) {
         guard marbles[taskId] == nil else { return }
