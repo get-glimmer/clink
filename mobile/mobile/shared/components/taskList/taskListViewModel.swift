@@ -12,18 +12,16 @@ class TaskListViewModel: ObservableObject {
     
     @Published var taskSelectedDate: Date = Date()
 
-
-    init(userId: String?) {
+    init(userId: String?, date: Date = todayDate()) {
         self.userId = userId
-        
+
         // calls fetchCategoriesAndTasks() whenever taskSelectedDate changes
         $taskSelectedDate
             .sink { [weak self] _ in
                 self?.fetchCategoriesAndTasks()
             }
             .store(in: &cancellables)
-        
-        
+
         fetchCategoriesAndTasks()
     }
 
@@ -82,12 +80,11 @@ class TaskListViewModel: ObservableObject {
 
     func createTemporaryTask(categoryId: UUID) {
         // Create a temporary task locally without server communication
-        let today = dateFromPostgreSQL(todayString())
         let temporaryTask = TaskListItem(
             id: UUID(),
             title: "",
             isCompleted: false,
-            dueDate: today,
+            dueDate: targetDate,
             isTemporary: true
         )
         
@@ -119,11 +116,11 @@ class TaskListViewModel: ObservableObject {
         guard let categoryId = categoryId else { return }
         
         do {
-            // Save to server
+            // Save to server using the target date
             try await client.from("task").insert([
                 "categoryid": categoryId.uuidString,
                 "userid": userId,
-                "duedate": todayString(),
+                "duedate": dateToPostgreSQLString(targetDate),
                 "tasktitle": newTitle
             ]).execute()
             

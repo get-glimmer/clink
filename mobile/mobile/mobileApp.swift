@@ -13,7 +13,7 @@ struct mobileApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
-//            shakerView()
+            //ShakerView()
         }
     }
 }
