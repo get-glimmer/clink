@@ -12,6 +12,15 @@ struct TaskListView: View {
     @State private var editingTexts: [UUID: String] = [:]
     @FocusState private var focusedTaskId: UUID?
     
+    // used so that fetchCategoriesAndTasks() can fetch data at wanted date
+    @Binding var taskSelectedDate: Date
+    
+    // now accepts a binded date as a parameter
+    init(taskSelectedDate: Binding<Date>, viewModel: TaskListViewModel) {
+        self._taskSelectedDate = taskSelectedDate
+        self.viewModel = viewModel
+    }
+    
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {

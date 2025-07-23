@@ -34,3 +34,10 @@ func todayString() -> String {
     formatter.dateFormat = "yyyy-MM-dd"
     return formatter.string(from: Date())
 }
+
+// returns string of current month of give date
+func formattedDate(_ date: Date) -> String {
+    let formatter = DateFormatter()
+    formatter.dateFormat = "yyyy-MM-dd"
+    return formatter.string(from: date)
+}

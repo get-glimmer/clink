@@ -9,9 +9,21 @@ class TaskListViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private let client = SupabaseClientManager.shared.client
     private let userId: String?
+    
+    @Published var taskSelectedDate: Date = Date()
+
 
     init(userId: String?) {
         self.userId = userId
+        
+        // calls fetchCategoriesAndTasks() whenever taskSelectedDate changes
+        $taskSelectedDate
+            .sink { [weak self] _ in
+                self?.fetchCategoriesAndTasks()
+            }
+            .store(in: &cancellables)
+        
+        
         fetchCategoriesAndTasks()
     }
 
@@ -43,7 +55,7 @@ class TaskListViewModel: ObservableObject {
                         .select()
                         .eq("userid", value: userId)
                         .eq("categoryid", value: category.id.uuidString)
-                        .eq("duedate", value: todayString()) // Use util function
+                        .eq("duedate", value: formattedDate(taskSelectedDate)) // changed so that "duedate" can be changed by users
                         .order("createdat", ascending: true)
                         .execute()
                         .value

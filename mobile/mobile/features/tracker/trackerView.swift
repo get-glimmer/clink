@@ -2,18 +2,21 @@ import SwiftUI
 
 struct TrackerView: View {
     @StateObject private var trackerViewModel = TrackerViewModel()
-    @StateObject private var viewModel: TaskListViewModel
+    @StateObject private var taskListViewModel: TaskListViewModel
     @State private var showMonthPicker = false
     @State private var isWeeklyView = false
     
     let calendar = Calendar.current
     let columns = Array(repeating: GridItem(.flexible()), count: 7)
     let weekdaySymbols = Calendar.current.shortStandaloneWeekdaySymbols
+    let shakerSize: CGFloat = 36    // global variable for shaker on a tracker
     
+    // when a certain date is clicked, it applies to taskListView
+    @State private var taskSelectedDate: Date = Date()
 
     init() {
         let userId = getUserId()
-        _viewModel = StateObject(wrappedValue: TaskListViewModel(userId: userId))
+        _taskListViewModel = StateObject(wrappedValue: TaskListViewModel(userId: userId))
     }
     
     var body: some View {
@@ -94,25 +97,54 @@ struct TrackerView: View {
                         .frame(maxWidth: .infinity)
                 }
                 
-                // days of weekly/monthly view
-                ForEach(isWeeklyView ? trackerViewModel.daysInWeek : trackerViewModel.daysInMonth, id: \.self) { date in
-                    if let date = date {
-                        VStack {
-                            Text("\(calendar.component(.day, from: date))")
-                                .font(.body)
-                            
-                            if let progress = trackerViewModel.shakersRecord[trackerViewModel.formattedDate(date)] {
-                                Text(progress)
-                                    .font(.caption)
-                                    .foregroundColor(.blue)
-                            } else {
-                                Spacer().frame(height: 16)
+                
+                let dates = isWeeklyView ? trackerViewModel.daysInWeek : trackerViewModel.daysInMonth
+                
+                ForEach(dates.indices, id: \.self) { index in
+                    if let date = dates[index] {
+                        Button(action: {
+                            taskListViewModel.taskSelectedDate = date   // when a date is selected
+                        }) {
+                            VStack {
+                                if let progress = trackerViewModel.shakersRecord[trackerViewModel.formattedDate(date)] {
+                                    let percentage = CGFloat(progress) / 100.0
+                                    
+                                    // shaker on tracker
+                                    ZStack(alignment: .bottom) {
+                                        RoundedRectangle(cornerRadius: 3)
+                                            .fill(Color.gray.opacity(0.3))
+                                            .frame(width: shakerSize, height: shakerSize)
+                                        
+                                        RoundedRectangle(cornerRadius: 3)
+                                            .fill(Color.blue)
+                                            .frame(width: shakerSize, height: shakerSize * percentage)
+                                    }
+                                    .frame(height: shakerSize)
+                                } else {
+                                    RoundedRectangle(cornerRadius: 3)
+                                        .fill(Color.gray.opacity(0.3))
+                                        .frame(width: shakerSize, height: shakerSize)
+                                }
+
+                                // dates
+                                ZStack {
+                                    if Calendar.current.isDate(date, inSameDayAs: taskListViewModel.taskSelectedDate) {
+                                        Circle()
+                                            .fill(Color.blue.opacity(0.3))
+                                            .frame(width: 20, height: 20)
+                                    }
+                                    
+                                    Text("\(calendar.component(.day, from: date))")
+                                        .font(.body)
+                                        .foregroundColor(.black)
+                                }
+                                .frame(width: 36, height: 10)
                             }
+                            .buttonStyle(PlainButtonStyle())
                         }
-                        .frame(maxWidth: .infinity)
+                        .frame(width: 44, height: 70)
                     } else {
-                        // Empty grid cell for alignment (only in monthly view)
-                        Color.clear.frame(height: 40)
+                        Color.clear.frame(height: 1)
                     }
                 }
             }
@@ -120,7 +152,7 @@ struct TrackerView: View {
             .task {
                 try? await trackerViewModel.fetchShakers()
             }
-//            TaskListView(viewModel: viewModel)
+            TaskListView(taskSelectedDate: $taskSelectedDate, viewModel: taskListViewModel)
         }
         .frame(maxHeight: .infinity, alignment: .top)
     }
