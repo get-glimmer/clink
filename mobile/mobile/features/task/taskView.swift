@@ -24,14 +24,21 @@ struct TaskView: View {
             ZStack(alignment: .top) {
                 VStack(spacing: 12) {
                     // ---- Header ----
-                    HStack {
-                        Spacer()
+                    ZStack {
                         Text("Hi \(getUserName() ?? "User") 👋")
                             .font(.headline)
-                        Spacer()
-                        Image(systemName: "ellipsis")
-                            .rotationEffect(.degrees(90))
+                        HStack {
+                            Spacer()
+                            Button(action: {
+                                viewModel.fetchCategoriesAndTasks()
+                            }) {
+                                Image(systemName: "arrow.clockwise")
+                                    .foregroundColor(.primary)
+                                    .imageScale(.small)
+                                    .frame(width: 20, height: 30)
+                            }
                             .padding(.trailing)
+                        }
                     }
                     .padding(.top, 16)
 
