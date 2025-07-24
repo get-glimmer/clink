@@ -16,16 +16,18 @@ class TaskListViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private let client = SupabaseClientManager.shared.client
     private let userId: String?
-    private var targetDate: Date
+    @Published var taskSelectedDate: Date = Date()
 
     init(userId: String?, date: Date = todayDate()) {
         self.userId = userId
-        self.targetDate = date
-         fetchCategoriesAndTasks()
-     }
-     
-     func updateDate(_ newDate: Date) {
-         targetDate = newDate
+
+        // calls fetchCategoriesAndTasks() whenever taskSelectedDate changes
+        $taskSelectedDate
+            .sink { [weak self] _ in
+                self?.fetchCategoriesAndTasks()
+            }
+            .store(in: &cancellables)
+
         fetchCategoriesAndTasks()
     }
     
@@ -57,7 +59,7 @@ class TaskListViewModel: ObservableObject {
                         .select()
                         .eq("userid", value: userId)
                         .eq("categoryid", value: category.id.uuidString)
-                        .eq("duedate", value: dateToPostgreSQLString(targetDate))
+                        .eq("duedate", value: formattedDate(taskSelectedDate)) // changed so that "duedate" can be changed by users
                         .order("createdat", ascending: true)
                         .execute()
                         .value
@@ -101,7 +103,7 @@ class TaskListViewModel: ObservableObject {
 
         let row = ShakerRow(
             userid: userId,
-            date: dateToPostgreSQLString(targetDate),
+            date: formattedDate(taskSelectedDate),
             iscompleted: isAllCompleted
         )
 
@@ -122,7 +124,7 @@ class TaskListViewModel: ObservableObject {
             id: UUID(),
             title: "",
             isCompleted: false,
-            dueDate: targetDate,
+            dueDate: taskSelectedDate,
             isTemporary: true
         )
         
@@ -133,6 +135,7 @@ class TaskListViewModel: ObservableObject {
                 break
             }
         }
+        updateAllCompleted()
     }
     
     func saveTemporaryTask(task: TaskListItem, newTitle: String) async {
@@ -158,7 +161,7 @@ class TaskListViewModel: ObservableObject {
             try await client.from("task").insert([
                 "categoryid": categoryId.uuidString,
                 "userid": userId,
-                "duedate": dateToPostgreSQLString(targetDate),
+                "duedate": dateToPostgreSQLString(taskSelectedDate),
                 "tasktitle": newTitle
             ]).execute()
             
@@ -178,6 +181,7 @@ class TaskListViewModel: ObservableObject {
                 break
             }
         }
+        updateAllCompleted()
     }
 
     func updateTaskCompletionStatus(task: TaskListItem) async {

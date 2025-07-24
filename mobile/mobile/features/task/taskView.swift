@@ -4,6 +4,10 @@ import SwiftUI
 struct TaskView: View {
     @StateObject private var viewModel: TaskListViewModel
     @State private var sheetProgress: CGFloat = 0
+    
+    // on a TaskView, "today" which is accepted as a parameter will not be changed as the
+    // page only shows today's tasks.
+    @State private var today: Date = Date()
 
     init() {
         let userId = getUserId()
@@ -46,7 +50,7 @@ struct TaskView: View {
                 ) {
                     // --Task List Content--
                     ScrollView {
-                        TaskListView(viewModel: viewModel)
+                        TaskListView(taskSelectedDate: $today, viewModel: viewModel)
                             .padding(.horizontal)
                             .padding(.bottom, 120)
                     }
