@@ -4,12 +4,18 @@ import Combine
 @MainActor
 class TaskListViewModel: ObservableObject {
     @Published var isSupabaseConnected: Bool = false
-    @Published var categoriesWithTasks: [CategoryWithTasks] = []
+    @Published var categoriesWithTasks: [CategoryWithTasks] = [] {
+        didSet { updateAllCompleted() }   // auto‑recalculate
+    }
+    @Published var isAllCompleted: Bool = false {
+        didSet {
+            if oldValue != isAllCompleted { Task { await syncShakerCompletion() } }
+        }
+    }
 
     private var cancellables = Set<AnyCancellable>()
     private let client = SupabaseClientManager.shared.client
     private let userId: String?
-    
     @Published var taskSelectedDate: Date = Date()
 
     init(userId: String?, date: Date = todayDate()) {
@@ -24,7 +30,7 @@ class TaskListViewModel: ObservableObject {
 
         fetchCategoriesAndTasks()
     }
-
+    
     func fetchCategoriesAndTasks() {
         guard let client = self.client else {
             self.isSupabaseConnected = false
@@ -76,7 +82,41 @@ class TaskListViewModel: ObservableObject {
                 break
             }
         }
+        updateAllCompleted()
     }
+    
+    // All‑completed checker
+    private func updateAllCompleted() {
+        let concrete = categoriesWithTasks.flatMap { $0.tasks }.filter { !$0.isTemporary }
+        isAllCompleted = !concrete.isEmpty && concrete.allSatisfy { $0.isCompleted }
+    }
+
+    // Supabase: shaker table sync
+    private func syncShakerCompletion() async {
+        guard let client = client, let userId = userId else { return }
+
+        struct ShakerRow: Codable {
+            let userid: String
+            let date: String
+            let iscompleted: Bool // whether to seal the jar or not
+        }
+
+        let row = ShakerRow(
+            userid: userId,
+            date: formattedDate(taskSelectedDate),
+            iscompleted: isAllCompleted
+        )
+
+        do {
+            try await client
+                .from("shaker")
+                .upsert(row)
+                .execute()
+        } catch {
+            print("[ShakerSync] upsert failed: \(error)")
+        }
+    }
+
 
     func createTemporaryTask(categoryId: UUID) {
         // Create a temporary task locally without server communication
@@ -84,7 +124,7 @@ class TaskListViewModel: ObservableObject {
             id: UUID(),
             title: "",
             isCompleted: false,
-            dueDate: targetDate,
+            dueDate: taskSelectedDate,
             isTemporary: true
         )
         
@@ -95,6 +135,7 @@ class TaskListViewModel: ObservableObject {
                 break
             }
         }
+        updateAllCompleted()
     }
     
     func saveTemporaryTask(task: TaskListItem, newTitle: String) async {
@@ -120,7 +161,7 @@ class TaskListViewModel: ObservableObject {
             try await client.from("task").insert([
                 "categoryid": categoryId.uuidString,
                 "userid": userId,
-                "duedate": dateToPostgreSQLString(targetDate),
+                "duedate": dateToPostgreSQLString(taskSelectedDate),
                 "tasktitle": newTitle
             ]).execute()
             
@@ -140,6 +181,7 @@ class TaskListViewModel: ObservableObject {
                 break
             }
         }
+        updateAllCompleted()
     }
 
     func updateTaskCompletionStatus(task: TaskListItem) async {
