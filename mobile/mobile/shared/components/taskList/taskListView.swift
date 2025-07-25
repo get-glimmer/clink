@@ -14,7 +14,7 @@ struct TaskListView: View {
     
     // used so that fetchCategoriesAndTasks() can fetch data at wanted date
     @Binding var taskSelectedDate: Date
-
+  
     // now accepts a binded date as a parameter
     init(taskSelectedDate: Binding<Date>, viewModel: TaskListViewModel) {
         self._taskSelectedDate = taskSelectedDate
