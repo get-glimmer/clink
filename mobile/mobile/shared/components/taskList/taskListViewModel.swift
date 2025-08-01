@@ -17,6 +17,9 @@ class TaskListViewModel: ObservableObject {
     private let client = SupabaseClientManager.shared.client
     private let userId: String?
     @Published var taskSelectedDate: Date = Date()
+    
+    // is used to call its function "fetchShakers()"
+    var trackerViewModel: TrackerViewModel?
 
     init(userId: String?, date: Date = todayDate()) {
         self.userId = userId
@@ -66,6 +69,9 @@ class TaskListViewModel: ObservableObject {
                     result.append(CategoryWithTasks(id: category.id, category: category, tasks: tasks))
                 }
                 categoriesWithTasks = result
+                
+                // Also brings shaker data that will be applied to tracker
+                try? await trackerViewModel?.fetchShakers()
             } catch {
                 isSupabaseConnected = false
             }
@@ -194,6 +200,9 @@ class TaskListViewModel: ObservableObject {
                 .eq("taskid", value: task.id)
                 .eq("userid", value: userId)
                 .execute()
+            
+            // Also brings shaker data that will be applied to tracker
+            try? await trackerViewModel?.fetchShakers()
         } catch {
             // Handle error if needed
         }
@@ -216,6 +225,9 @@ class TaskListViewModel: ObservableObject {
                     break
                 }
             }
+            
+            // Also brings shaker data that will be applied to tracker
+            try? await trackerViewModel?.fetchShakers()
         } catch {
             // Handle error if needed
         }

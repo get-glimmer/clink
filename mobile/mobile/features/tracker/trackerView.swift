@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct TrackerView: View {
-    @StateObject private var trackerViewModel = TrackerViewModel()
+    @StateObject private var trackerViewModel: TrackerViewModel
     @StateObject private var taskListViewModel: TaskListViewModel
     @State private var showMonthPicker = false
     @State private var isWeeklyView = false
@@ -10,25 +10,56 @@ struct TrackerView: View {
     let columns = Array(repeating: GridItem(.flexible()), count: 7)
     let weekdaySymbols = Calendar.current.shortStandaloneWeekdaySymbols
     let shakerSize: CGFloat = 36    // global variable for shaker on a tracker
-    
-    // when a certain date is clicked, it applies to taskListView
-    @State private var taskSelectedDate: Date = Date()
 
     init() {
         let userId = getUserId()
-        _taskListViewModel = StateObject(wrappedValue: TaskListViewModel(userId: userId))
+        
+        let tracker = TrackerViewModel()
+        _trackerViewModel = StateObject(wrappedValue: tracker)
+        
+        let taskList = TaskListViewModel(userId: userId)
+        _taskListViewModel = StateObject(wrappedValue: taskList)
+        
+        taskList.trackerViewModel = tracker   // Pass tracker to taskListViewModel
+    }
+    
+    //  Moves the current week forward or backward and updates both the selected week and highlighted task date.
+    private func moveDate(by value: Int) {
+        if isWeeklyView {
+            let newWeekStart = calendar.date(byAdding: .weekOfYear, value: value, to: trackerViewModel.selectedWeek)!
+
+            trackerViewModel.selectedDate = newWeekStart
+
+            let weekday = calendar.component(.weekday, from: taskListViewModel.taskSelectedDate)
+
+            if let sameWeekdayDate = calendar.date(
+                byAdding: .day,
+                value: weekday - calendar.component(.weekday, from: newWeekStart),
+                to: newWeekStart
+            ) {
+                taskListViewModel.taskSelectedDate = sameWeekdayDate
+            }
+        } else {
+            let newDate = calendar.date(byAdding: .month, value: value, to: trackerViewModel.selectedMonth)!
+            trackerViewModel.selectedDate = newDate
+            taskListViewModel.taskSelectedDate = calendar.date(from: calendar.dateComponents([.year, .month], from: newDate))!
+
+            if calendar.isDate(newDate, equalTo: Date(), toGranularity: .month) {
+                taskListViewModel.taskSelectedDate = Date()
+            }
+        }
     }
     
     var body: some View {
         VStack {
-            Spacer().frame(height: 30)
+            Spacer().frame(height: 10)
             
             // Month Selector button
             HStack {
                 Button(action: {
                     showMonthPicker = true
                 }) {
-                    HStack(spacing: 4) {
+                    HStack(spacing: 10) {
                         Text(formattedMonthYear(trackerViewModel.selectedMonth))
                             .font(.title2)
                             .fontWeight(.semibold)
@@ -38,6 +69,7 @@ struct TrackerView: View {
                             .resizable()
                             .scaledToFit()
                             .frame(width: 12, height: 12)
+                            .foregroundColor(.primary)
                     }
                 }
                 .sheet(isPresented: $showMonthPicker) {
@@ -49,46 +81,37 @@ struct TrackerView: View {
                 
                 Spacer()
                 
-                if isWeeklyView {
-                    HStack(spacing: 16) {
-                        Button(action: {
-                            trackerViewModel.selectedDate = Calendar.current.date(
-                                byAdding: .weekOfYear,
-                                value: -1,
-                                to: trackerViewModel.selectedWeek
-                            )!
-
-                        }) {
-                            Image(systemName: "chevron.left")
-                        }
-
-                
-                        Button(action: {
-                            trackerViewModel.selectedDate = Calendar.current.date(
-                                byAdding: .weekOfYear,
-                                value: 1,
-                                to: trackerViewModel.selectedWeek
-                            )!
-
-                        }) {
-                            Image(systemName: "chevron.right")
-                        }
+                // move left and right button
+                HStack(spacing: 20) {
+                    Button(action: {
+                        moveDate(by: -1)
+                    }) {
+                        Image(systemName: "chevron.left")
+                            .foregroundColor(.primary)
                     }
-                    .padding(.bottom, 4)
+
+                    Button(action: {
+                        moveDate(by: 1)
+                    }) {
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(.primary)
+                    }
                 }
-                
+                .padding(.horizontal, 15)
                 
                 Button(action: {
                     isWeeklyView.toggle()
+                    trackerViewModel.selectedDate = taskListViewModel.taskSelectedDate
                 }) {
-                    Text(isWeeklyView ? "Weekly" : "Monthly")
+                    Text(isWeeklyView ? "W" : "M")
                         .font(.subheadline)
-                        .foregroundColor(.blue)
+                        .foregroundColor(.primary)
                 }
             }
             .padding(.horizontal)
             
-            LazyVGrid(columns: columns, spacing: 10) {
+            
+            LazyVGrid(columns: columns, spacing: 0) {
                 // weekday labels
                 ForEach(weekdaySymbols, id: \.self) { day in
                     Text(day)
@@ -106,59 +129,43 @@ struct TrackerView: View {
                             taskListViewModel.taskSelectedDate = date   // when a date is selected
                         }) {
                             VStack {
-                                if let progress = trackerViewModel.shakersRecord[trackerViewModel.formattedDate(date)] {
-                                    let percentage = CGFloat(progress) / 100.0
-                                    
-                                    // shaker on tracker
-                                    ZStack(alignment: .bottom) {
-                                        RoundedRectangle(cornerRadius: 3)
-                                            .fill(Color.gray.opacity(0.3))
-                                            .frame(width: shakerSize, height: shakerSize)
-                                        
-                                        RoundedRectangle(cornerRadius: 3)
-                                            .fill(Color.blue)
-                                            .frame(width: shakerSize, height: shakerSize * percentage)
-                                    }
-                                    .frame(height: shakerSize)
-                                } else {
-                                    RoundedRectangle(cornerRadius: 3)
-                                        .fill(Color.gray.opacity(0.3))
-                                        .frame(width: shakerSize, height: shakerSize)
-                                }
-
+                                ShakerBarView(
+                                    progress: trackerViewModel.shakersRecord[trackerViewModel.formattedDate(date)],
+                                    size: shakerSize
+                                )
+                                
                                 // dates
                                 ZStack {
                                     if Calendar.current.isDate(date, inSameDayAs: taskListViewModel.taskSelectedDate) {
-                                        Circle()
-                                            .fill(Color.blue.opacity(0.3))
-                                            .frame(width: 20, height: 20)
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .fill(Color.green)
+                                            .frame(width: shakerSize, height: 20)
                                     }
                                     
                                     Text("\(calendar.component(.day, from: date))")
-                                        .font(.body)
-                                        .foregroundColor(.black)
+                                        .font(.caption2)
+                                        .foregroundColor(.primary)
                                 }
-                                .frame(width: 36, height: 10)
+                                .frame(width: shakerSize, height: 10)
                             }
-                            .buttonStyle(PlainButtonStyle())
                         }
-                        .frame(width: 44, height: 70)
+                        .frame(width: 44, height: 65)
                     } else {
                         Color.clear.frame(height: 1)
                     }
                 }
             }
-            .padding()
-            .task {
+            .padding(10)
+            .task(id: trackerViewModel.selectedDate) {
                 try? await trackerViewModel.fetchShakers()
             }
-            TaskListView(taskSelectedDate: $taskSelectedDate, viewModel: taskListViewModel)
+            TaskListView(taskSelectedDate: $taskListViewModel.taskSelectedDate, viewModel: taskListViewModel)
         }
         .frame(maxHeight: .infinity, alignment: .top)
     }
 }
 
-// helper function to format Date to String
+// Date to String in "yyyy.MM" format
 func formattedMonthYear(_ date: Date) -> String {
     let formatter = DateFormatter()
     formatter.dateFormat = "yyyy.MM"

@@ -31,7 +31,7 @@ extension Calendar {
         var days: [Date?] = Array(repeating: nil, count: leadingEmptyDays)
 
         for day in range {
-            if let date = calendar.date(byAdding: .day, value: day - 1, to: currentMonth) {
+            if let date = calendar.date(byAdding: .day, value: day - 1, to: firstOfMonth) {
                 days.append(date)
             }
         }
@@ -42,7 +42,6 @@ extension Calendar {
 
 @MainActor
 class TrackerViewModel: ObservableObject {
-    // variables that are for state checking when fetching? might delete later
     @Published var isLoadingShakers = false
     @Published var isErrorLoadingShakers : String? = nil
     @Published var isSupabaseConnected: Bool = false
@@ -69,13 +68,6 @@ class TrackerViewModel: ObservableObject {
     var daysInWeek: [Date] {
         (0..<7).compactMap { Calendar.current.date(byAdding: .day, value: $0, to: selectedWeek) }
     }
-
-    // helper that returns string of current month
-    func formattedDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.string(from: date)
-    }
     
     // fetches shakers and saves shaker's date and progress percentage in dict
     func fetchShakers() async throws {
@@ -86,18 +78,6 @@ class TrackerViewModel: ObservableObject {
         self.isSupabaseConnected = true
         
         do {
-            // for error printing
-//            let rawData = try await client
-//                .from("shaker")
-//                .select()
-//                .execute()
-//                .data
-//
-//            if let json = try? JSONSerialization.jsonObject(with: rawData, options: []) {
-//                print(json)
-//            }
-
-            
             let fetchedShakers: [Shaker] = try await client
                 .from("shaker")
                 .select()
@@ -108,7 +88,15 @@ class TrackerViewModel: ObservableObject {
             
             for shaker in fetchedShakers {
                 let shakerDate = shaker.date
-                let shakerProgress = Int(Double(shaker.completed_tasks.count) / Double(shaker.total_tasks) * 100)
+                let completedCount = shaker.completed_tasks?.count ?? 0
+                let totalCount = shaker.total_tasks
+
+                let shakerProgress: Int
+                if totalCount > 0 {
+                    shakerProgress = completedCount * 100 / totalCount
+                } else {
+                    shakerProgress = 0
+                }
                 
                 record[shakerDate] = shakerProgress
             }
