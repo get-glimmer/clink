@@ -130,7 +130,7 @@ struct TrackerView: View {
                         }) {
                             VStack {
                                 ShakerBarView(
-                                    progress: trackerViewModel.shakersRecord[trackerViewModel.formattedDate(date)],
+                                    progress: trackerViewModel.shakersRecord[formattedDate(date)],
                                     size: shakerSize
                                 )
                                 

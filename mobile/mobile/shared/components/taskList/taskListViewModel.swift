@@ -116,7 +116,7 @@ class TaskListViewModel: ObservableObject {
         do {
             try await client
                 .from("shaker")
-                .upsert(row)
+                .upsert(row, onConflict: "userid,date") // 중복되는 userid, date row를 만들지말고 해당 row를 업데이트해라 라는 코드
                 .execute()
         } catch {
             print("[ShakerSync] upsert failed: \(error)")
