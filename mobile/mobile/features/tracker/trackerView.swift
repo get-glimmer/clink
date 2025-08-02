@@ -23,32 +23,38 @@ struct TrackerView: View {
         taskList.trackerViewModel = tracker   // Pass tracker to taskListViewModel
     }
     
-    //  Moves the current week forward or backward and updates both the selected week and highlighted task date.
-    private func moveDate(by value: Int) {
+    private func updateTaskSelectedDate(for newDate: Date) {
         if isWeeklyView {
-            let newWeekStart = calendar.date(byAdding: .weekOfYear, value: value, to: trackerViewModel.selectedWeek)!
-
-            trackerViewModel.selectedDate = newWeekStart
-
+            // Stay on the same weekday, but in the new week
             let weekday = calendar.component(.weekday, from: taskListViewModel.taskSelectedDate)
-
             if let sameWeekdayDate = calendar.date(
                 byAdding: .day,
-                value: weekday - calendar.component(.weekday, from: newWeekStart),
-                to: newWeekStart
+                value: weekday - calendar.component(.weekday, from: newDate),
+                to: newDate
             ) {
                 taskListViewModel.taskSelectedDate = sameWeekdayDate
             }
         } else {
-            let newDate = calendar.date(byAdding: .month, value: value, to: trackerViewModel.selectedMonth)!
-            trackerViewModel.selectedDate = newDate
-            taskListViewModel.taskSelectedDate = calendar.date(from: calendar.dateComponents([.year, .month], from: newDate))!
-
             if calendar.isDate(newDate, equalTo: Date(), toGranularity: .month) {
                 taskListViewModel.taskSelectedDate = Date()
+            } else {
+                taskListViewModel.taskSelectedDate = calendar.startOfMonth(for: newDate)
             }
         }
     }
+
+    
+    //  Moves the current week forward or backward and updates both the selected week and highlighted task date.
+    private func moveDate(by value: Int) {
+        if isWeeklyView {
+            let newWeekStart = calendar.date(byAdding: .weekOfYear, value: value, to: trackerViewModel.selectedWeek)!
+            trackerViewModel.selectedDate = newWeekStart
+        } else {
+            let newDate = calendar.date(byAdding: .month, value: value, to: trackerViewModel.selectedMonth)!
+            trackerViewModel.selectedDate = newDate
+        }
+    }
+
     
     var body: some View {
         VStack {
@@ -77,6 +83,9 @@ struct TrackerView: View {
                         selectedDate: $trackerViewModel.selectedDate,
                         isPresented: $showMonthPicker
                     )
+                }
+                .onChange(of: trackerViewModel.selectedDate) {
+                    updateTaskSelectedDate(for: trackerViewModel.selectedDate)
                 }
                 
                 Spacer()
