@@ -11,22 +11,27 @@ struct AuthView: View {
     @Binding var isAuthenticated: Bool
 
     var body: some View {
-        VStack(spacing: 20) {
-            Button("Sign In with Apple") {
-                saveUserId()
-                saveUserName()
-                isAuthenticated = true
-            }
-            .frame(height: 45)
-            .buttonStyle(.borderedProminent)
+        ZStack {
+            AppColors.neutral1000.ignoresSafeArea()
+            VStack(spacing: 20) {
+                Button("Sign In with Apple") {
+                    saveUserId()
+                    saveUserName()
+                    isAuthenticated = true
+                }
+                .frame(height: 45)
+                .buttonStyle(.borderedProminent)
+                .foregroundColor(AppColors.textWhite)
 
-            Button("Login (Email/Password)") {
-                saveUserId()
-                saveUserName()
-                isAuthenticated = true
+                Button("Login (Email/Password)") {
+                    saveUserId()
+                    saveUserName()
+                    isAuthenticated = true
+                }
+                .buttonStyle(.borderedProminent)
+                .foregroundColor(AppColors.textWhite)
             }
-            .buttonStyle(.borderedProminent)
+            .padding()
         }
-        .padding()
     }
 }

@@ -9,7 +9,11 @@ import SwiftUI
 
 struct CommunityView: View {
     var body: some View {
-        Text("Community View")
+        ZStack {
+            AppColors.neutral1000.ignoresSafeArea()
+            Text("Community View")
+                .foregroundColor(AppColors.textWhite)
+        }
     }
 }
 
