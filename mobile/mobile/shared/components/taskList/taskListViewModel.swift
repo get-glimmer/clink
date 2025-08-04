@@ -73,6 +73,10 @@ class TaskListViewModel: ObservableObject {
                 }
                 categoriesWithTasks = result
                 // ──────────── Shaker row load ────────────
+                // 1) compute current all-completed based on freshly fetched tasks
+                let computedAll = categoriesWithTasks
+                    .flatMap { $0.tasks }
+                    .allSatisfy { $0.isCompleted }
                 suppressSync = true
                 do {
                     struct DBRow: Decodable {
@@ -88,15 +92,19 @@ class TaskListViewModel: ObservableObject {
                         .execute()
                         .value
                     {
-                        // 1) UI reflected state
-                        isAllCompleted   = row.iscompleted
-                        lidColorStart    = row.lid_color_start
-                        lidColorEnd      = row.lid_color_end
+                        // Always update lid-gradient
+                        lidColorStart = row.lid_color_start
+                        lidColorEnd   = row.lid_color_end
+                        // Only override seal-state if tasks really all completed
+                        if computedAll {
+                            isAllCompleted = row.iscompleted
+                        }
                     }
                 } catch {
                     // ignore load failures
                 }
                 suppressSync = false
+
             } catch {
                 isSupabaseConnected = false
             }
@@ -119,8 +127,8 @@ class TaskListViewModel: ObservableObject {
     
     // All‑completed checker
     private func updateAllCompleted() {
-        let concrete = categoriesWithTasks.flatMap { $0.tasks }.filter { !$0.isTemporary }
-        isAllCompleted = !concrete.isEmpty && concrete.allSatisfy { $0.isCompleted }
+        let allTasks = categoriesWithTasks.flatMap { $0.tasks }
+        isAllCompleted = !allTasks.isEmpty && allTasks.allSatisfy { $0.isCompleted }
     }
 
     // Supabase: shaker table sync
@@ -222,6 +230,7 @@ class TaskListViewModel: ObservableObject {
             // Remove temporary task and refresh from server
             removeTemporaryTask(task: task)
             fetchCategoriesAndTasks()
+            updateAllCompleted()
         } catch {
             print("Failed to save task: \(error)")
             // Keep the temporary task if save failed
@@ -248,6 +257,7 @@ class TaskListViewModel: ObservableObject {
                 .eq("taskid", value: task.id)
                 .eq("userid", value: userId)
                 .execute()
+            updateAllCompleted()
         } catch {
             // Handle error if needed
         }
@@ -270,6 +280,7 @@ class TaskListViewModel: ObservableObject {
                     break
                 }
             }
+            updateAllCompleted()
         } catch {
             // Handle error if needed
         }
