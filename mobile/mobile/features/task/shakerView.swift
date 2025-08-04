@@ -67,16 +67,22 @@ struct ShakerView: View {
             }
             .onAppear {
                 scene = ShakerScene(size: jarSize)
+                completionCache.removeAll()
                 syncWithTasks()
                 updateSeal(animated: false)
             }
         }
         .onReceive(viewModel.$categoriesWithTasks) { _ in syncWithTasks() }
-        .onReceive(viewModel.$isAllCompleted)      { _ in updateSeal(animated: true) }
+        .onReceive(viewModel.$isAllCompleted)      { _ in syncWithTasks()
+            updateSeal(animated: true) }
     }
     
     // MARK: - Marble Syncing
     private func syncWithTasks() {
+        if completionCache.isEmpty == false && scene.children.isEmpty {
+            completionCache.removeAll()
+        }
+
         var current: [UUID: (Bool, String)] = [:]
         for cat in viewModel.categoriesWithTasks {
             for task in cat.tasks {
@@ -99,32 +105,31 @@ struct ShakerView: View {
     // MARK: - Seal / Unseal
     private func updateSeal(animated: Bool) {
         if viewModel.isAllCompleted {
-            lidColors = gradientFromScene()
+            // DB에 저장된 색상이 있다면 우선 사용
+            if let c0 = Color(hex: viewModel.lidColorStart),
+               let c1 = Color(hex: viewModel.lidColorEnd) {
+                lidColors = [c0, c1]
+            } else {
+                // 첫 seal → 마블에서 추출 후 DB 저장
+                lidColors = gradientFromScene()
+                Task {
+                    let h0 = UIColor(lidColors[0]).toHex()
+                    let h1 = UIColor(lidColors[1]).toHex()
+                    await viewModel.updateShakerLidColors(start: h0, end: h1)
+                }
+            }
             withAnimation(animated ? .easeInOut(duration: 0.3) : nil) {
                 lidOpacity = 1
             }
         } else {
+            viewModel.lidColorStart = nil
+            viewModel.lidColorEnd   = nil
+            
             withAnimation(animated ? .easeInOut(duration: 0.25) : nil) {
                 lidOpacity = 0
             }
         }
     }
-    /*
-    private func gradientFromScene() -> [Color] {
-        let ui = scene.marbleDominantColors(maxCount: 3)
-        if ui.count >= 3 {          // two colors → use #1 and #3
-            return [Color(ui[0]), Color(ui[2])]
-        }
-        if ui.count == 2 {          // two colors → use both
-            return ui.map { Color($0) }
-        }
-        if ui.count == 1 {          // one → duplicate with opacity
-            let c = Color(ui[0]); return [c, c.opacity(0.7)]
-        }
-        return [.black, .gray]      // none found
-    }
-     */
-    
     private func gradientFromScene() -> [Color] {
         // Grab up to 6 candidate colors
         let ui = scene.marbleDominantColors(maxCount: 6)
@@ -148,14 +153,14 @@ struct ShakerView: View {
 }
 // MARK: - Color helpers
 private extension UIColor {
-    /// Returns HSBA components in 0‥1 range
+    // Returns HSBA components in 0‥1 range
     var hsba: (h: CGFloat, s: CGFloat, b: CGFloat, a: CGFloat) {
         var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
         getHue(&h, saturation: &s, brightness: &b, alpha: &a)
         return (h, s, b, a)
     }
 
-    /// Quick perceptual distance (Hue + Saturation)
+    // Quick perceptual distance (Hue + Saturation)
     func perceptualDistance(to other: UIColor) -> CGFloat {
         let lhs = self.hsba
         let rhs = other.hsba

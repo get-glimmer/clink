@@ -9,9 +9,15 @@ class TaskListViewModel: ObservableObject {
     }
     @Published var isAllCompleted: Bool = false {
         didSet {
-            if oldValue != isAllCompleted { Task { await syncShakerCompletion() } }
+            if oldValue != isAllCompleted && !suppressSync{ Task { await syncShakerCompletion() } }
         }
     }
+    // Lid color storage
+    @Published var lidColorStart: String? = nil
+    @Published var lidColorEnd:   String? = nil
+    
+    // Prevent automatic DB‐sync on initial load
+    private var suppressSync: Bool = false
 
     private var cancellables = Set<AnyCancellable>()
     private let client = SupabaseClientManager.shared.client
@@ -66,6 +72,31 @@ class TaskListViewModel: ObservableObject {
                     result.append(CategoryWithTasks(id: category.id, category: category, tasks: tasks))
                 }
                 categoriesWithTasks = result
+                // ──────────── Shaker row load ────────────
+                suppressSync = true
+                do {
+                    struct DBRow: Decodable {
+                        let iscompleted: Bool
+                        let lid_color_start: String?
+                        let lid_color_end:   String?
+                    }
+                    if let row: DBRow = try await client
+                        .from("shaker")
+                        .select("iscompleted,lid_color_start,lid_color_end")
+                        .eq("userid", value: userId)
+                        .eq("date", value: formattedDate(taskSelectedDate))
+                        .execute()
+                        .value
+                    {
+                        // 1) UI reflected state
+                        isAllCompleted   = row.iscompleted
+                        lidColorStart    = row.lid_color_start
+                        lidColorEnd      = row.lid_color_end
+                    }
+                } catch {
+                    // ignore load failures
+                }
+                suppressSync = false
             } catch {
                 isSupabaseConnected = false
             }
@@ -83,6 +114,7 @@ class TaskListViewModel: ObservableObject {
             }
         }
         updateAllCompleted()
+        categoriesWithTasks = categoriesWithTasks
     }
     
     // All‑completed checker
@@ -99,12 +131,17 @@ class TaskListViewModel: ObservableObject {
             let userid: String
             let date: String
             let iscompleted: Bool // whether to seal the jar or not
+            let lid_color_start: String? // seal 시점에만 저장
+            let lid_color_end: String?
         }
 
         let row = ShakerRow(
             userid: userId,
             date: formattedDate(taskSelectedDate),
-            iscompleted: isAllCompleted
+            iscompleted: isAllCompleted,
+            // sealing 상태라면 색상, 아니면 nil 전달
+            lid_color_start: isAllCompleted ? lidColorStart : nil,
+            lid_color_end:   isAllCompleted ? lidColorEnd   : nil
         )
 
         do {
@@ -115,6 +152,23 @@ class TaskListViewModel: ObservableObject {
         } catch {
             print("[ShakerSync] upsert failed: \(error)")
         }
+    }
+    
+    // Store gradient colors (for the first sealing) in DB
+    func updateShakerLidColors(start: String, end: String) async {
+        guard let client, let userId else { return }
+        do {
+            try await client
+                .from("shaker")
+                .update(["lid_color_start": start, "lid_color_end": end])
+                .eq("userid", value: userId)
+                .eq("date",   value: formattedDate(taskSelectedDate))
+                .execute()
+            await MainActor.run {
+                lidColorStart = start
+                lidColorEnd   = end
+            }
+        } catch { print("[ShakerSync] colour update failed:", error) }
     }
 
 
