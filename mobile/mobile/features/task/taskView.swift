@@ -66,6 +66,21 @@ struct TaskView: View {
             .animation(.easeInOut, value: scale)
         }
         .ignoresSafeArea(edges: .bottom)
+        .onAppear {
+            viewModel.fetchCategoriesAndTasks()
+            animateSheetBounce()
+        }
+    }
+    private func animateSheetBounce() {
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+            sheetProgress = 0.01
+        }
+        // bottom-sheet collapses in 0.4 seconds
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                sheetProgress = 0
+            }
+        }
     }
 }
 #Preview {TaskView()}
