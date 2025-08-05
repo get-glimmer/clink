@@ -23,6 +23,9 @@ class TaskListViewModel: ObservableObject {
     private let client = SupabaseClientManager.shared.client
     private let userId: String?
     @Published var taskSelectedDate: Date = Date()
+    
+    // is used to call its function "fetchShakers()"
+    var trackerViewModel: TrackerViewModel?
 
     init(userId: String?, date: Date = todayDate()) {
         self.userId = userId
@@ -72,6 +75,7 @@ class TaskListViewModel: ObservableObject {
                     result.append(CategoryWithTasks(id: category.id, category: category, tasks: tasks))
                 }
                 categoriesWithTasks = result
+
                 // ──────── Lid Gradient Colors load ────────
                 suppressSync = true
                 do {
@@ -97,6 +101,10 @@ class TaskListViewModel: ObservableObject {
                     // ignore load failures
                 }
                 suppressSync = false
+
+
+                // Also brings shaker data that will be applied to tracker
+                try? await trackerViewModel?.fetchShakers()
 
             } catch {
                 isSupabaseConnected = false
@@ -148,7 +156,7 @@ class TaskListViewModel: ObservableObject {
         do {
             try await client
                 .from("shaker")
-                .upsert(row)
+                .upsert(row, onConflict: "userid,date") // 중복되는 userid, date row를 만들지말고 해당 row를 업데이트해라 라는 코드
                 .execute()
         } catch {
             print("[ShakerSync] upsert failed: \(error)")
@@ -250,7 +258,12 @@ class TaskListViewModel: ObservableObject {
                 .eq("taskid", value: task.id)
                 .eq("userid", value: userId)
                 .execute()
+
             updateAllCompleted()
+
+            // Also brings shaker data that will be applied to tracker
+            try? await trackerViewModel?.fetchShakers()
+
         } catch {
             // Handle error if needed
         }
@@ -273,7 +286,12 @@ class TaskListViewModel: ObservableObject {
                     break
                 }
             }
+
             updateAllCompleted()
+
+            // Also brings shaker data that will be applied to tracker
+            try? await trackerViewModel?.fetchShakers()
+
         } catch {
             // Handle error if needed
         }
