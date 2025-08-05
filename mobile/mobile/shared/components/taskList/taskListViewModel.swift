@@ -72,11 +72,7 @@ class TaskListViewModel: ObservableObject {
                     result.append(CategoryWithTasks(id: category.id, category: category, tasks: tasks))
                 }
                 categoriesWithTasks = result
-                // ──────────── Shaker row load ────────────
-                // 1) compute current all-completed based on freshly fetched tasks
-                let computedAll = categoriesWithTasks
-                    .flatMap { $0.tasks }
-                    .allSatisfy { $0.isCompleted }
+                // ──────── Lid Gradient Colors load ────────
                 suppressSync = true
                 do {
                     struct DBRow: Decodable {
@@ -92,13 +88,10 @@ class TaskListViewModel: ObservableObject {
                         .execute()
                         .value
                     {
-                        // Always update lid-gradient
+                        // UI reflected state
+                        isAllCompleted   = row.iscompleted
                         lidColorStart = row.lid_color_start
                         lidColorEnd   = row.lid_color_end
-                        // Only override seal-state if tasks really all completed
-                        if computedAll {
-                            isAllCompleted = row.iscompleted
-                        }
                     }
                 } catch {
                     // ignore load failures
