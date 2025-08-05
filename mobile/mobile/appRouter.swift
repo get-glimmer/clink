@@ -23,3 +23,6 @@ struct AppRouter: View {
     }
 }
 
+#Preview {
+    RootView()
+}
