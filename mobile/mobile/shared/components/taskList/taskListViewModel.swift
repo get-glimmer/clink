@@ -156,7 +156,7 @@ class TaskListViewModel: ObservableObject {
         do {
             try await client
                 .from("shaker")
-                .upsert(row, onConflict: "userid,date") // 중복되는 userid, date row를 만들지말고 해당 row를 업데이트해라 라는 코드
+                .upsert(row, onConflict: "userid,date")
                 .execute()
         } catch {
             print("[ShakerSync] upsert failed: \(error)")
@@ -229,13 +229,15 @@ class TaskListViewModel: ObservableObject {
             ]).execute()
             
             // Remove temporary task and refresh from server
-            removeTemporaryTask(task: task)
+            // removeTemporaryTask(task: task)
             fetchCategoriesAndTasks()
-            updateAllCompleted()
+            isAllCompleted = false
+            
         } catch {
             print("Failed to save task: \(error)")
             // Keep the temporary task if save failed
         }
+        
     }
     
     func removeTemporaryTask(task: TaskListItem) {
