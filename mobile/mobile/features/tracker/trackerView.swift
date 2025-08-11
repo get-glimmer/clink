@@ -9,7 +9,7 @@ struct TrackerView: View {
     let calendar = Calendar.current
     let columns = Array(repeating: GridItem(.flexible()), count: 7)
     let weekdaySymbols = Calendar.current.shortStandaloneWeekdaySymbols
-    let shakerSize: CGFloat = 36    // global variable for shaker on a tracker
+    let shakerWidth: CGFloat = 36
 
     init() {
         let userId = getUserId()
@@ -132,30 +132,27 @@ struct TrackerView: View {
                 
                 let dates = isWeeklyView ? trackerViewModel.daysInWeek : trackerViewModel.daysInMonth
                 
-                ForEach(dates.indices, id: \.self) { index in
-                    if let date = dates[index] {
+                ForEach(Array(dates.enumerated()), id: \.offset) { index, date in
+                    if let date = date {
                         Button(action: {
-                            taskListViewModel.taskSelectedDate = date   // when a date is selected
+                            taskListViewModel.taskSelectedDate = date
                         }) {
                             VStack {
                                 ShakerBarView(
-                                    progress: trackerViewModel.shakersRecord[formattedDate(date)],
-                                    size: shakerSize
+                                    shakerRecord: trackerViewModel.shakersRecord[formattedDate(date)]
                                 )
-                                
-                                // dates
                                 ZStack {
-                                    if Calendar.current.isDate(date, inSameDayAs: taskListViewModel.taskSelectedDate) {
+                                    if calendar.isDate(date, inSameDayAs: taskListViewModel.taskSelectedDate) {
                                         RoundedRectangle(cornerRadius: 10)
                                             .fill(Color.green)
-                                            .frame(width: shakerSize, height: 20)
+                                            .frame(width: shakerWidth, height: 20)
+                                        
                                     }
-                                    
                                     Text("\(calendar.component(.day, from: date))")
                                         .font(.caption2)
                                         .foregroundColor(.primary)
                                 }
-                                .frame(width: shakerSize, height: 10)
+                                .frame(width: shakerWidth, height: 10)
                             }
                         }
                         .frame(width: 44, height: 65)

@@ -7,3 +7,10 @@ struct Shaker: Codable, Identifiable {
     let completed_tasks: [String]?
     let total_tasks: Int
 }
+
+struct ShakerRecord {
+    let progress: Int
+    let completedCount: Int
+    let totalCount: Int
+}
+

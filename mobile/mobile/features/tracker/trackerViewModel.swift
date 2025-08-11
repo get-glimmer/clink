@@ -46,7 +46,7 @@ class TrackerViewModel: ObservableObject {
     @Published var isErrorLoadingShakers : String? = nil
     @Published var isSupabaseConnected: Bool = false
     // dictionary of shaker's [date : progress]
-    @Published var shakersRecord: [String: Int] = [:]
+    @Published var shakersRecord: [String: ShakerRecord] = [:]
     
     private let client = SupabaseClientManager.shared.client
 
@@ -84,7 +84,7 @@ class TrackerViewModel: ObservableObject {
                 .execute()
                 .value
             
-            var record: [String: Int] = [:]
+            var record: [String: ShakerRecord] = [:]
             
             for shaker in fetchedShakers {
                 let shakerDate = shaker.date
@@ -98,7 +98,11 @@ class TrackerViewModel: ObservableObject {
                     shakerProgress = 0
                 }
                 
-                record[shakerDate] = shakerProgress
+                record[shakerDate] = ShakerRecord(
+                    progress: shakerProgress,
+                    completedCount: completedCount,
+                    totalCount: totalCount,
+                )
             }
             
             self.shakersRecord = record
