@@ -66,10 +66,16 @@ struct ShakerView: View {
                     .frame(width: jarSize.width, height: jarSize.height)
             }
             .onAppear {
-                scene = ShakerScene(size: jarSize)
+                if scene.size == .zero { // create a new scene only once
+                        scene = ShakerScene(size: jarSize)
+                    }
+                scene.setMotionEnabled(true)
                 completionCache.removeAll()
                 syncWithTasks()
                 updateSeal(animated: false)
+            }
+            .onDisappear {
+                scene.setMotionEnabled(false) // for performance
             }
         }
         .onReceive(viewModel.$categoriesWithTasks) { _ in syncWithTasks() }

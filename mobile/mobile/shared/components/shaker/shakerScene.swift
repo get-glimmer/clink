@@ -20,6 +20,7 @@ final class ShakerScene: SKScene {
     private let gAlpha:  CGFloat = 0.2   // gravity LPF
     private let accScale: CGFloat = 600  // shaking force scale
     private let oilGravityScale:  CGFloat = 10          // gravity when shaker is on
+    private var motionEnabled = false
     
     // Storage for marbles keyed by Task UUID
     private var marbles: [UUID: SKLabelNode] = [:]
@@ -28,13 +29,14 @@ final class ShakerScene: SKScene {
     private let inset: CGFloat = 12
     private let lidHeight: CGFloat = 40
     
-    // init starts motion immediately
     override init(size: CGSize) {
         super.init(size: size)
         anchorPoint = .init(x: 0.5, y: 0.5)
-        startMotion()         // always on
+        //startMotion()         // commented out-> control from each view
     }
     required init?(coder: NSCoder) { fatalError("not implemented") }
+    
+    deinit { stopMotion() }
     
     override func didMove(to view: SKView) {
         backgroundColor = .clear
@@ -50,7 +52,13 @@ final class ShakerScene: SKScene {
         physicsBody?.isDynamic = false
     }
     
-    // MARK: - Motion handlers (always on)
+    // MARK: - Motion handlers
+    func setMotionEnabled(_ enabled: Bool) {
+        guard enabled != motionEnabled else { return }
+        motionEnabled = enabled
+        if enabled { startMotion() } else { stopMotion() }
+    }
+    
     private func startMotion() {
         guard motion.isDeviceMotionAvailable else { return }
         motion.deviceMotionUpdateInterval = 1.0 / 60.0   // 60 Hz
@@ -83,6 +91,10 @@ final class ShakerScene: SKScene {
                 }
             }
         }
+    }
+    
+    private func stopMotion() {
+        motion.stopDeviceMotionUpdates()
     }
     
     // MARK: - Marble handlers

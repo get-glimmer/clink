@@ -72,12 +72,12 @@ struct TaskView: View {
         }
     }
     private func animateSheetBounce() {
-        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-            sheetProgress = 0.01
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+            sheetProgress = 0.001
         }
         // bottom-sheet collapses in 0.4 seconds
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                 sheetProgress = 0
             }
         }
