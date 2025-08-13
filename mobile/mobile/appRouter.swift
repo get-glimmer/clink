@@ -11,6 +11,10 @@ struct AppRouter: View {
                 .tabItem {
                     Label("Tracker", systemImage: "calendar")
                 }
+            ChallengeView()
+                .tabItem {
+                    Label("Challenge", systemImage: "flame")
+                }
             CommunityView()
                 .tabItem {
                     Label("Community", systemImage: "person.3.sequence.fill")
