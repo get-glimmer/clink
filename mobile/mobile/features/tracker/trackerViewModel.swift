@@ -1,5 +1,6 @@
 import Foundation
 import Supabase
+import SwiftUI
 
 extension Calendar {
     // extended property to get the first date of the month from the given Date
@@ -46,7 +47,7 @@ class TrackerViewModel: ObservableObject {
     @Published var isErrorLoadingShakers : String? = nil
     @Published var isSupabaseConnected: Bool = false
     // dictionary of shaker's [date : progress]
-    @Published var shakersRecord: [String: Int] = [:]
+    @Published var shakersRecord: [String: ShakerRecord] = [:]
     
     private let client = SupabaseClientManager.shared.client
 
@@ -84,13 +85,14 @@ class TrackerViewModel: ObservableObject {
                 .execute()
                 .value
             
-            var record: [String: Int] = [:]
+            var record: [String: ShakerRecord] = [:]
             
             for shaker in fetchedShakers {
                 let shakerDate = shaker.date
                 let completedCount = shaker.completed_tasks?.count ?? 0
                 let totalCount = shaker.total_tasks
 
+                // shaker progress
                 let shakerProgress: Int
                 if totalCount > 0 {
                     shakerProgress = completedCount * 100 / totalCount
@@ -98,7 +100,20 @@ class TrackerViewModel: ObservableObject {
                     shakerProgress = 0
                 }
                 
-                record[shakerDate] = shakerProgress
+                // lid color
+                let c0 = Color(hex: shaker.lid_color_start) ?? .clear
+                let c1 = Color(hex: shaker.lid_color_end) ?? .clear
+                
+                let lidColor = LinearGradient(colors: [c0, c1],
+                                              startPoint: .leading,
+                                              endPoint:   .trailing)
+
+                record[shakerDate] = ShakerRecord(
+                    progress: shakerProgress,
+                    completedCount: completedCount,
+                    totalCount: totalCount,
+                    lidColor: lidColor
+                )
             }
             
             self.shakersRecord = record
