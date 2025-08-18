@@ -6,4 +6,15 @@ struct Shaker: Codable, Identifiable {
     let date: String
     let completed_tasks: [String]?
     let total_tasks: Int
+    let lid_color_start: String?
+    let lid_color_end: String?
 }
+
+// Struct that records necessary information
+struct ShakerRecord {
+    let progress: Int
+    let completedCount: Int
+    let totalCount: Int
+    let lidColor: LinearGradient
+}
+
