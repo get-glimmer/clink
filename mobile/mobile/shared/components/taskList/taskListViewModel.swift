@@ -3,6 +3,7 @@ import Combine
 
 @MainActor
 class TaskListViewModel: ObservableObject {
+    // MARK: - Variables
     @Published var isSupabaseConnected: Bool = false
     @Published var categoriesWithTasks: [CategoryWithTasks] = [] {
         didSet { updateAllCompleted() }   // auto‑recalculate
@@ -27,6 +28,7 @@ class TaskListViewModel: ObservableObject {
     // is used to call its function "fetchShakers()"
     var trackerViewModel: TrackerViewModel?
 
+    // MARK: - init
     init(userId: String?, date: Date = todayDate()) {
         self.userId = userId
 
@@ -40,6 +42,7 @@ class TaskListViewModel: ObservableObject {
         fetchCategoriesAndTasks()
     }
     
+    // MARK: - fetching
     func fetchCategoriesAndTasks() {
         guard let client = self.client else {
             self.isSupabaseConnected = false
@@ -112,6 +115,7 @@ class TaskListViewModel: ObservableObject {
         }
     }
 
+    // MARK: - task toggle
     func toggleTaskCompletion(task: TaskListItem) {
         for (catIdx, cat) in categoriesWithTasks.enumerated() {
             if let taskIdx = cat.tasks.firstIndex(where: { $0.id == task.id }) {
@@ -126,6 +130,28 @@ class TaskListViewModel: ObservableObject {
         categoriesWithTasks = categoriesWithTasks
     }
     
+    func updateTaskCompletionStatus(task: TaskListItem) async {
+        guard let client = self.client else { return }
+        guard let userId = self.userId else { return }
+        do {
+            try await client
+                .from("task")
+                .update(["iscompleted": task.isCompleted])
+                .eq("taskid", value: task.id)
+                .eq("userid", value: userId)
+                .execute()
+
+            updateAllCompleted()
+
+            // Also brings shaker data that will be applied to tracker
+            try? await trackerViewModel?.fetchShakers()
+
+        } catch {
+            // Handle error if needed
+        }
+    }
+    
+    // MARK: - shaker lid sealing
     // All‑completed checker
     private func updateAllCompleted() {
         let allTasks = categoriesWithTasks.flatMap { $0.tasks }
@@ -156,7 +182,7 @@ class TaskListViewModel: ObservableObject {
         do {
             try await client
                 .from("shaker")
-                .upsert(row, onConflict: "userid,date") // 중복되는 userid, date row를 만들지말고 해당 row를 업데이트해라 라는 코드
+                .upsert(row, onConflict: "userid,date")
                 .execute()
         } catch {
             print("[ShakerSync] upsert failed: \(error)")
@@ -180,7 +206,7 @@ class TaskListViewModel: ObservableObject {
         } catch { print("[ShakerSync] colour update failed:", error) }
     }
 
-
+    // MARK: - create task
     func createTemporaryTask(categoryId: UUID) {
         // Create a temporary task locally without server communication
         let temporaryTask = TaskListItem(
@@ -229,15 +255,18 @@ class TaskListViewModel: ObservableObject {
             ]).execute()
             
             // Remove temporary task and refresh from server
-            removeTemporaryTask(task: task)
+            // removeTemporaryTask(task: task)
             fetchCategoriesAndTasks()
-            updateAllCompleted()
+            isAllCompleted = false
+            
         } catch {
             print("Failed to save task: \(error)")
             // Keep the temporary task if save failed
         }
+        
     }
     
+    // MARK: - delete task
     func removeTemporaryTask(task: TaskListItem) {
         for (catIdx, cat) in categoriesWithTasks.enumerated() {
             if let taskIdx = cat.tasks.firstIndex(where: { $0.id == task.id }) {
@@ -246,27 +275,6 @@ class TaskListViewModel: ObservableObject {
             }
         }
         updateAllCompleted()
-    }
-
-    func updateTaskCompletionStatus(task: TaskListItem) async {
-        guard let client = self.client else { return }
-        guard let userId = self.userId else { return }
-        do {
-            try await client
-                .from("task")
-                .update(["iscompleted": task.isCompleted])
-                .eq("taskid", value: task.id)
-                .eq("userid", value: userId)
-                .execute()
-
-            updateAllCompleted()
-
-            // Also brings shaker data that will be applied to tracker
-            try? await trackerViewModel?.fetchShakers()
-
-        } catch {
-            // Handle error if needed
-        }
     }
 
     func deleteTask(task: TaskListItem) async {
@@ -294,6 +302,38 @@ class TaskListViewModel: ObservableObject {
 
         } catch {
             // Handle error if needed
+        }
+    }
+    
+    // MARK: - create category
+    func addCategory(name: String, emoji: String) async throws {
+        guard let client = self.client, let userId = self.userId else { return }
+
+        struct NewCategory: Encodable {
+            let userid: String
+            let categoryname: String
+            let categoryemoji: String
+        }
+
+        let payload = NewCategory(
+            userid: userId,
+            categoryname: name,
+            categoryemoji: emoji
+        )
+
+        // Insert and then reload the categories/tasks
+        do {
+            try await client
+                .from("category")
+                .insert(payload)
+                .execute()
+
+            await MainActor.run {
+                self.fetchCategoriesAndTasks()
+            }
+        } catch {
+            print("[Category] insert failed:", error)
+            throw error
         }
     }
 }

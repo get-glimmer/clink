@@ -8,6 +8,13 @@ struct TaskView: View {
     // on a TaskView, "today" which is accepted as a parameter will not be changed as the
     // page only shows today's tasks.
     @State private var today: Date = Date()
+    
+    // Add‑category menu & sheet states
+    @State private var showAddCategorySheet: Bool = false
+    @State private var newCategoryEmoji: String = ""
+    @State private var newCategoryName: String = ""
+    @State private var isSavingCategory: Bool = false
+    @State private var categorySaveError: String? = nil
 
     init() {
         let userId = getUserId()
@@ -29,10 +36,17 @@ struct TaskView: View {
                             .font(.headline)
                         HStack {
                             Spacer()
-                            Button(action: {
-                                viewModel.fetchCategoriesAndTasks()
-                            }) {
-                                Image(systemName: "arrow.clockwise")
+                            Menu {
+                                // ── Add Category ──
+                                Button {
+                                    newCategoryEmoji = ""
+                                    newCategoryName = ""
+                                    showAddCategorySheet = true
+                                } label: {
+                                    Label("Add Category", systemImage: "plus")
+                                }
+                            } label: {
+                                Image(systemName: "ellipsis")
                                     .foregroundColor(.primary)
                                     .imageScale(.small)
                                     .frame(width: 20, height: 30)
@@ -68,19 +82,51 @@ struct TaskView: View {
         .ignoresSafeArea(edges: .bottom)
         .onAppear {
             viewModel.fetchCategoriesAndTasks()
-            animateSheetBounce()
+            //animateSheetBounce()
         }
+        // -- "add category" sheet --
+        .sheet(isPresented: $showAddCategorySheet) {
+            AddCategorySheet(
+                emoji: $newCategoryEmoji,
+                name: $newCategoryName,
+                isSaving: $isSavingCategory,
+                errorMessage: $categorySaveError,
+                onSave: { emoji, name in
+                    guard !emoji.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                        categorySaveError = "Please choose an emoji."
+                        return
+                    }
+                    guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                        categorySaveError = "Please enter a category name."
+                        return
+                    }
+
+                    isSavingCategory = true
+                    Task {
+                        do {
+                            try await viewModel.addCategory(name: name, emoji: emoji)
+                            isSavingCategory = false
+                            showAddCategorySheet = false
+                        } catch {
+                            isSavingCategory = false
+                            categorySaveError = "Failed to add the category. Please try again."
+                        }
+                    }
+                }
+            )
+        }
+        
     }
-    private func animateSheetBounce() {
-        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-            sheetProgress = 0.01
-        }
-        // bottom-sheet collapses in 0.4 seconds
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-                sheetProgress = 0
-            }
-        }
-    }
+//    private func animateSheetBounce() {
+//        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+//            sheetProgress = 0.001
+//        }
+//        // bottom-sheet collapses in 0.4 seconds
+//        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+//            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+//                sheetProgress = 0
+//            }
+//        }
+//    }
 }
 #Preview {TaskView()}
