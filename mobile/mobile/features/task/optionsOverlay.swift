@@ -1,0 +1,100 @@
+//
+//  optionsOverlay.swift
+//  mobile
+//
+//  Created by 이채린 on 8/20/25.
+//
+
+import SwiftUI
+
+/// Fullscreen dim + floating options stack at bottom-left.
+struct OptionsOverlay: View {
+    let onTapOutside: () -> Void
+    let onTapRoutines: () -> Void
+    let onTapCategories: () -> Void
+    let onTapAddCategory: () -> Void
+    
+    var body: some View {
+        ZStack(alignment: .bottomLeading) {
+            // --- Background: blur + dim (tap to close) ---
+            ZStack {
+                // 1) System material blur
+                Rectangle()
+                    .fill(.ultraThinMaterial)
+                    .ignoresSafeArea()
+                
+                // 2) Additional dim
+                Color.black.opacity(0.5)
+                    .ignoresSafeArea()
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { onTapOutside() }
+            
+            // --- Floating options ---
+            VStack(alignment: .leading, spacing: 20) {
+                OptionRow(systemImage: "clock.arrow.circlepath",
+                          title: "Routines",
+                          isEnabled: false,
+                          action: onTapRoutines)
+                
+                OptionRow(systemImage: "list.bullet.rectangle",
+                          title: "Categories",
+                          isEnabled: true,
+                          action: onTapCategories)
+                
+                OptionRow(systemImage: "plus",
+                          title: "Add Category",
+                          isEnabled: true,
+                          action: onTapAddCategory)
+            }
+            .padding(.bottom, 136)
+            .padding(.leading, 36)
+        }
+    }
+}
+
+/// One row: green circular icon + title
+private struct OptionRow: View {
+    let systemImage: String
+    let title: String
+    let isEnabled: Bool
+    let action: () -> Void
+
+    var body: some View {
+        HStack(spacing: 16) {
+            ZStack {
+                Circle()
+                    .fill(Color("Green-300"))
+                    .frame(width: 56, height: 56)
+
+                Image(systemName: systemImage)
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(Color.white)
+            }
+
+            Text(title)
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(.white)
+        }
+        .opacity(isEnabled ? 1.0 : 0.5)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            guard isEnabled else { return }
+            action()
+        }
+        .allowsHitTesting(isEnabled)
+    }
+}
+
+#Preview {
+    ZStack {
+        Color.black.ignoresSafeArea()
+        OptionsOverlay(
+            onTapOutside: {},
+            onTapRoutines: {},
+            onTapCategories: {},
+            onTapAddCategory: {}
+        )
+    }
+    .preferredColorScheme(.dark)
+}

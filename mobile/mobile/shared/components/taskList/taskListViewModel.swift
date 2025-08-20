@@ -8,6 +8,7 @@ class TaskListViewModel: ObservableObject {
     @Published var categoriesWithTasks: [CategoryWithTasks] = [] {
         didSet { updateAllCompleted() }   // auto‑recalculate
     }
+    @Published var categories: [CategoryModel] = []
     @Published var isAllCompleted: Bool = false {
         didSet {
             if oldValue != isAllCompleted && !suppressSync{ Task { await syncShakerCompletion() } }
@@ -306,22 +307,24 @@ class TaskListViewModel: ObservableObject {
     }
     
     // MARK: - create category
-    func addCategory(name: String, emoji: String) async throws {
+    func addCategory(name: String, emoji: String, privacyStatus: String) async throws {
         guard let client = self.client, let userId = self.userId else { return }
 
+        // Match your Supabase schema column names exactly.
         struct NewCategory: Encodable {
             let userid: String
             let categoryname: String
             let categoryemoji: String
+            let privacy_status: String
         }
 
         let payload = NewCategory(
             userid: userId,
             categoryname: name,
-            categoryemoji: emoji
+            categoryemoji: emoji,
+            privacy_status: privacyStatus
         )
 
-        // Insert and then reload the categories/tasks
         do {
             try await client
                 .from("category")
@@ -335,5 +338,55 @@ class TaskListViewModel: ObservableObject {
             print("[Category] insert failed:", error)
             throw error
         }
+    }
+    
+    // Fetch categories
+    func fetchCategories() async {
+        guard let client = client, let userId = userId else { return }
+        do {
+            let response = try await client
+                .from("category")
+                .select()
+                .eq("userid", value: userId)
+                .order("order", ascending: true)
+                .execute()
+            
+            if let data = response.value as? [[String: Any]] {
+                let jsonData = try JSONSerialization.data(withJSONObject: data)
+                let decoded = try JSONDecoder().decode([CategoryModel].self, from: jsonData)
+                await MainActor.run {
+                    self.categories = decoded
+                }
+            }
+        } catch {
+            print("[Category] fetch failed:", error)
+        }
+    }
+
+    // Update category
+    func updateCategory(_ category: CategoryModel) {
+        Task {
+            do {
+                try await client?
+                    .from("category")
+                    .update([
+                        "categoryname": category.name,
+                        "categoryemoji": category.emoji,
+                        "privacy_status": category.privacyStatus
+                    ])
+                    .eq("categoryid", value: category.id)
+                    .execute()
+                
+                await fetchCategories()
+            } catch {
+                print("[Category] update failed:", error)
+            }
+        }
+    }
+
+    // Move category (reorder)
+    func moveCategory(from source: IndexSet, to destination: Int) {
+        categories.move(fromOffsets: source, toOffset: destination)
+        // TODO
     }
 }
