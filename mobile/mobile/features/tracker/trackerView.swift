@@ -9,7 +9,7 @@ struct TrackerView: View {
     let calendar = Calendar.current
     let columns = Array(repeating: GridItem(.flexible()), count: 7)
     let weekdaySymbols = Calendar.current.shortStandaloneWeekdaySymbols
-    let shakerWidth: CGFloat = 36
+    let shakerWidth: CGFloat = 32
 
     init() {
         let userId = getUserId()
@@ -108,13 +108,19 @@ struct TrackerView: View {
                 }
                 .padding(.horizontal, 15)
                 
-                Button(action: {
-                    isWeeklyView.toggle()
-                    trackerViewModel.selectedDate = taskListViewModel.taskSelectedDate
-                }) {
-                    Text(isWeeklyView ? "W" : "M")
-                        .font(.subheadline)
-                        .foregroundColor(.primary)
+                ZStack {
+                    RoundedRectangle(cornerRadius: 15)
+                        .fill(Color("Neutral-900"))
+                        .frame(width: 47, height: 30)
+                    
+                    Button(action: {
+                        isWeeklyView.toggle()
+                        trackerViewModel.selectedDate = taskListViewModel.taskSelectedDate
+                    }) {
+                        Text(isWeeklyView ? "W" : "M")
+                            .font(.subheadline)
+                            .foregroundColor(.primary)
+                    }
                 }
             }
             .padding(.horizontal)
@@ -123,7 +129,7 @@ struct TrackerView: View {
             LazyVGrid(columns: columns, spacing: 0) {
                 // weekday labels
                 ForEach(weekdaySymbols, id: \.self) { day in
-                    Text(day)
+                    Text(day.uppercased())
                         .font(.caption)
                         .foregroundColor(.gray)
                         .frame(maxWidth: .infinity)
@@ -145,12 +151,17 @@ struct TrackerView: View {
                                     if calendar.isDate(date, inSameDayAs: taskListViewModel.taskSelectedDate) {
                                         RoundedRectangle(cornerRadius: 10)
                                             .fill(Color.green)
-                                            .frame(width: shakerWidth, height: 20)
+                                            .frame(width: shakerWidth, height: 17)
                                         
+                                        Text("\(calendar.component(.day, from: date))")
+                                            .font(.caption2)
+                                            .foregroundColor(Color.black)
+                                        
+                                    } else {
+                                        Text("\(calendar.component(.day, from: date))")
+                                            .font(.caption2)
+                                            .foregroundColor(.primary)
                                     }
-                                    Text("\(calendar.component(.day, from: date))")
-                                        .font(.caption2)
-                                        .foregroundColor(.primary)
                                 }
                                 .frame(width: shakerWidth, height: 10)
                             }
@@ -166,6 +177,9 @@ struct TrackerView: View {
                 try? await trackerViewModel.fetchShakers()
             }
             TaskListView(taskSelectedDate: $taskListViewModel.taskSelectedDate, viewModel: taskListViewModel)
+                .onAppear {
+                    taskListViewModel.fetchCategoriesAndTasks()
+                }
         }
         .frame(maxHeight: .infinity, alignment: .top)
     }
