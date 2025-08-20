@@ -1,23 +1,6 @@
 
 import SwiftUI
 
-// --- for category managing through "Categories" ---
-struct CategoryModel: Identifiable, Codable, Equatable {
-    let id: UUID
-    var name: String
-    var emoji: String
-    var privacyStatus: String
-    var order: Int?   // 순서 관리용
-
-    enum CodingKeys: String, CodingKey {
-        case id = "categoryid"
-        case name = "categoryname"
-        case emoji = "categoryemoji"
-        case privacyStatus = "privacy_status"
-        case order
-    }
-}
-
 struct TaskView: View {
     @StateObject private var viewModel: TaskListViewModel
     @State private var sheetProgress: CGFloat = 0
@@ -152,9 +135,6 @@ struct TaskView: View {
         // -- "Categories" sheet --
         .sheet(isPresented: $showCategoriesSheet) {
             CategoriesView(viewModel: viewModel)
-                .onAppear {
-                    Task { await viewModel.fetchCategories() } // 최초 로드
-                }
         }
     }
 }

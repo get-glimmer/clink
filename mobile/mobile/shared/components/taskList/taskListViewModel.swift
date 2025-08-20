@@ -8,7 +8,6 @@ class TaskListViewModel: ObservableObject {
     @Published var categoriesWithTasks: [CategoryWithTasks] = [] {
         didSet { updateAllCompleted() }   // auto‑recalculate
     }
-    @Published var categories: [CategoryModel] = []
     @Published var isAllCompleted: Bool = false {
         didSet {
             if oldValue != isAllCompleted && !suppressSync{ Task { await syncShakerCompletion() } }
@@ -339,54 +338,30 @@ class TaskListViewModel: ObservableObject {
             throw error
         }
     }
-    
-    // Fetch categories
-    func fetchCategories() async {
-        guard let client = client, let userId = userId else { return }
+    // MARK: - delete category
+    func deleteCategory(categoryId: UUID) async {
+        guard let client = self.client, let userId = self.userId else { return }
         do {
-            let response = try await client
+            try await client
                 .from("category")
-                .select()
+                .delete()
+                .eq("categoryid", value: categoryId)
                 .eq("userid", value: userId)
-                .order("order", ascending: true)
                 .execute()
-            
-            if let data = response.value as? [[String: Any]] {
-                let jsonData = try JSONSerialization.data(withJSONObject: data)
-                let decoded = try JSONDecoder().decode([CategoryModel].self, from: jsonData)
-                await MainActor.run {
-                    self.categories = decoded
-                }
+
+            await MainActor.run {
+                categoriesWithTasks.removeAll { $0.category.id == categoryId }
             }
         } catch {
-            print("[Category] fetch failed:", error)
+            print("[Category] delete failed:", error)
         }
     }
 
-    // Update category
-    func updateCategory(_ category: CategoryModel) {
-        Task {
-            do {
-                try await client?
-                    .from("category")
-                    .update([
-                        "categoryname": category.name,
-                        "categoryemoji": category.emoji,
-                        "privacy_status": category.privacyStatus
-                    ])
-                    .eq("categoryid", value: category.id)
-                    .execute()
-                
-                await fetchCategories()
-            } catch {
-                print("[Category] update failed:", error)
-            }
-        }
+    // MARK: - reorder categories (local only for now)
+    func moveCategories(from source: IndexSet, to destination: Int) {
+        categoriesWithTasks.move(fromOffsets: source, toOffset: destination)
+        // TODO: DB에 order 업데이트 (추후 구현)
     }
 
-    // Move category (reorder)
-    func moveCategory(from source: IndexSet, to destination: Int) {
-        categories.move(fromOffsets: source, toOffset: destination)
-        // TODO
-    }
+
 }

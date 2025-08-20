@@ -4,7 +4,6 @@
 //
 //  Created by 이채린 on 8/20/25.
 //
-
 import SwiftUI
 
 struct EditCategorySheet: View {
@@ -28,10 +27,6 @@ struct EditCategorySheet: View {
             }
         )
         .navigationTitle("Edit Category")
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("Cancel") { dismiss() }
-            }
-        }
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
