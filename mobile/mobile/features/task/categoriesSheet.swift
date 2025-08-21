@@ -1,22 +1,27 @@
 //
-//  categoriesView.swift
+//  categoriesSheet.swift
 //  mobile
 //
 //  Created by 이채린 on 8/20/25.
 //
-// CategoriesView.swift
+// categoriesSheet.swift
 
 import SwiftUI
 
-struct CategoriesView: View {
+struct categoriesSheet: View {
     @ObservedObject var viewModel: TaskListViewModel
     @Environment(\.dismiss) private var dismiss
-
+    
+    // Add Category sheet
     @State private var showAddCategorySheet: Bool = false
     @State private var newCategoryEmoji: String = ""
     @State private var newCategoryName: String = ""
     @State private var isSavingCategory: Bool = false
     @State private var categorySaveError: String? = nil
+    
+    // Edit Category sheet
+    @State private var editingCategory: CategoryItem? = nil
+    
 
     var body: some View {
         NavigationView {
@@ -29,7 +34,7 @@ struct CategoriesView: View {
                                 .font(.headline)
                             Spacer()
                             Button {
-                                // TODO: 수정 화면 전환
+                                editingCategory = catWithTasks.category
                             } label: {
                                 Image(systemName: "pencil")
                                     .foregroundColor(.gray)
@@ -39,8 +44,6 @@ struct CategoriesView: View {
                                 .padding(.leading, 4)
                         }
                     }
-                    .scrollContentBackground(.hidden)
-                    .background(Color.clear)
                     .onDelete { indexSet in
                         for index in indexSet {
                             let category = viewModel.categoriesWithTasks[index].category
@@ -79,7 +82,7 @@ struct CategoriesView: View {
                     }
                 }
             }
-            // AddCategorySheet 연결
+            // Add Category Sheet
             .sheet(isPresented: $showAddCategorySheet) {
                 AddCategorySheet(
                     emoji: $newCategoryEmoji,
@@ -101,7 +104,30 @@ struct CategoriesView: View {
                     }
                 )
             }
+            // Edit Category sheet
+            .sheet(item: $editingCategory) { cat in
+                EditCategorySheet(
+                    category: cat,
+                    onDone: { emoji, name, privacy in
+                        Task {
+                            await viewModel.updateCategory(
+                                categoryId: cat.id,
+                                name: name,
+                                emoji: emoji,
+                                privacyStatus: privacy
+                            )
+                            editingCategory = nil
+                        }
+                    },
+                    onDelete: {
+                        Task {
+                            await viewModel.deleteCategory(categoryId: cat.id)
+                            editingCategory = nil
+                        }
+                    }
+                )
+            }
         }
-        .navigationViewStyle(StackNavigationViewStyle()) // iPad 대응
+        .navigationViewStyle(StackNavigationViewStyle()) // for ipad
     }
 }

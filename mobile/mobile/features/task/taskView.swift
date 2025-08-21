@@ -10,7 +10,7 @@ struct TaskView: View {
     @State private var today: Date = Date()
     
     // --- options & sheet states ---
-    @State private var showOptionsOverlay: Bool = false
+    @State private var showOptionsSheet: Bool = false
     
     // 1. Add Category
     @State private var showAddCategorySheet: Bool = false
@@ -43,7 +43,7 @@ struct TaskView: View {
                         HStack {
                             Spacer()
                             Button {
-                                showOptionsOverlay = true
+                                showOptionsSheet = true
                             } label: {
                                 Image(systemName: "ellipsis")
                                     .foregroundColor(.primary)
@@ -79,19 +79,19 @@ struct TaskView: View {
             .animation(.easeInOut, value: scale)
             // Options overlay
             .overlay(alignment: .bottomLeading) {
-                if showOptionsOverlay {
-                    OptionsOverlay(
-                        onTapOutside: { showOptionsOverlay = false },
+                if showOptionsSheet {
+                    OptionsSheet(
+                        onTapOutside: { showOptionsSheet = false },
 
                         onTapRoutines: { /* disabled; no-op */ },
 
                         onTapCategories: {
-                            showOptionsOverlay = false
+                            showOptionsSheet = false
                             showCategoriesSheet = true
                         },
 
                         onTapAddCategory: {
-                            showOptionsOverlay = false
+                            showOptionsSheet = false
                             // Reset inputs and open AddCategorySheet
                             newCategoryEmoji = ""
                             newCategoryName = ""
@@ -103,7 +103,7 @@ struct TaskView: View {
                 }
             }
             .zIndex(999)
-            .animation(.easeInOut(duration: 0.25), value: showOptionsOverlay)
+            .animation(.easeInOut(duration: 0.25), value: showOptionsSheet)
         }
         .ignoresSafeArea(edges: .bottom)
         .onAppear {
@@ -134,7 +134,7 @@ struct TaskView: View {
         }
         // -- "Categories" sheet --
         .sheet(isPresented: $showCategoriesSheet) {
-            CategoriesView(viewModel: viewModel)
+            categoriesSheet(viewModel: viewModel)
         }
     }
 }

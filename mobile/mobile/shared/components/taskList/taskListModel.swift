@@ -42,12 +42,14 @@ struct CategoryItem: Codable, Identifiable {
     let userId: String
     let name: String
     let emoji: String
+    let privacyStatus: String?
 
     enum CodingKeys: String, CodingKey {
         case id = "categoryid"
         case userId = "userid"
         case name = "categoryname"
         case emoji = "categoryemoji"
+        case privacyStatus = "privacy_status"
     }
 }
 

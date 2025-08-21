@@ -338,6 +338,46 @@ class TaskListViewModel: ObservableObject {
             throw error
         }
     }
+    
+    // MARK: - update category
+    func updateCategory(categoryId: UUID, name: String, emoji: String, privacyStatus: String) async {
+        guard let client = self.client, let userId = self.userId else { return }
+        do {
+            // 1) Update on DB
+            try await client
+                .from("category")
+                .update([
+                    "categoryname": name,
+                    "categoryemoji": emoji,
+                    "privacy_status": privacyStatus
+                ])
+                .eq("categoryid", value: categoryId)
+                .eq("userid", value: userId)
+                .execute()
+
+            // 2) Reflect locally (rebuild the item since `category` is let)
+            await MainActor.run {
+                if let idx = categoriesWithTasks.firstIndex(where: { $0.id == categoryId }) {
+                    let old = categoriesWithTasks[idx]
+                    let updatedCategory = CategoryItem(
+                        id: old.category.id,
+                        userId: old.category.userId,
+                        name: name,
+                        emoji: emoji,
+                        privacyStatus: privacyStatus
+                    )
+                    categoriesWithTasks[idx] = CategoryWithTasks(
+                        id: old.id,
+                        category: updatedCategory,
+                        tasks: old.tasks
+                    )
+                }
+            }
+        } catch {
+            print("[Category] update failed:", error)
+        }
+    }
+    
     // MARK: - delete category
     func deleteCategory(categoryId: UUID) async {
         guard let client = self.client, let userId = self.userId else { return }

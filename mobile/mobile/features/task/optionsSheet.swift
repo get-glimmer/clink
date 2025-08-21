@@ -1,5 +1,5 @@
 //
-//  optionsOverlay.swift
+//  OptionsSheet.swift
 //  mobile
 //
 //  Created by 이채린 on 8/20/25.
@@ -8,7 +8,7 @@
 import SwiftUI
 
 /// Fullscreen dim + floating options stack at bottom-left.
-struct OptionsOverlay: View {
+struct OptionsSheet: View {
     let onTapOutside: () -> Void
     let onTapRoutines: () -> Void
     let onTapCategories: () -> Void
@@ -24,7 +24,7 @@ struct OptionsOverlay: View {
                     .ignoresSafeArea()
                 
                 // 2) Additional dim
-                Color.black.opacity(0.5)
+                Color.black.opacity(0.3)
                     .ignoresSafeArea()
             }
             .contentShape(Rectangle())
@@ -89,7 +89,7 @@ private struct OptionRow: View {
 #Preview {
     ZStack {
         Color.black.ignoresSafeArea()
-        OptionsOverlay(
+        OptionsSheet(
             onTapOutside: {},
             onTapRoutines: {},
             onTapCategories: {},
