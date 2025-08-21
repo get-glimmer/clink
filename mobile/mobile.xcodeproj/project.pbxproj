@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		347452402E558BC800589856 /* MCEmojiPicker in Frameworks */ = {isa = PBXBuildFile; productRef = 3474523F2E558BC800589856 /* MCEmojiPicker */; };
+		347452422E558BC800589856 /* MCEmojiPickerJSON in Frameworks */ = {isa = PBXBuildFile; productRef = 347452412E558BC800589856 /* MCEmojiPickerJSON */; };
 		B45C9A322E14D95C00E01F99 /* Auth in Frameworks */ = {isa = PBXBuildFile; productRef = B45C9A312E14D95C00E01F99 /* Auth */; };
 		B45C9A342E14D95C00E01F99 /* Functions in Frameworks */ = {isa = PBXBuildFile; productRef = B45C9A332E14D95C00E01F99 /* Functions */; };
 		B45C9A362E14D95C00E01F99 /* PostgREST in Frameworks */ = {isa = PBXBuildFile; productRef = B45C9A352E14D95C00E01F99 /* PostgREST */; };
@@ -78,6 +80,8 @@
 				B45C9A342E14D95C00E01F99 /* Functions in Frameworks */,
 				B45C9A3C2E14D95C00E01F99 /* Supabase in Frameworks */,
 				B45C9A322E14D95C00E01F99 /* Auth in Frameworks */,
+				347452402E558BC800589856 /* MCEmojiPicker in Frameworks */,
+				347452422E558BC800589856 /* MCEmojiPickerJSON in Frameworks */,
 				B45C9A3A2E14D95C00E01F99 /* Storage in Frameworks */,
 				B45C9A382E14D95C00E01F99 /* Realtime in Frameworks */,
 			);
@@ -154,6 +158,8 @@
 				B45C9A372E14D95C00E01F99 /* Realtime */,
 				B45C9A392E14D95C00E01F99 /* Storage */,
 				B45C9A3B2E14D95C00E01F99 /* Supabase */,
+				3474523F2E558BC800589856 /* MCEmojiPicker */,
+				347452412E558BC800589856 /* MCEmojiPickerJSON */,
 			);
 			productName = mobile;
 			productReference = B443470C2DFD212E00644724 /* mobile.app */;
@@ -239,6 +245,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				B45C9A302E14D95C00E01F99 /* XCRemoteSwiftPackageReference "supabase-swift" */,
+				3474523E2E558BC800589856 /* XCRemoteSwiftPackageReference "MCEmojiPicker" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = B443470D2DFD212E00644724 /* Products */;
@@ -454,7 +461,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = Soohyeuk.mobile;
+				PRODUCT_BUNDLE_IDENTIFIER = Kristie.mobile;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -483,7 +490,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = Soohyeuk.mobile;
+				PRODUCT_BUNDLE_IDENTIFIER = Kristie.mobile;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -601,6 +608,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		3474523E2E558BC800589856 /* XCRemoteSwiftPackageReference "MCEmojiPicker" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/izyumkin/MCEmojiPicker";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.2.5;
+			};
+		};
 		B45C9A302E14D95C00E01F99 /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/supabase/supabase-swift";
@@ -612,6 +627,16 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		3474523F2E558BC800589856 /* MCEmojiPicker */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3474523E2E558BC800589856 /* XCRemoteSwiftPackageReference "MCEmojiPicker" */;
+			productName = MCEmojiPicker;
+		};
+		347452412E558BC800589856 /* MCEmojiPickerJSON */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3474523E2E558BC800589856 /* XCRemoteSwiftPackageReference "MCEmojiPicker" */;
+			productName = MCEmojiPickerJSON;
+		};
 		B45C9A312E14D95C00E01F99 /* Auth */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = B45C9A302E14D95C00E01F99 /* XCRemoteSwiftPackageReference "supabase-swift" */;

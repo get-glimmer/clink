@@ -306,22 +306,24 @@ class TaskListViewModel: ObservableObject {
     }
     
     // MARK: - create category
-    func addCategory(name: String, emoji: String) async throws {
+    func addCategory(name: String, emoji: String, privacyStatus: String) async throws {
         guard let client = self.client, let userId = self.userId else { return }
 
+        // Match your Supabase schema column names exactly.
         struct NewCategory: Encodable {
             let userid: String
             let categoryname: String
             let categoryemoji: String
+            let privacy_status: String
         }
 
         let payload = NewCategory(
             userid: userId,
             categoryname: name,
-            categoryemoji: emoji
+            categoryemoji: emoji,
+            privacy_status: privacyStatus
         )
 
-        // Insert and then reload the categories/tasks
         do {
             try await client
                 .from("category")
@@ -336,4 +338,70 @@ class TaskListViewModel: ObservableObject {
             throw error
         }
     }
+    
+    // MARK: - update category
+    func updateCategory(categoryId: UUID, name: String, emoji: String, privacyStatus: String) async {
+        guard let client = self.client, let userId = self.userId else { return }
+        do {
+            // 1) Update on DB
+            try await client
+                .from("category")
+                .update([
+                    "categoryname": name,
+                    "categoryemoji": emoji,
+                    "privacy_status": privacyStatus
+                ])
+                .eq("categoryid", value: categoryId)
+                .eq("userid", value: userId)
+                .execute()
+
+            // 2) Reflect locally (rebuild the item since `category` is let)
+            await MainActor.run {
+                if let idx = categoriesWithTasks.firstIndex(where: { $0.id == categoryId }) {
+                    let old = categoriesWithTasks[idx]
+                    let updatedCategory = CategoryItem(
+                        id: old.category.id,
+                        userId: old.category.userId,
+                        name: name,
+                        emoji: emoji,
+                        privacyStatus: privacyStatus
+                    )
+                    categoriesWithTasks[idx] = CategoryWithTasks(
+                        id: old.id,
+                        category: updatedCategory,
+                        tasks: old.tasks
+                    )
+                }
+            }
+        } catch {
+            print("[Category] update failed:", error)
+        }
+    }
+    
+    // MARK: - delete category
+    func deleteCategory(categoryId: UUID) async {
+        guard let client = self.client, let userId = self.userId else { return }
+        do {
+            try await client
+                .from("category")
+                .delete()
+                .eq("categoryid", value: categoryId)
+                .eq("userid", value: userId)
+                .execute()
+
+            await MainActor.run {
+                categoriesWithTasks.removeAll { $0.category.id == categoryId }
+            }
+        } catch {
+            print("[Category] delete failed:", error)
+        }
+    }
+
+    // MARK: - reorder categories (local only for now)
+    func moveCategories(from source: IndexSet, to destination: Int) {
+        categoriesWithTasks.move(fromOffsets: source, toOffset: destination)
+        // TODO: DB에 order 업데이트 (추후 구현)
+    }
+
+
 }

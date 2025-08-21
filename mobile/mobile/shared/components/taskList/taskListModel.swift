@@ -42,12 +42,14 @@ struct CategoryItem: Codable, Identifiable {
     let userId: String
     let name: String
     let emoji: String
+    let privacyStatus: String?
 
     enum CodingKeys: String, CodingKey {
         case id = "categoryid"
         case userId = "userid"
         case name = "categoryname"
         case emoji = "categoryemoji"
+        case privacyStatus = "privacy_status"
     }
 }
 
@@ -55,4 +57,22 @@ struct CategoryWithTasks: Identifiable {
     let id: UUID
     let category: CategoryItem
     var tasks: [TaskListItem]
+}
+
+
+// MARK: - CategoryModel
+struct CategoryModel: Identifiable, Codable, Equatable {
+    let id: UUID                         // categoryid
+    var name: String                     // categoryname
+    var emoji: String                    // categoryemoji
+    var privacyStatus: String            // privacy_status
+    var order: Int?                      // optional: order column for sorting (future)
+
+    enum CodingKeys: String, CodingKey {
+        case id = "categoryid"
+        case name = "categoryname"
+        case emoji = "categoryemoji"
+        case privacyStatus = "privacy_status"
+        case order
+    }
 }

@@ -9,12 +9,18 @@ struct TaskView: View {
     // page only shows today's tasks.
     @State private var today: Date = Date()
     
-    // Add‑category menu & sheet states
+    // --- options & sheet states ---
+    @State private var showOptionsSheet: Bool = false
+    
+    // 1. Add Category
     @State private var showAddCategorySheet: Bool = false
     @State private var newCategoryEmoji: String = ""
     @State private var newCategoryName: String = ""
     @State private var isSavingCategory: Bool = false
     @State private var categorySaveError: String? = nil
+    
+    // 2. Categories
+    @State private var showCategoriesSheet: Bool = false
 
     init() {
         let userId = getUserId()
@@ -36,15 +42,8 @@ struct TaskView: View {
                             .font(.headline)
                         HStack {
                             Spacer()
-                            Menu {
-                                // ── Add Category ──
-                                Button {
-                                    newCategoryEmoji = ""
-                                    newCategoryName = ""
-                                    showAddCategorySheet = true
-                                } label: {
-                                    Label("Add Category", systemImage: "plus")
-                                }
+                            Button {
+                                showOptionsSheet = true
                             } label: {
                                 Image(systemName: "ellipsis")
                                     .foregroundColor(.primary)
@@ -78,33 +77,51 @@ struct TaskView: View {
                 }
             }
             .animation(.easeInOut, value: scale)
+            // Options overlay
+            .overlay(alignment: .bottomLeading) {
+                if showOptionsSheet {
+                    OptionsSheet(
+                        onTapOutside: { showOptionsSheet = false },
+
+                        onTapRoutines: { /* disabled; no-op */ },
+
+                        onTapCategories: {
+                            showOptionsSheet = false
+                            showCategoriesSheet = true
+                        },
+
+                        onTapAddCategory: {
+                            showOptionsSheet = false
+                            // Reset inputs and open AddCategorySheet
+                            newCategoryEmoji = ""
+                            newCategoryName = ""
+                            showAddCategorySheet = true
+                        }
+                    )
+                    .transition(.opacity)
+                    .ignoresSafeArea()
+                }
+            }
+            .zIndex(999)
+            .animation(.easeInOut(duration: 0.25), value: showOptionsSheet)
         }
         .ignoresSafeArea(edges: .bottom)
         .onAppear {
             viewModel.fetchCategoriesAndTasks()
             //animateSheetBounce()
         }
-        // -- "add category" sheet --
+        // -- "Add category" sheet --
         .sheet(isPresented: $showAddCategorySheet) {
             AddCategorySheet(
                 emoji: $newCategoryEmoji,
                 name: $newCategoryName,
                 isSaving: $isSavingCategory,
                 errorMessage: $categorySaveError,
-                onSave: { emoji, name in
-                    guard !emoji.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                        categorySaveError = "Please choose an emoji."
-                        return
-                    }
-                    guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                        categorySaveError = "Please enter a category name."
-                        return
-                    }
-
+                onSave: { emoji, name, privacy in
                     isSavingCategory = true
                     Task {
                         do {
-                            try await viewModel.addCategory(name: name, emoji: emoji)
+                            try await viewModel.addCategory(name: name, emoji: emoji, privacyStatus: privacy)
                             isSavingCategory = false
                             showAddCategorySheet = false
                         } catch {
@@ -115,18 +132,10 @@ struct TaskView: View {
                 }
             )
         }
-        
+        // -- "Categories" sheet --
+        .sheet(isPresented: $showCategoriesSheet) {
+            categoriesSheet(viewModel: viewModel)
+        }
     }
-//    private func animateSheetBounce() {
-//        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-//            sheetProgress = 0.001
-//        }
-//        // bottom-sheet collapses in 0.4 seconds
-//        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-//            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-//                sheetProgress = 0
-//            }
-//        }
-//    }
 }
 #Preview {TaskView()}

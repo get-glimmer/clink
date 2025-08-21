@@ -1,3 +1,4 @@
+
 import SwiftUI
 
 struct ChallengeView: View {
@@ -10,6 +11,6 @@ struct ChallengeView: View {
     }
 }
 
-#Preview {
-    AppRouter()
+// #Preview {
+//     AppRouter()
 }
