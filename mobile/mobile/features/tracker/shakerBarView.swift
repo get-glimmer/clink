@@ -5,10 +5,11 @@ struct ShakerBarView: View {
     
     var body: some View {
         // global varialbe for shaker size on tracker
-        let shakerWidth = 36.0
-        let lidHeight = 6.12
-        let progressWidth = 33.07
-        let progressHeight = 26.71
+        let shakerWidth = 32.0
+        let shakerHeight = 23.33 * (shakerWidth / 28.14)
+        let lidHeight = 4.81 * (shakerWidth / 28.14)
+        let progressWidth = 26.0 * (shakerWidth / 28.14)
+        let progressHeight = 21.0 * (shakerWidth / 28.14)
         let gap = shakerWidth - progressWidth
         
         let totalCount = shakerRecord?.totalCount ?? 0
@@ -17,20 +18,51 @@ struct ShakerBarView: View {
         
         ZStack(alignment: .bottom) {
             if totalCount == 0 {
-                Image("emptyShaker")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: shakerWidth, height: shakerWidth)
+                    VStack(spacing: 0) {
+                        // lid
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(Color("Neutral-800"))
+                            .frame(
+                                width: shakerWidth,
+                                height: lidHeight
+                            )
+                        ZStack {
+                            // shaker
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(Color("Neutral-800"))
+                                .frame(
+                                    width: shakerWidth,
+                                    height: shakerHeight
+                                )
+                            Image("emptyShaker")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 13, height: 13)
+                        }
+                    }
+                
             } else {
-                Image("trackerShaker")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: shakerWidth, height: shakerWidth)
+                VStack(spacing: 0) {
+                    // lid
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(Color("Neutral-800"))
+                        .frame(
+                            width: shakerWidth,
+                            height: lidHeight
+                        )
+                    // shaker
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(Color("Neutral-800"))
+                        .frame(
+                            width: shakerWidth,
+                            height: shakerHeight
+                        )
+                }
                 
                 if let progress = progress {
                     let percentage = CGFloat(progress) / 100.0
                     
-                    RoundedRectangle(cornerRadius: 1)
+                    RoundedRectangle(cornerRadius: 2)
                         .fill(Color.white)
                         .frame(
                             width: progressWidth,
@@ -41,7 +73,7 @@ struct ShakerBarView: View {
                     // shaker lid
                     if percentage == 1.0, let lidColor = lidColor {
                         VStack {
-                            RoundedRectangle(cornerRadius: 1)
+                            RoundedRectangle(cornerRadius: 2)
                                 .fill(lidColor)
                                 .frame(
                                     width: shakerWidth,
