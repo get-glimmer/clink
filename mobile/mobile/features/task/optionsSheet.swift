@@ -24,20 +24,20 @@ struct OptionsSheet: View {
                     .ignoresSafeArea()
                 
                 // 2) Additional dim
-                Color.black.opacity(0.3)
+                Color.black.opacity(0.5)
                     .ignoresSafeArea()
             }
             .contentShape(Rectangle())
             .onTapGesture { onTapOutside() }
             
             // --- Floating options ---
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 30) {
                 OptionRow(systemImage: "clock.arrow.circlepath",
                           title: "Routines",
                           isEnabled: false,
                           action: onTapRoutines)
                 
-                OptionRow(systemImage: "list.bullet.rectangle",
+                OptionRow(systemImage: "rectangle.grid.1x2",
                           title: "Categories",
                           isEnabled: true,
                           action: onTapCategories)
@@ -65,15 +65,15 @@ private struct OptionRow: View {
             ZStack {
                 Circle()
                     .fill(Color("Green-300"))
-                    .frame(width: 56, height: 56)
+                    .frame(width: 44, height: 44)
 
                 Image(systemName: systemImage)
-                    .font(.system(size: 22, weight: .semibold))
+                    .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(Color.white)
             }
 
             Text(title)
-                .font(.title3.weight(.semibold))
+                .appFont(AppFont.title3)
                 .foregroundStyle(.white)
         }
         .opacity(isEnabled ? 1.0 : 0.5)

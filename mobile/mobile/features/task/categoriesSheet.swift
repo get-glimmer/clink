@@ -83,7 +83,7 @@ struct categoriesSheet: View {
                 }
             }
             // Add Category Sheet
-            .sheet(isPresented: $showAddCategorySheet) {
+            .fullScreenCover(isPresented: $showAddCategorySheet) {
                 AddCategorySheet(
                     emoji: $newCategoryEmoji,
                     name: $newCategoryName,
@@ -105,7 +105,7 @@ struct categoriesSheet: View {
                 )
             }
             // Edit Category sheet
-            .sheet(item: $editingCategory) { cat in
+            .fullScreenCover(item: $editingCategory) { cat in
                 EditCategorySheet(
                     category: cat,
                     onDone: { emoji, name, privacy in

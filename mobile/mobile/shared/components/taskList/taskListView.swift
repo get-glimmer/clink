@@ -27,7 +27,7 @@ struct TaskListView: View {
                 dailyTaskHeader
                 categoriesSection
             }
-            .padding(.horizontal)
+            //.padding(.horizontal)
         }
     }
     
@@ -36,6 +36,7 @@ struct TaskListView: View {
             Text("Daily Task")
                 .font(.headline)
         }
+        .padding(.horizontal)
         .padding(.top, 24)
         .padding(.bottom, 4)
     }
@@ -44,27 +45,29 @@ struct TaskListView: View {
         ForEach(viewModel.categoriesWithTasks) { categoryWithTasks in
             categoryCard(for: categoryWithTasks)
         }
+        .padding(.horizontal)
     }
     
     private func categoryCard(for categoryWithTasks: CategoryWithTasks) -> some View {
         ZStack {
             RoundedRectangle(cornerRadius: 16)
-                .foregroundColor(Color(.systemGray6))
-            VStack(alignment: .leading, spacing: 12) {
+                .foregroundColor(Color("Neutral-900"))
+            VStack(alignment: .leading, spacing: 25) {
                 categoryHeader(for: categoryWithTasks)
                 tasksSection(for: categoryWithTasks)
             }
             .padding(20)
         }
         .frame(maxWidth: .infinity, minHeight: categoryWithTasks.tasks.isEmpty ? 60 : 120)
-        .padding(.vertical, 4)
+        .padding(.vertical, 8)
     }
     
     private func categoryHeader(for categoryWithTasks: CategoryWithTasks) -> some View {
         HStack {
             Text(categoryWithTasks.category.emoji)
+                .appFont(AppFont.title1)
             Text(categoryWithTasks.category.name)
-                .font(.headline)
+                .appFont(AppFont.title3)
             Spacer()
             addTaskButton(for: categoryWithTasks.category.id)
         }
@@ -75,8 +78,8 @@ struct TaskListView: View {
             viewModel.createTemporaryTask(categoryId: categoryId)
         }) {
             Image(systemName: "plus")
-                .imageScale(.small)
-                .frame(width: 20, height: 30)
+                .imageScale(.large)
+                .frame(width: 27, height: 27)
                 .foregroundColor(.primary)
         }
     }
@@ -127,7 +130,7 @@ struct TaskListView: View {
                 get: { editingTexts[task.id] ?? "" },
                 set: { editingTexts[task.id] = $0 }
             ))
-            .font(.body)
+            .appFont(AppFont.body1)
             .padding(8)
             .background(Color.clear)
             .textFieldStyle(PlainTextFieldStyle())
@@ -145,7 +148,7 @@ struct TaskListView: View {
     
     private func completedTaskText(for task: TaskListItem) -> some View {
         Text(task.title)
-            .font(.body)
+            .appFont(AppFont.body1)
             .strikethrough(task.isCompleted, color: .primary)
             .foregroundColor(.primary)
     }
@@ -162,8 +165,8 @@ struct TaskListView: View {
             } label: {
                 Image(systemName: "ellipsis")
                     .foregroundColor(.primary)
-                    .imageScale(.small)
-                    .frame(width: 20, height: 30)
+                    .imageScale(.medium)
+                    .frame(width: 25, height: 25)
             }
             .contentShape(Rectangle())
         }

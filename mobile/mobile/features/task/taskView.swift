@@ -39,7 +39,7 @@ struct TaskView: View {
                     // ---- Header ----
                     ZStack {
                         Text("Hi \(getUserName() ?? "User") 👋")
-                            .font(.headline)
+                            .appFont(AppFont.title2)
                         HStack {
                             Spacer()
                             Button {
@@ -47,7 +47,7 @@ struct TaskView: View {
                             } label: {
                                 Image(systemName: "ellipsis")
                                     .foregroundColor(.primary)
-                                    .imageScale(.small)
+                                    .imageScale(.medium)
                                     .frame(width: 20, height: 30)
                             }
                             .padding(.trailing)
@@ -71,7 +71,6 @@ struct TaskView: View {
                     // --Task List Content--
                     ScrollView {
                         TaskListView(taskSelectedDate: $today, viewModel: viewModel)
-                            .padding(.horizontal)
                             .padding(.bottom, 120)
                     }
                 }
@@ -111,7 +110,7 @@ struct TaskView: View {
             //animateSheetBounce()
         }
         // -- "Add category" sheet --
-        .sheet(isPresented: $showAddCategorySheet) {
+        .fullScreenCover(isPresented: $showAddCategorySheet) {
             AddCategorySheet(
                 emoji: $newCategoryEmoji,
                 name: $newCategoryName,
@@ -133,7 +132,7 @@ struct TaskView: View {
             )
         }
         // -- "Categories" sheet --
-        .sheet(isPresented: $showCategoriesSheet) {
+        .fullScreenCover(isPresented: $showCategoriesSheet) {
             categoriesSheet(viewModel: viewModel)
         }
     }

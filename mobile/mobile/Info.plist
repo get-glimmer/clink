@@ -2,7 +2,11 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>UILaunchScreen</key>
-	<dict/>
+	<key>UIAppFonts</key>
+	<array>
+		<string>Figtree-Bold.ttf</string>
+		<string>Figtree-Regular.ttf</string>
+		<string>Figtree-Medium.ttf</string>
+	</array>
 </dict>
 </plist>
