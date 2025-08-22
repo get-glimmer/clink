@@ -35,10 +35,6 @@ struct AddCategorySheet: View {
     var body: some View {
         NavigationStack {
             content
-                // Emoji picker - appear lower like a small bottom sheet
-                .emojiPicker(isPresented: $isEmojiPickerPresented,
-                             selectedEmoji: $emoji)
-                .presentationDetents([.height(260)])
                 .navigationTitle("")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
@@ -97,6 +93,21 @@ struct AddCategorySheet: View {
                 .frame(width: 96, height: 96)
             }
             .padding(.top, 8)
+            
+            // --- emoji picker ---
+            Rectangle()
+                .fill(.clear)
+                .frame(height: 1)
+                .emojiPicker(
+                    isPresented: $isEmojiPickerPresented,
+                    selectedEmoji: $emoji,
+                    arrowDirection: .up,
+                    customHeight: 380,
+                    horizontalInset: .zero,
+                    isDismissAfterChoosing: true,
+                    selectedEmojiCategoryTintColor: .white,
+                    feedBackGeneratorStyle: .light
+                )
 
             // --- Title field ---
             VStack(alignment: .leading, spacing: 8) {
@@ -213,11 +224,10 @@ struct AddCategorySheet: View {
 
             // --- Done button ---
             Button {
-                isValidEmoji = Self.isPureEmoji(emoji)
-                guard isValidEmoji else {
-                    errorMessage = "Please select a valid emoji."
-                    return
-                }
+                // Use default emoji if empty
+                let chosenEmoji: String = Self.isPureEmoji(emoji) ? emoji : "🔥"
+                emoji = chosenEmoji
+                
                 guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                     errorMessage = "Please enter a category name."
                     return
@@ -238,9 +248,8 @@ struct AddCategorySheet: View {
     }
 }
 
-// MARK: - Emoji validation (same as original)
+// MARK: - Emoji validation
 extension AddCategorySheet {
-    /// Heuristic: disallow obvious alphanumerics; require at least one emoji scalar.
     static func isPureEmoji(_ s: String) -> Bool {
         let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return false }

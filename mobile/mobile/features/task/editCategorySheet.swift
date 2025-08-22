@@ -58,14 +58,6 @@ struct EditCategorySheet: View {
     var body: some View {
         NavigationStack {
             content
-                .emojiPicker(
-                    isPresented: $isEmojiPickerPresented,
-                    selectedEmoji: $emoji
-                )
-                .presentationDetents([.height(260)])
-                .presentationDragIndicator(.visible)
-                .presentationCornerRadius(16)
-            
                 .navigationTitle("")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
@@ -132,6 +124,21 @@ struct EditCategorySheet: View {
                 .frame(width: 96, height: 96)
             }
             .padding(.top, 8)
+            
+            // --- emoji picker ---
+            Rectangle()
+                .fill(.clear)
+                .frame(height: 1)
+                .emojiPicker(
+                    isPresented: $isEmojiPickerPresented,
+                    selectedEmoji: $emoji,
+                    arrowDirection: .up,
+                    customHeight: 380,
+                    horizontalInset: .zero,
+                    isDismissAfterChoosing: true,
+                    selectedEmojiCategoryTintColor: .white,
+                    feedBackGeneratorStyle: .light
+                )
 
             // Title field
             VStack(alignment: .leading, spacing: 8) {
