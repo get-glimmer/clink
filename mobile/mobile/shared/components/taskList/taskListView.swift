@@ -36,7 +36,7 @@ struct TaskListView: View {
             Text("Daily Task")
                 .font(.headline)
         }
-        .padding(.horizontal)
+        .padding(.horizontal, 24)
         .padding(.top, 24)
         .padding(.bottom, 4)
     }

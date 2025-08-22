@@ -133,7 +133,7 @@ struct TaskView: View {
         }
         // -- "Categories" sheet --
         .fullScreenCover(isPresented: $showCategoriesSheet) {
-            categoriesSheet(viewModel: viewModel)
+            CategoriesSheet(viewModel: viewModel)
         }
     }
 }

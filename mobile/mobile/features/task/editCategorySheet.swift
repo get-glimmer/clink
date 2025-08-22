@@ -97,6 +97,7 @@ struct EditCategorySheet: View {
                 Color.clear.frame(height: 20)
             }
         }
+        .padding(.top, 12)
     }
 
     private var content: some View {
@@ -145,6 +146,7 @@ struct EditCategorySheet: View {
                 Text("Title")
                     .appFont(AppFont.labelS)
                     .foregroundColor(Color("Netural-300"))
+                    .padding(.horizontal, 8)
 
                 TextField("Write a title...", text: $name)
                     .appFont(AppFont.body1)
@@ -166,6 +168,7 @@ struct EditCategorySheet: View {
                 Text("Options")
                     .appFont(AppFont.labelS)
                     .foregroundColor(Color("Netural-300"))
+                    .padding(.horizontal, 8)
 
                 VStack(spacing: 0) {
                     // Row 1: Visibility
