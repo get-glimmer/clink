@@ -105,7 +105,7 @@ struct TaskListView: View {
                 viewModel.toggleTaskCompletion(task: task)
             }
         }) {
-            Image(systemName: task.isCompleted ? "checkmark.circle" : "circle")
+            Image(task.isCompleted ? "checkboxFilled" : "checkboxEmpty")
                 .foregroundColor(.primary)
                 .imageScale(.large)
         }

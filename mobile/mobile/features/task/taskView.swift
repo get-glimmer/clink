@@ -45,14 +45,19 @@ struct TaskView: View {
                             Button {
                                 showOptionsSheet = true
                             } label: {
-                                Image(systemName: "ellipsis")
-                                    .foregroundColor(.primary)
-                                    .imageScale(.medium)
-                                    .frame(width: 20, height: 30)
+                                ZStack {
+                                    Circle()
+                                        .fill(Color("Netural-800").opacity(0.3))
+                                        .frame(width: 44, height: 44)
+                                    Image(systemName: "ellipsis")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(Color("White"))
+                                }
                             }
-                            .padding(.trailing)
+                            .buttonStyle(.plain)
                         }
                     }
+                    .frame(maxWidth: .infinity)
                     .padding(.top, 16)
 
                     // ---- Shaker (scaled) ----
