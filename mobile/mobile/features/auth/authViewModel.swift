@@ -10,6 +10,7 @@ class AuthViewModel: ObservableObject {
     @Published var isCheckingAuth = true
     @Published var isProfileLoaded = false
     @Published var isAppReady = false // true only when profile + auth check are done
+    @Published var errorMessage: String = ""
     
     private let client = SupabaseClientManager.shared.client
 
@@ -38,29 +39,32 @@ class AuthViewModel: ObservableObject {
         isCheckingAuth = false // done checking
     }
     
-    // MARK: - Sign Up
-    func signUp() async {
-        guard let client = self.client else { return }
+    // MARK: - Signup
+    func signup(email: String, password: String, name: String) async {
+        guard let client = client else { return }
         do {
-            let response = try await client.auth.signUp(email: email, password: password)
-            let userId = response.user.id
-            
-            // Insert profile row
+            // 1. Sign up user
+            let result = try await client.auth.signUp(email: email, password: password)
+            let userId = result.user.id
+
+            // 2. Update profile fields
             try await client
                 .from("profiles")
-                .insert([
-                    "id": userId.uuidString,
-                    "email": email,
-                    "name": "",
-                    "bio": "",
-                    "avatar_url": nil
+                .update([
+                    "name": name,
                 ])
+                .eq("id", value: userId.uuidString)
                 .execute()
-            
+
+            // 3. Update AuthViewModel state
+            self.email = email
+            self.isAuthenticated = true
+
+            // 4. Load profile immediately
             await loadProfile()
-            isAuthenticated = true
+
         } catch {
-            print("Sign up failed:", error.localizedDescription)
+            self.errorMessage = error.localizedDescription
         }
     }
     
