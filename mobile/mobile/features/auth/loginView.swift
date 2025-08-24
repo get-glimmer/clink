@@ -5,10 +5,9 @@ struct LoginView: View {
     @State private var email = ""
     @State private var password = ""
     @State private var errorMessage = ""
-    @State private var showSignup = false
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 16) {
                 Text("Login")
                     .font(.largeTitle)
@@ -34,12 +33,14 @@ struct LoginView: View {
                 .buttonStyle(.borderedProminent)
 
                 if !errorMessage.isEmpty {
-                    Text(errorMessage).foregroundColor(.red)
+                    Text(errorMessage)
+                        .foregroundColor(.red)
+                        .multilineTextAlignment(.center)
                 }
 
                 Spacer()
 
-                NavigationLink(destination: SignupView()) {
+                NavigationLink(destination: SignupView().environmentObject(authViewModel)) {
                     Text("Don’t have an account? Sign Up")
                         .foregroundColor(.blue)
                 }

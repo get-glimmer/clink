@@ -7,9 +7,10 @@ class AuthViewModel: ObservableObject {
     @Published var password: String = ""
     @Published var profile: Profile?
     @Published var isAuthenticated = false
+    @Published var isCheckingAuth = true
     
     private let client = SupabaseClientManager.shared.client
-    
+
     init() {
         Task {
             await checkSession()
@@ -24,6 +25,7 @@ class AuthViewModel: ObservableObject {
         } catch {
             isAuthenticated = false
         }
+        isCheckingAuth = false // done checking
     }
     
     // MARK: - Sign Up
@@ -78,7 +80,7 @@ class AuthViewModel: ObservableObject {
     }
     
     // MARK: - Delete Profile (only)
-    func deleteProfile() async {
+    func deleteAccount() async {
         guard let client = self.client else { return }
         do {
             let user = try await client.auth.session.user

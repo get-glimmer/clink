@@ -11,20 +11,29 @@ class ProfileViewModel: ObservableObject {
     // MARK: Fetch profile by uuid
     func fetchProfile(uuid: String) async {
         guard let client = self.client else { return }
-
         do {
-            let response = try await client
+            // Fetch profile
+            let response: PostgrestResponse<Profile> = try await client
                 .from("profiles")
                 .select()
                 .eq("id", value: uuid)
+                .single()
                 .execute()
-
-            // response.data is already Data, decode directly
-            let decodedProfiles = try JSONDecoder().decode([Profile].self, from: response.data)
-            self.profile = decodedProfiles.first
-
+            
+            var profile = response.value
+            
+            // Fetch friends count
+            let friendsResponse = try await client
+                .from("friends")
+                .select("user_id", head: false, count: .exact)
+                .eq("user_id", value: uuid)
+                .eq("status", value: "accepted")
+                .execute()
+            
+            profile.friendsCount = friendsResponse.count ?? 0
+            self.profile = profile
         } catch {
-            print("Error fetching profile:", error)
+            print("Failed to fetch profile:", error.localizedDescription)
         }
     }
 

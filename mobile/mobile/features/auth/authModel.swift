@@ -1,6 +1,6 @@
 import Foundation
 
-struct Profile: Codable, Identifiable {
+struct Profile: Codable, Identifiable, Equatable {
     var id: UUID            // Local or DB ID
     var name: String
     var avatar_url: String?
@@ -8,6 +8,7 @@ struct Profile: Codable, Identifiable {
     var bio: String?
 //    var friendsTableID: String?
     var email: String
+    var friendsCount: Int?
 }
 
 

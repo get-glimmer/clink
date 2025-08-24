@@ -20,21 +20,32 @@ struct SignupView: View {
                 .textFieldStyle(RoundedBorderTextFieldStyle())
 
             Button("Sign Up") {
-                Task {
-                    authViewModel.email = email
-                    authViewModel.password = password
-                    await authViewModel.signUp()
-                    if !authViewModel.isAuthenticated {
-                        errorMessage = "Sign up failed"
-                    }
-                }
+                Task { await signup() }
             }
             .buttonStyle(.borderedProminent)
 
             if !errorMessage.isEmpty {
-                Text(errorMessage).foregroundColor(.red)
+                Text(errorMessage)
+                    .foregroundColor(.red)
+                    .multilineTextAlignment(.center)
             }
         }
         .padding()
+    }
+
+    func signup() async {
+        do {
+            guard let client = SupabaseClientManager.shared.client else { return }
+            _ = try await client.auth.signUp(email: email, password: password)
+            
+            // Set auth state in AuthViewModel
+            authViewModel.email = email
+            authViewModel.isAuthenticated = true
+            
+            // Optionally load profile immediately
+            await authViewModel.loadProfile()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 }

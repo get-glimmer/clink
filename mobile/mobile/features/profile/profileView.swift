@@ -32,44 +32,28 @@ struct ProfileView: View {
                         .overlay(Text("No Avatar"))
                 }
 
-                // MARK: - Name
+                // Name
                 VStack(alignment: .leading) {
-                    Text("Name:")
-                    TextField(viewModel.profile?.name ?? "", text: $newName)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                    Button("Update Name") {
-                        Task { await viewModel.updateName(to: newName) }
-                    }
+                    Text(viewModel.profile?.name ?? "Update your name")
                 }
-
-                // MARK: - Bio
+                
+                // email
                 VStack(alignment: .leading) {
-                    Text("Bio:")
-                    TextField(viewModel.profile?.bio ?? "", text: $newBio)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                    Button("Update Bio") {
-                        Task { await viewModel.updateBio(to: newBio) }
-                    }
+                    Text(viewModel.profile?.email ?? "Update your email")
                 }
-
-                // MARK: - Avatar URL
-                VStack(alignment: .leading) {
-                    Text("Avatar URL:")
-                    TextField(viewModel.profile?.avatar_url ?? "", text: $newAvatarURL)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                    Button("Update Avatar") {
-                        Task { await viewModel.updateAvatar(url: newAvatarURL) }
-                    }
-                }
+                
+                // Friends Count
+                let count = viewModel.profile?.friendsCount ?? 0
+                Text("\(count) friends")
 
                 Spacer()
             }
             .padding()
-            .navigationTitle("Profile")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     NavigationLink(destination: SettingsView()) {
-                        Image(systemName: "gearshape.fill")
+                        Image(systemName: "gearshape")
+                            .foregroundColor(.white)
                     }
                 }
             }
