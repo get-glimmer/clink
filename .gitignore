@@ -9,4 +9,4 @@
 *.xcodeproj/xcuserdata/
 *.xcscmblueprint
 *.xcdebugger
-**/*.xcodeproj/xcshareddata/
+**/*.xcodeproj/xcshareddata/**/*.xcuserstate
