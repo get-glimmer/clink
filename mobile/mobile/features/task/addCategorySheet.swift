@@ -42,11 +42,11 @@ struct AddCategorySheet: View {
                         Button(action: { dismiss() }) {
                             ZStack {
                                 Circle()
-                                    .fill(Color("Netural-800").opacity(0.3))
+                                    .fill(Color("Neutral-800").opacity(0.3))
                                     .frame(width: 44, height: 44)
                                 Image(systemName: "chevron.left")
                                     .font(.system(size: 12))
-                                    .foregroundColor(Color("Netural-400"))
+                                    .foregroundColor(Color("Neutral-400"))
                             }
                             .contentShape(Circle())
                         }
@@ -85,9 +85,9 @@ struct AddCategorySheet: View {
                         Button { isEmojiPickerPresented = true } label: {
                             Image("pencilFilled")
                                 .font(.system(size: 12, weight: .bold))
-                                .foregroundColor(Color("Netural-400"))
+                                .foregroundColor(Color("Neutral-400"))
                                 .padding(8)
-                                .background(Circle().fill(Color("Netural-800")))
+                                .background(Circle().fill(Color("Neutral-800")))
                         }
                     }
                 }
@@ -114,7 +114,7 @@ struct AddCategorySheet: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Title")
                     .appFont(AppFont.labelS)
-                    .foregroundColor(Color("Netural-300"))
+                    .foregroundColor(Color("Neutral-300"))
                     .padding(.horizontal, 8)
 
 
@@ -128,7 +128,7 @@ struct AddCategorySheet: View {
                     .background(
                         RoundedRectangle(cornerRadius: 8)
                             .fill(.clear)
-                            .strokeBorder(Color("Netural-600"), lineWidth: 0.7)
+                            .strokeBorder(Color("Neutral-600"), lineWidth: 0.7)
                     )
             }
             .padding(.horizontal, 16)
@@ -137,7 +137,7 @@ struct AddCategorySheet: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Options")
                     .appFont(AppFont.labelS)
-                    .foregroundColor(Color("Netural-300"))
+                    .foregroundColor(Color("Neutral-300"))
                     .padding(.horizontal, 8)
 
 
@@ -179,7 +179,7 @@ struct AddCategorySheet: View {
 
                     // Inner divider
                     Rectangle()
-                        .fill(Color("Netural-800"))
+                        .fill(Color("Neutral-800"))
                         .frame(height: 0.7)
                         .padding(.horizontal, 12)
 
@@ -202,7 +202,7 @@ struct AddCategorySheet: View {
                                 .foregroundColor(Color("White"))
                             Image(systemName: "lock.fill")
                                 .font(.footnote)
-                                .foregroundColor(Color("Netural-400"))
+                                .foregroundColor(Color("Neutral-400"))
                         }
                     }
                     .frame(height: 52)
@@ -211,7 +211,7 @@ struct AddCategorySheet: View {
                 .background(
                     RoundedRectangle(cornerRadius: 12)
                         .fill(.clear)
-                        .strokeBorder(Color("Netural-600"), lineWidth: 0.7)
+                        .strokeBorder(Color("Neutral-600"), lineWidth: 0.7)
                 )
             }
             .padding(.horizontal, 16)

@@ -21,11 +21,11 @@ struct CategoriesSheet: View {
                 Button(action: { dismiss() }) {
                     ZStack {
                         Circle()
-                            .fill(Color("Netural-800").opacity(0.3))
+                            .fill(Color("Neutral-800").opacity(0.3))
                             .frame(width: 44, height: 44)
                         Image(systemName: "chevron.left")
                             .font(.system(size: 12))
-                            .foregroundColor(Color("Netural-400"))
+                            .foregroundColor(Color("Neutral-400"))
                     }
                 }
                 Spacer()
@@ -36,11 +36,11 @@ struct CategoriesSheet: View {
                 Button(action: { showAddCategorySheet = true }) {
                     ZStack {
                         Circle()
-                            .fill(Color("Netural-800").opacity(0.3))
+                            .fill(Color("Neutral-800").opacity(0.3))
                             .frame(width: 44, height: 44)
                         Image(systemName: "plus")
                             .font(.system(size: 16))
-                            .foregroundColor(Color("Netural-400"))
+                            .foregroundColor(Color("Neutral-400"))
                     }
                 }
             }
@@ -54,7 +54,7 @@ struct CategoriesSheet: View {
                 Section(header:
                     Text("Daily Tasks")
                         .appFont(AppFont.labelS)
-                        .foregroundColor(Color("Netural-300"))
+                        .foregroundColor(Color("Neutral-300"))
                 ) {
                     ForEach(viewModel.categoriesWithTasks, id: \.id) { catWithTasks in
                         categoryRow(cat: catWithTasks.category)
@@ -77,7 +77,7 @@ struct CategoriesSheet: View {
                 Section(header:
                     Text("Archived Tasks")
                         .appFont(AppFont.labelS)
-                        .foregroundColor(Color("Netural-300"))
+                        .foregroundColor(Color("Neutral-300"))
                 ) {
                     // TODO: archived categories
                 }
@@ -145,7 +145,7 @@ struct CategoriesSheet: View {
             // --- Divider ---
             Divider()
                 .frame(width: 361)
-                .background(Color("Netural-800"))
+                .background(Color("Neutral-800"))
                 .opacity(0.5)
         }
         .padding(.vertical, 0)

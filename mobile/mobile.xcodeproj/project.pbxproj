@@ -41,7 +41,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		01259ED22E49E67B005C4046 /* Exceptions for "mobile" folder in "mobile" target */ = {
+		347454952E5B02AD00589856 /* Exceptions for "mobile" folder in "mobile" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -54,7 +54,7 @@
 		B443470E2DFD212E00644724 /* mobile */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				01259ED22E49E67B005C4046 /* Exceptions for "mobile" folder in "mobile" target */,
+				347454952E5B02AD00589856 /* Exceptions for "mobile" folder in "mobile" target */,
 			);
 			path = mobile;
 			sourceTree = "<group>";

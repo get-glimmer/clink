@@ -47,7 +47,7 @@ struct TaskView: View {
                             } label: {
                                 ZStack {
                                     Circle()
-                                        .fill(Color("Netural-800").opacity(0.3))
+                                        .fill(Color("Neutral-800").opacity(0.3))
                                         .frame(width: 44, height: 44)
                                     Image(systemName: "ellipsis")
                                         .font(.system(size: 14))

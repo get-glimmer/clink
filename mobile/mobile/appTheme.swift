@@ -13,18 +13,18 @@ enum AppColors {
     static let green100 = Color("Green-100")
     static let green50  = Color("Green-50")
 
-    // MARK: - Neutral Shades (note: 50-800 are spelled 'Netural')
+    // MARK: - Neutral Shades
     static let neutral1000 = Color("Neutral-1000")
     static let neutral900  = Color("Neutral-900")
-    static let neutral800  = Color("Netural-800")
-    static let neutral700  = Color("Netural-700")
-    static let neutral600  = Color("Netural-600")
-    static let neutral500  = Color("Netural-500")
-    static let neutral400  = Color("Netural-400")
-    static let neutral300  = Color("Netural-300")
-    static let neutral200  = Color("Netural-200")
-    static let neutral100  = Color("Netural-100")
-    static let neutral50   = Color("Netural-50")
+    static let neutral800  = Color("Neutral-800")
+    static let neutral700  = Color("Neutral-700")
+    static let neutral600  = Color("Neutral-600")
+    static let neutral500  = Color("Neutral-500")
+    static let neutral400  = Color("Neutral-400")
+    static let neutral300  = Color("Neutral-300")
+    static let neutral200  = Color("Neutral-200")
+    static let neutral100  = Color("Neutral-100")
+    static let neutral50   = Color("Neutral-50")
     static let white       = Color("White")
     static let textWhite = Color.white
 }
