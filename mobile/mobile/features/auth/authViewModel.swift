@@ -10,6 +10,22 @@ class AuthViewModel: ObservableObject {
     
     private let client = SupabaseClientManager.shared.client
     
+    init() {
+        Task {
+            await checkSession()
+        }
+    }
+
+    func checkSession() async {
+        guard let client = self.client else { return }
+        do {
+            let session = try await client.auth.session
+            isAuthenticated = (session.user.id != UUID())
+        } catch {
+            isAuthenticated = false
+        }
+    }
+    
     // MARK: - Sign Up
     func signUp() async {
         guard let client = self.client else { return }
