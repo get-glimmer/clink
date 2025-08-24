@@ -1,37 +1,24 @@
+//import SwiftUI
 //
-//  authView.swift
-//  mobile
+//struct AuthView: View {
+//    @Binding var isAuthenticated: Bool
+//    @State private var selectedTab = 0
 //
-//  Created by Soohyeuk Choi on 6/18/25.
+//    var body: some View {
+//        VStack {
+//            Picker("Auth", selection: $selectedTab) {
+//                Text("Login").tag(0)
+//                Text("Signup").tag(1)
+//            }
+//            .pickerStyle(SegmentedPickerStyle())
+//            .padding()
 //
-
-import SwiftUI
-
-struct AuthView: View {
-    @Binding var isAuthenticated: Bool
-
-    var body: some View {
-        ZStack {
-            AppColors.neutral1000.ignoresSafeArea()
-            VStack(spacing: 20) {
-                Button("Sign In with Apple") {
-                    saveUserId()
-                    saveUserName()
-                    isAuthenticated = true
-                }
-                .frame(height: 45)
-                .buttonStyle(.borderedProminent)
-                .foregroundColor(AppColors.textWhite)
-
-                Button("Login (Email/Password)") {
-                    saveUserId()
-                    saveUserName()
-                    isAuthenticated = true
-                }
-                .buttonStyle(.borderedProminent)
-                .foregroundColor(AppColors.textWhite)
-            }
-            .padding()
-        }
-    }
-}
+//            if selectedTab == 0 {
+//                LoginView(isAuthenticated: $isAuthenticated)
+//            } else {
+//                SignupView(isAuthenticated: $isAuthenticated)
+//            }
+//        }
+//        .padding()
+//    }
+//}

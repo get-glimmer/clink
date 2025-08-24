@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct AppRouter: View {
+    @State private var currentUserUUID: String = ""
+
     var body: some View {
         TabView {
             TaskView()
@@ -24,9 +26,14 @@ struct AppRouter: View {
                     Label("Profile", systemImage: "person.crop.circle.fill")
                 }
         }
+        .task {
+            // Fetch logged-in user's UUID
+            if let client = SupabaseClientManager.shared.client,
+               let user = try? await client.auth.session.user {
+                currentUserUUID = user.id.uuidString
+            }
+        }
     }
 }
 
-#Preview {
-    RootView()
-}
+
