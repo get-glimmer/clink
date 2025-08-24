@@ -3,6 +3,7 @@ import Supabase
 
 struct ProfileView: View {
     @StateObject private var viewModel = ProfileViewModel()
+    @EnvironmentObject var authViewModel: AuthViewModel
     
     // Temporary state for editing
     @State private var newName: String = ""
@@ -64,7 +65,7 @@ struct ProfileView: View {
                             .fill(Color("Neutral-900"))
                             .frame(width: 40, height: 40)
                         
-                        NavigationLink(destination: SettingsView()) {
+                        NavigationLink(destination: SettingsView().environmentObject(authViewModel)) {
                             Image(systemName: "gearshape")
                                 .foregroundColor(.white)
                                 .frame(width: 20, height: 20, alignment: .center)

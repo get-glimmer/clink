@@ -2,8 +2,8 @@ import SwiftUI
 import Supabase
 
 struct SettingsView: View {
+    @EnvironmentObject var authViewModel: AuthViewModel 
     @Environment(\.dismiss) var dismiss
-    @StateObject private var authViewModel = AuthViewModel()
     
     // Example notification toggles
     @State private var notif1 = false
@@ -11,7 +11,7 @@ struct SettingsView: View {
     @State private var notif3 = true
     
     var body: some View {
-        NavigationStack {
+    
             List {
                 // MARK: - My Account
                 Section(header: sectionHeader("My Account")) {
@@ -56,13 +56,12 @@ struct SettingsView: View {
                             .foregroundColor(.gray)
                     }
                 }
+                Spacer()
                 
                 // MARK: - Logout / Delete
-                Spacer()
                 Button(role: .destructive) {
                     Task {
                         await authViewModel.logout()
-                        dismiss()
                     }
                 } label: {
                     Text("Logout")
@@ -84,7 +83,7 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
             .listStyle(.plain)
-        }
+        
         .navigationBarBackButtonHidden(true) // hide default "Back" text
 
         .toolbar {
@@ -103,7 +102,6 @@ struct SettingsView: View {
                 }
             }
         }
-        .environmentObject(authViewModel)
     }
 }
 
@@ -121,9 +119,4 @@ func sectionHeader(_ text: String) -> some View {
         .font(.headline)
         .fontWeight(.bold)
         .foregroundColor(.white)
-}
-
-
-#Preview {
-    SettingsView()
 }

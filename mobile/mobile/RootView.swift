@@ -6,13 +6,7 @@ struct RootView: View {
     var body: some View {
         Group {
             if !authViewModel.isAppReady {
-                // Full-screen loading view
-                ZStack {
-                    Color.black.ignoresSafeArea()
-                    ProgressView("Loading…")
-                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        .foregroundColor(.white)
-                }
+                ProgressView()
             } else if authViewModel.isAuthenticated {
                 AppRouter()
                     .environmentObject(authViewModel)

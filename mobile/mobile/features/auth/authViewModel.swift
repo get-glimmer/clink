@@ -149,7 +149,4 @@ class AuthViewModel: ObservableObject {
             print("Failed to load profile:", error.localizedDescription)
         }
     }
-    
-    
-
 }
