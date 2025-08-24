@@ -10,16 +10,23 @@ struct UsernameView: View {
             // Header
             HStack {
                 Button { dismiss() } label: {
-                    Image(systemName: "chevron.left")
-                        .foregroundColor(.white)
-                        .font(.system(size: 20, weight: .semibold))
+                    ZStack {
+                        Circle()
+                            .fill(Color("Neutral-900"))
+                            .frame(width: 40, height: 40)
+                        Image(systemName: "chevron.left")
+                            .foregroundColor(Color("Neutral-400"))
+                            .frame(width: 12, height: 12)
+                    }
                 }
                 Spacer()
                 Text("My Account")
                     .font(.headline)
                     .foregroundColor(.white)
                 Spacer()
-                Image(systemName: "chevron.left").opacity(0)
+                Circle()
+                    .frame(width: 40, height: 40)
+                    .opacity(0)
             }
             .padding(.horizontal)
             .padding(.top, 8)
@@ -27,23 +34,28 @@ struct UsernameView: View {
             // Email
             if let email = authViewModel.profile?.email {
                 Text(email)
-                    .font(.subheadline)
-                    .foregroundColor(.gray)
+                    .font(.headline)
+                    .foregroundColor(.white)
                     .padding(.horizontal)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             // Name field
             VStack(alignment: .leading, spacing: 8) {
-                Text("Name")
+                Text("Username")
                     .foregroundColor(.gray)
                     .font(.subheadline)
 
-                HStack {
+                HStack(spacing: 8) {
                     TextField("Enter name", text: $viewModel.name)
                         .padding()
-                        .background(Color(.systemGray6))
+                        .background(Color(.clear))
                         .cornerRadius(10)
+                        .frame(height: 44)
+                        .overlay( // use overlay for more flexible border with corner radius
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(Color("Neutral-600"), lineWidth: 1)
+                        )
 
                     Button {
                         Task {
@@ -52,19 +64,21 @@ struct UsernameView: View {
                     } label: {
                         Text(viewModel.isLoading ? "Saving..." : "Confirm")
                             .foregroundColor(.white)
-                            .padding(.vertical, 10)
-                            .padding(.horizontal, 16)
-                            .background(viewModel.isLoading ? Color.gray : Color.blue)
+                            .frame(maxWidth: 80)
+                            .frame(height: 44)
+                            .background(Color("Neutral-800"))
                             .cornerRadius(10)
                     }
                     .disabled(viewModel.isLoading)
                 }
+
             }
             .padding(.horizontal)
 
             Spacer()
         }
         .background(Color.black.ignoresSafeArea())
+        .navigationBarBackButtonHidden(true)
         .task {
             // Load profile if not already loaded
             if authViewModel.profile == nil {

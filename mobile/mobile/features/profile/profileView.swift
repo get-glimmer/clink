@@ -12,6 +12,8 @@ struct ProfileView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 20) {
+                Spacer().frame(height: 20)
+                
                 // MARK: - Avatar
                 if let avatar = viewModel.profile?.avatar_url, let url = URL(string: avatar) {
                     AsyncImage(url: url) { image in
@@ -32,29 +34,44 @@ struct ProfileView: View {
                         .overlay(Text("No Avatar"))
                 }
 
-                // Name
-                VStack(alignment: .leading) {
-                    Text(viewModel.profile?.name ?? "Update your name")
-                }
-                
-                // email
-                VStack(alignment: .leading) {
-                    Text(viewModel.profile?.email ?? "Update your email")
+                VStack(spacing: 4) {
+                    // name
+                    Text(viewModel.profile?.name ?? "")
+                        .font(.title2)
+                        .bold()
+                        .foregroundColor(Color("White"))
+                    
+                    // email
+                    Text(viewModel.profile?.email ?? "")
+                        .font(.caption)
+                        .foregroundColor(Color("Neutral-300"))
                 }
                 
                 // Friends Count
-                let count = viewModel.profile?.friendsCount ?? 0
-                Text("\(count) friends")
-
+                HStack {
+                    let count = viewModel.profile?.friendsCount ?? 0
+                    Image(systemName: "person.2")
+                            .foregroundColor(Color("White"))
+                    Text("\(count) friends")
+                }
                 Spacer()
             }
             .padding()
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    NavigationLink(destination: SettingsView()) {
-                        Image(systemName: "gearshape")
-                            .foregroundColor(.white)
+                    ZStack {
+                        Circle()
+                            .fill(Color("Neutral-900"))
+                            .frame(width: 40, height: 40)
+                        
+                        NavigationLink(destination: SettingsView()) {
+                            Image(systemName: "gearshape")
+                                .foregroundColor(.white)
+                                .frame(width: 20, height: 20, alignment: .center)
+                        }
+                        .buttonStyle(PlainButtonStyle()) // optional: removes any extra styling
                     }
+                    .frame(width: 40, height: 40)
                 }
             }
             .task {
