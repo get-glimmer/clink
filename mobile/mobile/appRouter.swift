@@ -1,30 +1,33 @@
 import SwiftUI
 
 struct AppRouter: View {
+    @EnvironmentObject var authViewModel: AuthViewModel
+    @State private var currentUserUUID: String = ""
     @State private var selectedTab: Tab = .task
-    enum Tab: Hashable { case task, tracker, community, profile }
+        enum Tab: Hashable { case task, tracker, community, profile }
 
-    // Hide system tab bar globally
-    init() {
-        UITabBar.appearance().isHidden = true
-    }
-
-    var body: some View {
-        ZStack {
-            TabView(selection: $selectedTab) {
-                TaskView().tag(Tab.task)
-                TrackerView().tag(Tab.tracker)
-                CommunityView().tag(Tab.community)
-                ProfileView().tag(Tab.profile)
-            }
-
-            VStack {
-                Spacer()
-                CustomNavBar(selectedTab: $selectedTab)
-            }
-            .ignoresSafeArea(.keyboard)
+        // Hide system tab bar globally
+        init() {
+            UITabBar.appearance().isHidden = true
         }
-    }
+
+        var body: some View {
+            ZStack {
+                TabView(selection: $selectedTab) {
+                    TaskView().tag(Tab.task)
+                    TrackerView().tag(Tab.tracker)
+                    CommunityView().tag(Tab.community)
+                    ProfileView().tag(Tab.profile)
+                }
+
+                VStack {
+                    Spacer()
+                    CustomNavBar(selectedTab: $selectedTab)
+                }
+                .ignoresSafeArea(.keyboard)
+            }
+        }
+    
 }
 
 struct CustomNavBar: View {

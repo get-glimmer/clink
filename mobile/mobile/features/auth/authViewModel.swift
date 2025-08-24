@@ -1,75 +1,152 @@
-// import Foundation
-// import AuthenticationServices
-// import Combine
-// import Supabase
+import Foundation
+import Supabase
 
-// class AuthViewModel: NSObject, ObservableObject {
-//     @Published var isAuthenticated = false
-//     @Published var errorMessage: String?
-//     private var cancellables = Set<AnyCancellable>()
+@MainActor
+class AuthViewModel: ObservableObject {
+    @Published var email: String = ""
+    @Published var password: String = ""
+    @Published var profile: Profile?
+    @Published var isAuthenticated = false
+    @Published var isCheckingAuth = true
+    @Published var isProfileLoaded = false
+    @Published var isAppReady = false // true only when profile + auth check are done
+    
+    private let client = SupabaseClientManager.shared.client
 
-//     func signInWithApple() {
-//         let request = ASAuthorizationAppleIDProvider().createRequest()
-//         request.requestedScopes = [.fullName, .email]
-//         let controller = ASAuthorizationController(authorizationRequests: [request])
-//         controller.delegate = self
-//         controller.presentationContextProvider = self
-//         controller.performRequests()
-//     }
+    init() {
+        Task { await initializeApp() }
+    }
 
-//     // Example login with Supabase (email/password)
-//     func login(email: String, password: String) {
-//         guard let client = SupabaseClientManager.shared.client else {
-//             errorMessage = "Supabase client not initialized."
-//             return
-//         }
-//         Task {
-//             do {
-//                 let session = try await client.auth.signIn(email: email, password: password)
-//                 DispatchQueue.main.async {
-//                     self.isAuthenticated = session.user != nil
-//                 }
-//             } catch {
-//                 DispatchQueue.main.async {
-//                     self.errorMessage = error.localizedDescription
-//                 }
-//             }
-//         }
-//     }
-// }
+    @MainActor
+    func initializeApp() async {
+        await checkSession()
+        if isAuthenticated {
+            await loadProfile()
+        }
+        isAppReady = true  // now everything is loaded
+    }
 
-// extension AuthViewModel: ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
-//     func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
-//         if let appleIDCredential = authorization.credential as? ASAuthorizationAppleIDCredential {
-//             guard let identityToken = appleIDCredential.identityToken,
-//                   let tokenString = String(data: identityToken, encoding: .utf8),
-//                   let client = SupabaseClientManager.shared.client else {
-//                 self.errorMessage = "Apple identity token missing."
-//                 return
-//             }
-//             let credentials = OpenIDConnectCredentials(provider: .apple, idToken: tokenString, nonce: nil)
-//             Task {
-//                 do {
-//                     let session = try await client.auth.signInWithIdToken(credentials: credentials)
-//                     DispatchQueue.main.async {
-//                         self.isAuthenticated = session.user != nil
-//                     }
-//                 } catch {
-//                     DispatchQueue.main.async {
-//                         self.errorMessage = error.localizedDescription
-//                     }
-//                 }
-//             }
-//         }
-//     }
 
-//     func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
-//         self.errorMessage = error.localizedDescription
-//     }
+    func checkSession() async {
+        guard let client = self.client else { return }
+        do {
+            let session = try await client.auth.session
+            isAuthenticated = (session.user.id != UUID())
+        } catch {
+            isAuthenticated = false
+        }
+        isCheckingAuth = false // done checking
+    }
+    
+    // MARK: - Sign Up
+    func signUp() async {
+        guard let client = self.client else { return }
+        do {
+            let response = try await client.auth.signUp(email: email, password: password)
+            let userId = response.user.id
+            
+            // Insert profile row
+            try await client
+                .from("profiles")
+                .insert([
+                    "id": userId.uuidString,
+                    "email": email,
+                    "name": "",
+                    "bio": "",
+                    "avatar_url": nil
+                ])
+                .execute()
+            
+            await loadProfile()
+            isAuthenticated = true
+        } catch {
+            print("Sign up failed:", error.localizedDescription)
+        }
+    }
+    
+    // MARK: - Log In
+    func logIn() async {
+        guard let client = self.client else { return }
+        do {
+            try await client.auth.signIn(email: email, password: password)
+            await loadProfile()
+            isAuthenticated = true
+        } catch {
+            print("Login failed:", error.localizedDescription)
+        }
+    }
+    
+    // MARK: - Logout
+    func logout() async {
+        guard let client = self.client else { return }
+        do {
+            try await client.auth.signOut()
+            isAuthenticated = false
+            profile = nil
+            print("✅ Logged out")
+        } catch {
+            print("Logout failed:", error.localizedDescription)
+        }
+    }
+    
+    // MARK: - Delete Profile (only)
+    func deleteAccount() async {
+        guard let client = self.client else { return }
+        do {
+            let user = try await client.auth.session.user
+            
+            try await client
+                .from("profiles")
+                .delete()
+                .eq("id", value: user.id.uuidString)
+                .execute()
+            
+            // Log out locally after deletion
+            try await client.auth.signOut()
+            isAuthenticated = false
+            profile = nil
+            
+            print("✅ Profile deleted and logged out")
+        } catch {
+            print("Delete profile error:", error.localizedDescription)
+        }
+    }
+    
+    @MainActor
+    func updateName(_ newName: String) async throws {
+        guard let client = client, let profile = profile else { return }
 
-//     func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
-//         // You may need to adjust this for your app's window
-//         return UIApplication.shared.windows.first { $0.isKeyWindow } ?? ASPresentationAnchor()
-//     }
-// }
+        let response: PostgrestResponse<Profile> = try await client
+            .from("profiles")
+            .update(["name": newName])
+            .eq("id", value: profile.id)
+            .select("*")
+            .single()
+            .execute()
 
+        // ✅ Assign profile directly from typed response
+        self.profile = response.value
+
+        print("✅ Name updated in AuthViewModel: \(self.profile?.name ?? "nil")")
+    }
+
+
+    func loadProfile() async {
+        guard let client = client else { return }
+        do {
+            let session = try await client.auth.session
+            let user = session.user
+
+            let response: PostgrestResponse<Profile> = try await client
+                .from("profiles")
+                .select()
+                .eq("id", value: user.id.uuidString)
+                .single()
+                .execute()
+
+            self.profile = response.value
+        } catch {
+            print("Failed to load profile:", error.localizedDescription)
+        }
+    }
+}
