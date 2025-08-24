@@ -8,14 +8,24 @@ class AuthViewModel: ObservableObject {
     @Published var profile: Profile?
     @Published var isAuthenticated = false
     @Published var isCheckingAuth = true
+    @Published var isProfileLoaded = false
+    @Published var isAppReady = false // true only when profile + auth check are done
     
     private let client = SupabaseClientManager.shared.client
 
     init() {
-        Task {
-            await checkSession()
-        }
+        Task { await initializeApp() }
     }
+
+    @MainActor
+    func initializeApp() async {
+        await checkSession()
+        if isAuthenticated {
+            await loadProfile()
+        }
+        isAppReady = true  // now everything is loaded
+    }
+
 
     func checkSession() async {
         guard let client = self.client else { return }
@@ -102,23 +112,44 @@ class AuthViewModel: ObservableObject {
         }
     }
     
-    // MARK: - Load Profile
+    @MainActor
+    func updateName(_ newName: String) async throws {
+        guard let client = client, let profile = profile else { return }
+
+        let response: PostgrestResponse<Profile> = try await client
+            .from("profiles")
+            .update(["name": newName])
+            .eq("id", value: profile.id)
+            .select("*")
+            .single()
+            .execute()
+
+        // ✅ Assign profile directly from typed response
+        self.profile = response.value
+
+        print("✅ Name updated in AuthViewModel: \(self.profile?.name ?? "nil")")
+    }
+
+
     func loadProfile() async {
-        guard let client = self.client else { return }
+        guard let client = client else { return }
         do {
             let session = try await client.auth.session
             let user = session.user
-            
+
             let response: PostgrestResponse<Profile> = try await client
                 .from("profiles")
                 .select()
                 .eq("id", value: user.id.uuidString)
                 .single()
                 .execute()
-            
-            profile = response.value
+
+            self.profile = response.value
         } catch {
             print("Failed to load profile:", error.localizedDescription)
         }
     }
+    
+    
+
 }
