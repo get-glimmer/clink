@@ -58,33 +58,50 @@ struct EditCategorySheet: View {
     var body: some View {
         NavigationStack {
             content
-                .emojiPicker(
-                    isPresented: $isEmojiPickerPresented,
-                    selectedEmoji: $emoji
-                )
-                .navigationTitle("Edit Category")
+                .navigationTitle("")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
-                    // Back
                     ToolbarItem(placement: .cancellationAction) {
-                        Button { dismiss() } label: { Image(systemName: "chevron.backward") }
+                        Button(action: { dismiss() }) {
+                            ZStack {
+                                Circle()
+                                    .fill(Color("Neutral-800").opacity(0.3)) // Neutral-900 안보임 추후 확인
+                                    .frame(width: 44, height: 44)
+                                Image(systemName: "chevron.left")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(Color("Neutral-400"))
+                            }
+                            .contentShape(Circle())
+                        }
+                        .buttonStyle(.plain)
                     }
+
+                    ToolbarItem(placement: .principal) {
+                        Text("Edit Category")
+                            .appFont(AppFont.title2)
+                            .foregroundColor(Color("White"))
+                    }
+
                     // Delete
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button(role: .destructive) {
                             onDelete()
                             dismiss()
                         } label: {
-                            Image(systemName: "trash")
+                            Image("trashcan")
                         }
                     }
                 }
+            // Vertical gap under header
+            .safeAreaInset(edge: .top) {
+                Color.clear.frame(height: 20)
+            }
         }
+        .padding(.top, 12)
     }
 
     private var content: some View {
         VStack(spacing: 24) {
-            // Emoji avatar + pencil
             ZStack {
                 Circle().fill(Color.clear).frame(width: 96, height: 96)
 
@@ -97,82 +114,138 @@ struct EditCategorySheet: View {
                     HStack {
                         Spacer()
                         Button { isEmojiPickerPresented = true } label: {
-                            Image(systemName: "pencil")
+                            Image("pencilFilled")
                                 .font(.system(size: 12, weight: .bold))
-                                .foregroundColor(Color("Netural-400"))
+                                .foregroundColor(Color("Neutral-400"))
                                 .padding(8)
-                                .background(Circle().fill(Color("Netural-800")))
+                                .background(Circle().fill(Color("Neutral-800")))
                         }
                     }
                 }
                 .frame(width: 96, height: 96)
             }
             .padding(.top, 8)
+            
+            // --- emoji picker ---
+            Rectangle()
+                .fill(.clear)
+                .frame(height: 1)
+                .emojiPicker(
+                    isPresented: $isEmojiPickerPresented,
+                    selectedEmoji: $emoji,
+                    arrowDirection: .up,
+                    customHeight: 380,
+                    horizontalInset: .zero,
+                    isDismissAfterChoosing: true,
+                    selectedEmojiCategoryTintColor: .white,
+                    feedBackGeneratorStyle: .light
+                )
 
-            // Title
+            // Title field
             VStack(alignment: .leading, spacing: 8) {
                 Text("Title")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .appFont(AppFont.labelS)
+                    .foregroundColor(Color("Neutral-300"))
+                    .padding(.horizontal, 8)
 
-                TextField("Exercise", text: $name)
+                TextField("Write a title...", text: $name)
+                    .appFont(AppFont.body1)
+                    .foregroundColor(Color("White"))
                     .textInputAutocapitalization(.words)
                     .disableAutocorrection(true)
-                    .padding(.horizontal, 12)
-                    .frame(height: 44)
+                    .padding(.horizontal, 16)
+                    .frame(height: 48)
                     .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(.ultraThinMaterial.opacity(0.2))
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(.clear)
+                            .strokeBorder(Color("Neutral-600"), lineWidth: 0.7)
                     )
             }
             .padding(.horizontal, 16)
 
-            // Options
+            // Options section
             VStack(alignment: .leading, spacing: 8) {
                 Text("Options")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .appFont(AppFont.labelS)
+                    .foregroundColor(Color("Neutral-300"))
+                    .padding(.horizontal, 8)
 
-                // Visibility
-                HStack {
-                    Label("Visibility", systemImage: "globe")
-                    Spacer()
-                    Menu {
-                        ForEach(Privacy.allCases) { p in
-                            Button(p.display) { privacy = p }
+                VStack(spacing: 0) {
+                    // Row 1: Visibility
+                    HStack {
+                        HStack(spacing: 10) {
+                            Image(systemName: "globe")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(Color("White"))
+                            Text("Visibility")
+                                .appFont(AppFont.body1)
+                                .foregroundColor(Color("White"))
                         }
-                    } label: {
-                        HStack(spacing: 6) {
-                            Text(privacy.display)
-                            Image(systemName: "chevron.up.chevron.down")
-                                .font(.footnote)
+
+                        Spacer()
+
+                        Menu {
+                            ForEach(Privacy.allCases) { p in
+                                Button(p.display) { privacy = p }
+                            }
+                        } label: {
+                            HStack(spacing: 6) {
+                                Text(privacy.display)
+                                    .appFont(AppFont.body1)
+                                    .foregroundColor(Color("White"))
+                                Image(systemName: "chevron.up.chevron.down")
+                                    .font(.footnote)
+                                    .foregroundColor(Color("White"))
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
                         }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(RoundedRectangle(cornerRadius: 8).strokeBorder(.secondary.opacity(0.4)))
+                        .menuStyle(.automatic)
                     }
-                }
-                .frame(height: 48)
-                .padding(.horizontal, 12)
-                .background(RoundedRectangle(cornerRadius: 12).fill(.ultraThinMaterial.opacity(0.2)))
+                    .frame(height: 52)
+                    .padding(.horizontal, 12)
 
-                // Type (fixed)
-                HStack {
-                    Label("Type", systemImage: "doc.plaintext")
-                    Spacer()
-                    Text("Daily")
-                        .foregroundStyle(.secondary)
-                    Image(systemName: "lock.fill")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                    // Divider between rows
+                    Rectangle()
+                        .fill(Color("Neutral-800"))
+                        .frame(height: 0.7)
+                        .padding(.horizontal, 12)
+
+                    // Row 2: Type (fixed)
+                    HStack {
+                        HStack(spacing: 10) {
+                            Image(systemName: "rectangle.grid.1x2")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(Color("White"))
+                            Text("Type")
+                                .appFont(AppFont.body1)
+                                .foregroundColor(Color("White"))
+                        }
+
+                        Spacer()
+
+                        HStack(spacing: 6) {
+                            Text("Daily")
+                                .appFont(AppFont.body1)
+                                .foregroundColor(Color("White"))
+                            Image(systemName: "lock.fill")
+                                .font(.footnote)
+                                .foregroundColor(Color("Neutral-400"))
+                        }
+                    }
+                    .frame(height: 52)
+                    .padding(.horizontal, 12)
                 }
-                .frame(height: 48)
-                .padding(.horizontal, 12)
-                .background(RoundedRectangle(cornerRadius: 12).fill(.ultraThinMaterial.opacity(0.2)))
+                .background(
+                    // Single rounded rectangle for both rows
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(.clear)
+                        .strokeBorder(Color("Neutral-600"), lineWidth: 0.7)
+                )
             }
             .padding(.horizontal, 16)
 
-            Spacer()
+            Spacer(minLength: 16)
 
             if let err = errorMessage, !err.isEmpty {
                 Text(err)
@@ -182,6 +255,7 @@ struct EditCategorySheet: View {
                     .padding(.horizontal, 16)
             }
 
+            // Done button
             Button {
                 // Basic validations
                 guard AddCategorySheet.isPureEmoji(emoji) else {
@@ -198,11 +272,11 @@ struct EditCategorySheet: View {
                 dismiss()
             } label: {
                 Text(isSaving ? "Saving..." : "Done")
-                    .frame(maxWidth: .infinity, minHeight: 52)
-                    .font(.headline)
+                    .frame(maxWidth: .infinity, minHeight: 56)
+                    .appFont(AppFont.title3)                   // 버튼 텍스트도 규격화
                     .background(isSaving ? Color("Green-300").opacity(0.5) : Color("Green-300"))
                     .foregroundStyle(.black)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
             }
             .disabled(isSaving)
             .padding(.horizontal, 16)

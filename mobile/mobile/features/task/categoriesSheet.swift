@@ -5,50 +5,66 @@
 //  Created by 이채린 on 8/20/25.
 //
 // categoriesSheet.swift
-
 import SwiftUI
 
-struct categoriesSheet: View {
+struct CategoriesSheet: View {
     @ObservedObject var viewModel: TaskListViewModel
     @Environment(\.dismiss) private var dismiss
     
-    // Add Category sheet
-    @State private var showAddCategorySheet: Bool = false
-    @State private var newCategoryEmoji: String = ""
-    @State private var newCategoryName: String = ""
-    @State private var isSavingCategory: Bool = false
-    @State private var categorySaveError: String? = nil
-    
-    // Edit Category sheet
+    @State private var showAddCategorySheet = false
     @State private var editingCategory: CategoryItem? = nil
     
-
     var body: some View {
-        NavigationView {
+        VStack(spacing: 0) {
+            // --- Header ---
+            HStack {
+                Button(action: { dismiss() }) {
+                    ZStack {
+                        Circle()
+                            .fill(Color("Neutral-800").opacity(0.3))
+                            .frame(width: 44, height: 44)
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 12))
+                            .foregroundColor(Color("Neutral-400"))
+                    }
+                }
+                Spacer()
+                Text("Categories")
+                    .appFont(AppFont.title2)
+                    .foregroundColor(.white)
+                Spacer()
+                Button(action: { showAddCategorySheet = true }) {
+                    ZStack {
+                        Circle()
+                            .fill(Color("Neutral-800").opacity(0.3))
+                            .frame(width: 44, height: 44)
+                        Image(systemName: "plus")
+                            .font(.system(size: 16))
+                            .foregroundColor(Color("Neutral-400"))
+                    }
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 12)
+            .padding(.bottom, 20)
+            
+            // --- Category List ---
             List {
-                Section(header: Text("Categories")) {
+                // Daily
+                Section(header:
+                    Text("Daily Tasks")
+                        .appFont(AppFont.labelS)
+                        .foregroundColor(Color("Neutral-300"))
+                ) {
                     ForEach(viewModel.categoriesWithTasks, id: \.id) { catWithTasks in
-                        HStack {
-                            Text(catWithTasks.category.emoji)
-                            Text(catWithTasks.category.name)
-                                .font(.headline)
-                            Spacer()
-                            Button {
-                                editingCategory = catWithTasks.category
-                            } label: {
-                                Image(systemName: "pencil")
-                                    .foregroundColor(.gray)
-                            }
-                            Image(systemName: "line.3.horizontal")
-                                .foregroundColor(.gray)
-                                .padding(.leading, 4)
-                        }
+                        categoryRow(cat: catWithTasks.category)
+                            .listRowSeparator(.hidden)
                     }
                     .onDelete { indexSet in
-                        for index in indexSet {
-                            let category = viewModel.categoriesWithTasks[index].category
-                            Task {
-                                await viewModel.deleteCategory(categoryId: category.id)
+                        Task {
+                            for index in indexSet {
+                                let cat = viewModel.categoriesWithTasks[index].category
+                                await viewModel.deleteCategory(categoryId: cat.id)
                             }
                         }
                     }
@@ -56,78 +72,82 @@ struct categoriesSheet: View {
                         viewModel.moveCategories(from: indices, to: newOffset)
                     }
                 }
-
-                Section(header: Text("Archived")) {
-                    Text("Coming soon...")
-                        .foregroundColor(.secondary)
+                
+                // Archived
+                Section(header:
+                    Text("Archived Tasks")
+                        .appFont(AppFont.labelS)
+                        .foregroundColor(Color("Neutral-300"))
+                ) {
+                    // TODO: archived categories
                 }
             }
-            .navigationTitle("Categories")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "chevron.left")
-                            .foregroundColor(.blue)
-                    }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: {
-                        newCategoryEmoji = ""
-                        newCategoryName = ""
-                        showAddCategorySheet = true
-                    }) {
-                        Image(systemName: "plus")
-                            .foregroundColor(.blue)
-                    }
-                }
-            }
-            // Add Category Sheet
-            .sheet(isPresented: $showAddCategorySheet) {
-                AddCategorySheet(
-                    emoji: $newCategoryEmoji,
-                    name: $newCategoryName,
-                    isSaving: $isSavingCategory,
-                    errorMessage: $categorySaveError,
-                    onSave: { emoji, name, privacy in
-                        isSavingCategory = true
-                        Task {
-                            do {
-                                try await viewModel.addCategory(name: name, emoji: emoji, privacyStatus: privacy)
-                                isSavingCategory = false
-                                showAddCategorySheet = false
-                            } catch {
-                                isSavingCategory = false
-                                categorySaveError = "Failed to add the category. Please try again."
-                            }
-                        }
-                    }
-                )
-            }
-            // Edit Category sheet
-            .sheet(item: $editingCategory) { cat in
-                EditCategorySheet(
-                    category: cat,
-                    onDone: { emoji, name, privacy in
-                        Task {
-                            await viewModel.updateCategory(
-                                categoryId: cat.id,
-                                name: name,
-                                emoji: emoji,
-                                privacyStatus: privacy
-                            )
-                            editingCategory = nil
-                        }
-                    },
-                    onDelete: {
-                        Task {
-                            await viewModel.deleteCategory(categoryId: cat.id)
-                            editingCategory = nil
-                        }
-                    }
-                )
-            }
+            .listStyle(.plain)
         }
-        .navigationViewStyle(StackNavigationViewStyle()) // for ipad
+        .fullScreenCover(isPresented: $showAddCategorySheet) {
+            AddCategorySheet(
+                emoji: .constant(""),
+                name: .constant(""),
+                isSaving: .constant(false),
+                errorMessage: .constant(nil),
+                onSave: { emoji, name, privacy in
+                    Task {
+                        try? await viewModel.addCategory(name: name, emoji: emoji, privacyStatus: privacy)
+                        showAddCategorySheet = false
+                    }
+                }
+            )
+        }
+        .fullScreenCover(item: $editingCategory) { cat in
+            EditCategorySheet(
+                category: cat,
+                onDone: { emoji, name, privacy in
+                    Task {
+                        await viewModel.updateCategory(
+                            categoryId: cat.id,
+                            name: name,
+                            emoji: emoji,
+                            privacyStatus: privacy
+                        )
+                        editingCategory = nil
+                    }
+                },
+                onDelete: {
+                    Task {
+                        await viewModel.deleteCategory(categoryId: cat.id)
+                        editingCategory = nil
+                    }
+                }
+            )
+        }
+    }
+    
+    // MARK: - Category Row
+    private func categoryRow(cat: CategoryItem) -> some View {
+        VStack(spacing: 8) {
+            HStack {
+                Text(cat.emoji)
+                    .appFont(AppFont.title1)
+                Text(cat.name)
+                    .appFont(AppFont.title3)
+                    .foregroundColor(.white)
+                Spacer()
+                Button {
+                    editingCategory = cat
+                } label: {
+                    Image("pencilGray")
+                }
+                .buttonStyle(.plain)
+                
+                Image("threeLines")
+                    .padding(.leading, 12)
+            }
+            // --- Divider ---
+            Divider()
+                .frame(width: 361)
+                .background(Color("Neutral-800"))
+                .opacity(0.5)
+        }
+        .padding(.vertical, 0)
     }
 }

@@ -41,7 +41,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		01259ED22E49E67B005C4046 /* Exceptions for "mobile" folder in "mobile" target */ = {
+		347454952E5B02AD00589856 /* Exceptions for "mobile" folder in "mobile" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -54,7 +54,7 @@
 		B443470E2DFD212E00644724 /* mobile */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				01259ED22E49E67B005C4046 /* Exceptions for "mobile" folder in "mobile" target */,
+				347454952E5B02AD00589856 /* Exceptions for "mobile" folder in "mobile" target */,
 			);
 			path = mobile;
 			sourceTree = "<group>";
@@ -450,6 +450,7 @@
 				DEVELOPMENT_TEAM = A5B5C3L678;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = mobile/Info.plist;
 				INFOPLIST_KEY_NSMotionUsageDescription = "Used to animate marbles when Shaker mode is on";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -479,6 +480,7 @@
 				DEVELOPMENT_TEAM = A5B5C3L678;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = mobile/Info.plist;
 				INFOPLIST_KEY_NSMotionUsageDescription = "Used to animate marbles when Shaker mode is on";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;

@@ -39,20 +39,25 @@ struct TaskView: View {
                     // ---- Header ----
                     ZStack {
                         Text("Hi \(getUserName() ?? "User") 👋")
-                            .font(.headline)
+                            .appFont(AppFont.title2)
                         HStack {
                             Spacer()
                             Button {
                                 showOptionsSheet = true
                             } label: {
-                                Image(systemName: "ellipsis")
-                                    .foregroundColor(.primary)
-                                    .imageScale(.small)
-                                    .frame(width: 20, height: 30)
+                                ZStack {
+                                    Circle()
+                                        .fill(Color("Neutral-800").opacity(0.3))
+                                        .frame(width: 44, height: 44)
+                                    Image(systemName: "ellipsis")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(Color("White"))
+                                }
                             }
-                            .padding(.trailing)
+                            .buttonStyle(.plain)
                         }
                     }
+                    .frame(maxWidth: .infinity)
                     .padding(.top, 16)
 
                     // ---- Shaker (scaled) ----
@@ -71,7 +76,6 @@ struct TaskView: View {
                     // --Task List Content--
                     ScrollView {
                         TaskListView(taskSelectedDate: $today, viewModel: viewModel)
-                            .padding(.horizontal)
                             .padding(.bottom, 120)
                     }
                 }
@@ -111,7 +115,7 @@ struct TaskView: View {
             //animateSheetBounce()
         }
         // -- "Add category" sheet --
-        .sheet(isPresented: $showAddCategorySheet) {
+        .fullScreenCover(isPresented: $showAddCategorySheet) {
             AddCategorySheet(
                 emoji: $newCategoryEmoji,
                 name: $newCategoryName,
@@ -133,8 +137,8 @@ struct TaskView: View {
             )
         }
         // -- "Categories" sheet --
-        .sheet(isPresented: $showCategoriesSheet) {
-            categoriesSheet(viewModel: viewModel)
+        .fullScreenCover(isPresented: $showCategoriesSheet) {
+            CategoriesSheet(viewModel: viewModel)
         }
     }
 }

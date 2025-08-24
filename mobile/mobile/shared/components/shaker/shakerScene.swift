@@ -19,7 +19,7 @@ final class ShakerScene: SKScene {
     private var filteredGravity = CGVector.zero
     private let gAlpha:  CGFloat = 0.2   // gravity LPF
     private let accScale: CGFloat = 600  // shaking force scale
-    private let oilGravityScale:  CGFloat = 10          // gravity when shaker is on
+    private let gravityScale:  CGFloat = 10          // gravity when shaker is on
     private var motionEnabled = false
     
     // Storage for marbles keyed by Task UUID
@@ -70,8 +70,8 @@ final class ShakerScene: SKScene {
             let gy = dm.gravity.y
             self.filteredGravity.dx = self.gAlpha * self.filteredGravity.dx + (1-self.gAlpha) * gx
             self.filteredGravity.dy = self.gAlpha * self.filteredGravity.dy + (1-self.gAlpha) * gy
-            self.physicsWorld.gravity = CGVector(dx: self.filteredGravity.dx * self.oilGravityScale,
-                                                 dy: self.filteredGravity.dy * self.oilGravityScale)
+            self.physicsWorld.gravity = CGVector(dx: self.filteredGravity.dx * self.gravityScale,
+                                                 dy: self.filteredGravity.dy * self.gravityScale)
             /* 2. shaking → apply force */
             let ua = dm.userAcceleration
             let ax = ua.x
@@ -98,7 +98,7 @@ final class ShakerScene: SKScene {
     }
     
     // MARK: - Marble handlers
-    /// Drops an emoji into the scene identified by taskId. If already exists it will be ignored.
+    // Drops an emoji into the scene identified by taskId. If already exists it will be ignored.
     func addEmoji(_ symbol: String, for taskId: UUID) {
         guard marbles[taskId] == nil else { return }
         let margin: CGFloat = 14
@@ -118,14 +118,15 @@ final class ShakerScene: SKScene {
         marbles[taskId] = node
     }
     
-    /// Removes the emoji associated with taskId if present.
+    // Removes the emoji associated with taskId if present.
+    // Removes the emoji associated with taskId if present.
     func removeEmoji(for taskId: UUID) {
         guard let node = marbles[taskId] else { return }
         node.removeFromParent()
         marbles.removeValue(forKey: taskId)
     }
     
-    /// Clears all emojis (used when the entire task list resets)
+    // Clears all emojis (used when the entire task list resets)
     func resetScene() {
         for (_, node) in marbles { node.removeFromParent() }
         marbles.removeAll()
