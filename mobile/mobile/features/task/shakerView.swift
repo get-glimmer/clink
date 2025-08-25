@@ -81,6 +81,8 @@ struct ShakerView: View {
         .onReceive(viewModel.$categoriesWithTasks) { _ in syncWithTasks() }
         .onReceive(viewModel.$isAllCompleted)      { _ in syncWithTasks()
             updateSeal(animated: true) }
+        .onReceive(viewModel.$taskSelectedDate)    { _ in
+            updateSeal(animated: true) }
     }
     
     // MARK: - Marble Syncing

@@ -400,7 +400,6 @@ class TaskListViewModel: ObservableObject {
     // MARK: - reorder categories (local only for now)
     func moveCategories(from source: IndexSet, to destination: Int) {
         categoriesWithTasks.move(fromOffsets: source, toOffset: destination)
-        // TODO: DB에 order 업데이트 (추후 구현)
     }
 
 
