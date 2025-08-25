@@ -24,22 +24,22 @@ struct TaskListView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                dailyTaskHeader
+                //dailyTaskHeader
                 categoriesSection
             }
             //.padding(.horizontal)
         }
     }
     
-    private var dailyTaskHeader: some View {
-        HStack {
-            Text("Daily Task")
-                .font(.headline)
-        }
-        .padding(.horizontal, 24)
-        .padding(.top, 24)
-        .padding(.bottom, 4)
-    }
+//    private var dailyTaskHeader: some View {
+//        HStack {
+//            Text("Daily Task")
+//                .font(.headline)
+//        }
+//        .padding(.horizontal, 24)
+//        .padding(.top, 24)
+//        .padding(.bottom, 4)
+//    }
     
     private var categoriesSection: some View {
         ForEach(viewModel.categoriesWithTasks) { categoryWithTasks in

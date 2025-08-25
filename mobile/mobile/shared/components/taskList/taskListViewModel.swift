@@ -96,9 +96,9 @@ class TaskListViewModel: ObservableObject {
                         .value
                     {
                         // UI reflected state
-                        isAllCompleted   = row.iscompleted
                         lidColorStart = row.lid_color_start
                         lidColorEnd   = row.lid_color_end
+                        isAllCompleted   = row.iscompleted
                     }
                 } catch {
                     // ignore load failures

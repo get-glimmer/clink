@@ -24,7 +24,7 @@ struct OptionsSheet: View {
                     .ignoresSafeArea()
                 
                 // 2) Additional dim
-                Color.black.opacity(0.5)
+                Color.black.opacity(0.6)
                     .ignoresSafeArea()
             }
             .contentShape(Rectangle())

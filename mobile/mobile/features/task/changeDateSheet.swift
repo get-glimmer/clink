@@ -36,7 +36,7 @@ public struct ChangeDateSheet: View {
                     .fill(.ultraThinMaterial)//.opacity(0.9)
                     .ignoresSafeArea()
 
-                Color.black.opacity(0.5)
+                Color.black.opacity(0.6)
                     .ignoresSafeArea()
             }
             .contentShape(Rectangle())

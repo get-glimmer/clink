@@ -130,6 +130,10 @@ struct TaskView: View {
                 ) {
                     // --Task List Content--
                     ScrollView {
+                        Text("Daily Task")
+                            .font(.headline)
+                            .frame(maxWidth: 340, alignment: .leading)
+                            //.padding(.top, 8)
                         TaskListView(taskSelectedDate: $selectedDate, viewModel: viewModel)
                             .padding(.bottom, 120)
                     }
@@ -206,16 +210,16 @@ struct TaskView: View {
                     initialDate: selectedDate,
                     onConfirm: { picked in
                         selectedDate = picked
+                        viewModel.taskSelectedDate = picked
                         showChangeDateSheet = false
                     },
-                    onCancel: {
-                        showChangeDateSheet = false
-                    }
+                    onCancel: { showChangeDateSheet = false }
                 )
-                .transition(.opacity)  // fade-in/out
+                .transition(.opacity)
                 .ignoresSafeArea()
             }
         }
+        .animation(.easeInOut(duration: 0.25), value: showChangeDateSheet)
     }
 }
 //#Preview {TaskView()}
