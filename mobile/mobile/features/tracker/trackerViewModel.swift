@@ -50,6 +50,11 @@ class TrackerViewModel: ObservableObject {
     @Published var shakersRecord: [String: ShakerRecord] = [:]
     
     private let client = SupabaseClientManager.shared.client
+    private let userId: String?
+    
+    init(userId: String?) {
+        self.userId = userId
+    }
 
     // 기준점이 되는 Date (IMPORTANT!!!)
     @Published var selectedDate: Date = Date()
@@ -82,6 +87,7 @@ class TrackerViewModel: ObservableObject {
             let fetchedShakers: [Shaker] = try await client
                 .from("shaker")
                 .select()
+                .eq("userid", value: userId)
                 .execute()
                 .value
             

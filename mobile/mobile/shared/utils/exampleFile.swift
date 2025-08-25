@@ -9,15 +9,27 @@ func saveUserId() {
 }
 
 func getUserId() -> String? {
-    return UserDefaults.standard.string(forKey: "userId")
+    let client = SupabaseClientManager.shared.client
+    // Get the current session synchronously (cached session if available)
+    return client?.auth.currentUser?.id.uuidString
 }
 
 func saveUserName() {
     UserDefaults.standard.set(name, forKey: "userName")
 }
 
-func getUserName() -> String? {
-    return UserDefaults.standard.string(forKey: "userName")
+func getUsername() async throws -> String? {
+    guard let client = SupabaseClientManager.shared.client else { return nil }
+    
+    let profile: Profile? = try await client
+        .from("profiles")
+        .select("id, name")
+        .eq("id", value: client.auth.currentUser?.id)
+        .single()
+        .execute()
+        .value
+    
+    return profile?.name
 }
 
 // Date utility for PostgreSQL date formats

@@ -13,13 +13,11 @@ struct TrackerView: View {
 
     init() {
         let userId = getUserId()
+        let tracker = TrackerViewModel(userId: userId)
+        let taskList = TaskListViewModel(userId: userId, date: todayDate())
         
-        let tracker = TrackerViewModel()
         _trackerViewModel = StateObject(wrappedValue: tracker)
-        
-        let taskList = TaskListViewModel(userId: userId)
         _taskListViewModel = StateObject(wrappedValue: taskList)
-        
         taskList.trackerViewModel = tracker   // Pass tracker to taskListViewModel
     }
     

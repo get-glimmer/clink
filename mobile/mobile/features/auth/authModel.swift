@@ -5,7 +5,7 @@ struct Profile: Codable, Identifiable, Equatable {
     var name: String
     var avatar_url: String?
     var bio: String?
-    var email: String
+    var email: String?
 
     // Local-only field (not in DB, not decoded/encoded)
     var friendsCount: Int?

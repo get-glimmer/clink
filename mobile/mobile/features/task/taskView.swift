@@ -38,7 +38,7 @@ struct TaskView: View {
                 VStack(spacing: 12) {
                     // ---- Header ----
                     ZStack {
-                        Text("Hi \(getUserName() ?? "User") 👋")
+                        Text("Hi \(viewModel.username ?? "User") 👋")
                             .appFont(AppFont.title2)
                         HStack {
                             Spacer()
