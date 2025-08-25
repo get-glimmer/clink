@@ -8,6 +8,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     ) -> Bool {
         // Initialize Supabase client
         SupabaseClientManager.shared.initialize()
+        
         return true
     }
 }

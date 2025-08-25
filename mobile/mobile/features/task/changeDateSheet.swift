@@ -33,10 +33,10 @@ public struct ChangeDateSheet: View {
             // Dim background behind the card
             ZStack {
                 Rectangle()
-                    .fill(.ultraThinMaterial)//.opacity(0.9)
+                    .fill(.ultraThinMaterial).opacity(0.9)
                     .ignoresSafeArea()
 
-                Color.black.opacity(0.6)
+                Color.black.opacity(0.8)
                     .ignoresSafeArea()
             }
             .contentShape(Rectangle())
@@ -58,7 +58,7 @@ public struct ChangeDateSheet: View {
                         dismiss()
                     } label: {
                         Image(systemName: "xmark")
-                            .font(.system(size: 24, weight: .light))
+                            .font(.system(size: 18, weight: .light))
                             .foregroundColor(Color("White"))
                             .padding(8)
                     }
@@ -113,7 +113,17 @@ public struct ChangeDateSheet: View {
             .overlay(
                 // stroke
                 RoundedRectangle(cornerRadius: 24)
-                    .strokeBorder(Color("Neutral-800"), lineWidth: 1)
+                    .stroke(
+                        LinearGradient(
+                            colors: [
+                                Color("Neutral-400").opacity(0.7),
+                                Color("Neutral-600").opacity(0.7)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
             )
             .shadow(color: .black.opacity(0.45), radius: 18, x: 0, y: 14)
         }

@@ -58,6 +58,7 @@ struct TrackerView: View {
     
     var body: some View {
         VStack {
+            Color.black.ignoresSafeArea()
             Spacer().frame(height: 10)
             
             // Month Selector button
@@ -127,6 +128,7 @@ struct TrackerView: View {
             
             
             LazyVGrid(columns: columns, spacing: 0) {
+                Color.black.ignoresSafeArea()
                 // weekday labels
                 ForEach(weekdaySymbols, id: \.self) { day in
                     Text(day.uppercased())

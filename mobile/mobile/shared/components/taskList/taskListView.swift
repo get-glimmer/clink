@@ -12,6 +12,10 @@ struct TaskListView: View {
     @State private var editingTexts: [UUID: String] = [:]
     @FocusState private var focusedTaskId: UUID?
     
+    // task menu sheet state
+    @State private var showMenuSheet: Bool = false
+    @State private var selectedTaskTitle: String = ""
+    
     // used so that fetchCategoriesAndTasks() can fetch data at wanted date
     @Binding var taskSelectedDate: Date
   
@@ -95,7 +99,8 @@ struct TaskListView: View {
             taskCheckbox(for: task)
             taskContent(for: task)
             Spacer()
-            taskMenu(for: task)
+            //taskMenu(for: task)
+            taskMenuButton(for: task)
         }
     }
     
@@ -154,21 +159,48 @@ struct TaskListView: View {
     }
     
     @ViewBuilder
-    private func taskMenu(for task: TaskListItem) -> some View {
-        if !task.isTemporary {
-            Menu {
-                Button("Delete") {
-                    Task {
-                        await viewModel.deleteTask(task: task)
-                    }
-                }
-            } label: {
-                Image(systemName: "ellipsis")
-                    .foregroundColor(.primary)
-                    .imageScale(.medium)
-                    .frame(width: 25, height: 25)
-            }
-            .contentShape(Rectangle())
+//    private func taskMenu(for task: TaskListItem) -> some View {
+//        if !task.isTemporary {
+//            Menu {
+//                Button("Delete") {
+//                    Task {
+//                        await viewModel.deleteTask(task: task)
+//                    }
+//                }
+//            } label: {
+//                Image(systemName: "ellipsis")
+//                    .foregroundColor(.primary)
+//                    .imageScale(.medium)
+//                    .frame(width: 25, height: 25)
+//            }
+//            .contentShape(Rectangle())
+//        }
+//    }
+    private func taskMenuButton(for task: TaskListItem) -> some View {
+        Button {
+            selectedTaskTitle = task.title
+            showMenuSheet = true
+        } label: {
+            Image(systemName: "ellipsis")
+                .foregroundColor(.primary)
+                .imageScale(.medium)
+                .frame(width: 25, height: 25)
+        }
+        .buttonStyle(.plain)
+        .contentShape(Rectangle())
+        .sheet(isPresented: $showMenuSheet) {
+            TaskMenuSheet(
+                taskTitle: selectedTaskTitle,
+                onDoToday: { /* hook later */ },
+                onChangeDate: { /* hook later */ },
+                onMakeRoutine: { /* hook later */ },
+                onArchive: { /* hook later */ },
+                onEdit: { /* hook later */ },
+                onDelete: { /* hook later */ }
+            )
+            .presentationDetents([.height(380)])
+            .presentationCornerRadius(24)
+            .presentationDragIndicator(.visible)
         }
     }
     

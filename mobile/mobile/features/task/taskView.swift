@@ -100,7 +100,7 @@ struct TaskView: View {
                             } label: {
                                 ZStack {
                                     Circle()
-                                        .fill(Color("Neutral-800").opacity(0.35))
+                                        .fill(Color("Neutral-900"))
                                         .frame(width: 44, height: 44)
                                     Image(systemName: "ellipsis")
                                         .font(.system(size: 14))
@@ -111,9 +111,9 @@ struct TaskView: View {
                             .buttonStyle(.plain)
                         }
                         .frame(maxWidth: .infinity)
+                        .padding(.trailing, 16)
                     }
-                    .padding(.top, 16)
-                    .padding(.trailing, 16)
+                    .padding(.top, 12)
 
                     // ---- Shaker (scaled) ----
                     ShakerView(viewModel: viewModel)

@@ -65,7 +65,7 @@ struct EditCategorySheet: View {
                         Button(action: { dismiss() }) {
                             ZStack {
                                 Circle()
-                                    .fill(Color("Neutral-800").opacity(0.35)) // Neutral-900 안보임 추후 확인
+                                    .fill(Color("Neutral-900"))
                                     .frame(width: 44, height: 44)
                                 Image(systemName: "chevron.left")
                                     .font(.system(size: 12))

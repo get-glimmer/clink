@@ -20,11 +20,11 @@ struct OptionsSheet: View {
             ZStack {
                 // 1) System material blur
                 Rectangle()
-                    .fill(.ultraThinMaterial)
+                    .fill(.ultraThinMaterial).opacity(0.9)
                     .ignoresSafeArea()
                 
                 // 2) Additional dim
-                Color.black.opacity(0.6)
+                Color.black.opacity(0.8)
                     .ignoresSafeArea()
             }
             .contentShape(Rectangle())
