@@ -38,13 +38,13 @@ struct ProfileView: View {
                 VStack(spacing: 4) {
                     // name
                     Text(viewModel.profile?.name ?? "")
-                        .font(.title2)
+                        .appFont(AppFont.title2)
                         .bold()
                         .foregroundColor(Color("White"))
                     
                     // email
                     Text(viewModel.profile?.email ?? "")
-                        .font(.caption)
+                        .appFont(AppFont.body2)
                         .foregroundColor(Color("Neutral-300"))
                 }
                 
@@ -54,6 +54,7 @@ struct ProfileView: View {
                     Image(systemName: "person.2")
                             .foregroundColor(Color("White"))
                     Text("\(count) friends")
+                        .appFont(AppFont.body2)
                 }
                 Spacer()
             }
