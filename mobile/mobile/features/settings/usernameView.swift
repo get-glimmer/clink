@@ -5,6 +5,10 @@ struct UsernameView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @StateObject private var viewModel = UsernameViewModel()
 
+    @State private var usernameStatus: String?
+    @State private var usernameStatusColor: Color = .white
+    @State private var isSaving = false
+
     var body: some View {
         VStack(spacing: 24) {
             // Header
@@ -40,38 +44,44 @@ struct UsernameView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
 
-            // Name field
+            // Username field
             VStack(alignment: .leading, spacing: 8) {
                 Text("Username")
                     .foregroundColor(.gray)
                     .font(.subheadline)
 
                 HStack(spacing: 8) {
-                    TextField("Enter name", text: $viewModel.name)
+                    TextField("Enter username", text: $viewModel.name)
                         .padding()
-                        .background(Color(.clear))
+                        .background(Color.clear)
                         .cornerRadius(10)
                         .frame(height: 44)
-                        .overlay( // use overlay for more flexible border with corner radius
+                        .overlay(
                             RoundedRectangle(cornerRadius: 10)
                                 .stroke(Color("Neutral-600"), lineWidth: 1)
                         )
 
                     Button {
                         Task {
-                            await viewModel.updateName(authViewModel: authViewModel)
+                            await confirmAndSaveUsername()
                         }
                     } label: {
-                        Text(viewModel.isLoading ? "Saving..." : "Confirm")
+                        Text(isSaving ? "Saving..." : "Confirm")
                             .foregroundColor(.white)
                             .frame(maxWidth: 80)
                             .frame(height: 44)
                             .background(Color("Neutral-800"))
                             .cornerRadius(10)
                     }
-                    .disabled(viewModel.isLoading)
+                    .disabled(isSaving || viewModel.name.isEmpty)
                 }
 
+                if let status = usernameStatus {
+                    Text(status)
+                        .font(.caption)
+                        .foregroundColor(usernameStatusColor)
+                        .padding(.leading, 4)
+                }
             }
             .padding(.horizontal)
 
@@ -80,16 +90,31 @@ struct UsernameView: View {
         .background(Color.black.ignoresSafeArea())
         .navigationBarBackButtonHidden(true)
         .task {
-            // Load profile if not already loaded
             if authViewModel.profile == nil {
                 await authViewModel.loadProfile()
             }
+            viewModel.name = authViewModel.profile?.name ?? ""
+        }
+    }
 
-            // Once loaded, set the TextField
-            viewModel.name = authViewModel.profile?.name ?? ""
+    private func confirmAndSaveUsername() async {
+        guard !viewModel.name.isEmpty else { return }
+        isSaving = true
+
+        let available = await authViewModel.checkUsername(viewModel.name)
+        if available {
+            // ✅ Save
+            await viewModel.updateName(authViewModel: authViewModel)
+            await MainActor.run {
+                dismiss()
+            }
+        } else {
+            // ❌ Not valid
+            await MainActor.run {
+                usernameStatus = "This username is already in use."
+                usernameStatusColor = .red
+            }
         }
-        .onChange(of: authViewModel.profile) {
-            viewModel.name = authViewModel.profile?.name ?? ""
-        }
+        isSaving = false
     }
 }

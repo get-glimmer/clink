@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import Supabase
 
 @MainActor
@@ -68,6 +69,135 @@ class AuthViewModel: ObservableObject {
         }
     }
     
+    // Save Profile Through Phone Number
+    // Helper wrapper for encoding Any optional values
+    struct AnyEncodable: Encodable {
+        let value: Any?
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.singleValueContainer()
+            switch value {
+            case let v as String: try container.encode(v)
+            case let v as Int: try container.encode(v)
+            case let v as Bool: try container.encode(v)
+            case let v as Double: try container.encode(v)
+            case let v as Date: try container.encode(v.ISO8601Format())
+            case nil: try container.encodeNil()
+            default:
+                let context = EncodingError.Context(
+                    codingPath: container.codingPath,
+                    debugDescription: "Unsupported type: \(type(of: value))"
+                )
+                throw EncodingError.invalidValue(value as Any, context)
+            }
+        }
+    }
+
+    @MainActor
+    func saveProfile(
+        userId: String,
+        phoneNumber: String?,
+        name: String?,
+        username: String?,
+        dob: Date?,
+        profileImage: UIImage?,
+        email: String?
+    ) async {
+        guard let client = client else { return }
+
+        isAppReady = false
+        do {
+            var avatarUrl: String? = nil
+
+            // Upload avatar if exists
+            if let profileImage,
+               let data = profileImage.jpegData(compressionQuality: 0.8) {
+                let filePath = "avatars/\(userId)/profile.jpg"
+
+                // Upload the file
+                try await client.storage
+                    .from("avatars")
+                    .upload(filePath, data: data, options: FileOptions(upsert: true))
+
+                // Get public URL
+                if let url = try? client.storage.from("avatars").getPublicURL(path: filePath) {
+                    avatarUrl = url.absoluteString
+                }
+            }
+
+            let profileData: [String: AnyEncodable?] = [
+                "id": AnyEncodable(value: userId),
+                "phoneNumber": AnyEncodable(value: phoneNumber),
+                "email": AnyEncodable(value: phoneNumber == nil ? email : nil),
+                "name": AnyEncodable(value: name),
+                "username": AnyEncodable(value: username),
+                "dob": AnyEncodable(value: dob),
+                "avatar_url": AnyEncodable(value: avatarUrl)
+            ]
+            
+            print("Saving profile for userId:", userId, "avatarUrl:", avatarUrl ?? "nil")
+            try await client
+                .from("profiles")
+                .upsert(profileData)
+                .execute()
+
+            // Optionally reload profile after saving
+            await loadProfile()
+        } catch {
+            print("❌ Error saving profile:", error.localizedDescription)
+        }
+
+        isAppReady = true
+    }
+
+
+
+
+
+
+    func checkUsername(_ username: String) async -> Bool {
+        guard let client else { return false }
+
+        do {
+            // Execute the query and decode directly to [Profile]
+            let response: PostgrestResponse<[Profile]> = try await client
+                .from("profiles")
+                .select("id, username")
+                .eq("username", value: username)
+                .execute() // <-- generic execute
+
+            // response.value contains the decoded array
+            return response.value.isEmpty // true if username is available
+        } catch {
+            print("Error checking username:", error.localizedDescription)
+            return false
+        }
+    }
+
+
+
+
+
+
+    @MainActor
+    func validatePassword(_ password: String) -> Bool {
+        let hasMin8 = password.count >= 8
+        let hasNumber = password.rangeOfCharacter(from: .decimalDigits) != nil
+        let hasUpperLower = password.rangeOfCharacter(from: .uppercaseLetters) != nil &&
+                            password.rangeOfCharacter(from: .lowercaseLetters) != nil
+        return hasMin8 && hasNumber && hasUpperLower
+    }
+
+    // Optional: helper for individual checks if you want dynamic checkmarks
+    @MainActor
+    func passwordRequirements(_ password: String) -> (min8: Bool, number: Bool, upperLower: Bool) {
+        let min8 = password.count >= 8
+        let number = password.rangeOfCharacter(from: .decimalDigits) != nil
+        let upperLower = password.rangeOfCharacter(from: .uppercaseLetters) != nil &&
+                         password.rangeOfCharacter(from: .lowercaseLetters) != nil
+        return (min8, number, upperLower)
+    }
+    
     // MARK: - Log In
     func logIn() async {
         guard let client = self.client else { return }
@@ -75,10 +205,28 @@ class AuthViewModel: ObservableObject {
             try await client.auth.signIn(email: email, password: password)
             await loadProfile()
             isAuthenticated = true
+            errorMessage = "" // clear any old errors
         } catch {
+            isAuthenticated = false
+            errorMessage = "Invalid email or password"
             print("Login failed:", error.localizedDescription)
         }
     }
+    
+    @MainActor
+    func resetPassword(for email: String) async -> Bool {
+        guard let client = client else { return false }
+        
+        do {
+            try await client.auth.resetPasswordForEmail(email)
+            print("✅ Password reset email sent to \(email)")
+            return true
+        } catch {
+            print("❌ Failed to send reset email:", error.localizedDescription)
+            return false
+        }
+    }
+
     
     // MARK: - Logout
     func logout() async {

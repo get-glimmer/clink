@@ -11,7 +11,7 @@ struct RootView: View {
                 AppRouter()
                     .environmentObject(authViewModel)
             } else {
-                LoginView()
+                LoginFlowView()
                     .environmentObject(authViewModel)
             }
         }

@@ -16,5 +16,3 @@ struct mobileApp: App {
         }
     }
 }
-
-
