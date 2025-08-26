@@ -5,17 +5,15 @@ struct TaskMenuSheet: View {
     let isDueToday: Bool
     let initialDueDate: Date?
     let archivedCategories: [CategoryItem]
-    var onPickArchivedCategory: (CategoryItem) -> Void = { _ in }
+    var onArchive: (CategoryItem) -> Void = { _ in }
 
     var onDoToday: () -> Void = {}
     var onDoTomorrow: () -> Void = {}
     var onChangeDate: () -> Void = {}
     var onConfirmChangeDate: (Date) -> Void = { _ in }
     var onMakeRoutine: () -> Void = {}
-    var onArchive: () -> Void = {}
-    var onEdit: () -> Void = {}
     var onDelete: () -> Void = {}
-    var onSubmitTitle: (String) -> Void = { _ in }
+    var onEditTitle: (String) -> Void = { _ in }
     
     // Edit state
     @State private var currentTitle: String
@@ -33,32 +31,28 @@ struct TaskMenuSheet: View {
         isDueToday: Bool,
         initialDueDate: Date?,
         archivedCategories: [CategoryItem],
-        onPickArchivedCategory: @escaping (CategoryItem) -> Void = { _ in },
+        onArchive: @escaping (CategoryItem) -> Void = { _ in },
         onDoToday: @escaping () -> Void = {},
         onDoTomorrow: @escaping () -> Void = {},
         onChangeDate: @escaping () -> Void = {},
         onConfirmChangeDate: @escaping (Date) -> Void = { _ in },
         onMakeRoutine: @escaping () -> Void = {},
-        onArchive: @escaping () -> Void = {},
-        onEdit: @escaping () -> Void = {},
         onDelete: @escaping () -> Void = {},
-        onSubmitTitle: @escaping (String) -> Void = { _ in }
+        onEditTitle: @escaping (String) -> Void = { _ in }
     ) {
         self.taskTitle = taskTitle
         self.isDueToday = isDueToday
         self.initialDueDate = initialDueDate
         self.archivedCategories = archivedCategories
-        self.onPickArchivedCategory = onPickArchivedCategory
+        self.onArchive = onArchive
 
         self.onDoToday = onDoToday
         self.onDoTomorrow = onDoTomorrow
         self.onChangeDate = onChangeDate
         self.onConfirmChangeDate = onConfirmChangeDate
         self.onMakeRoutine = onMakeRoutine
-        self.onArchive = onArchive
-        self.onEdit = onEdit
         self.onDelete = onDelete
-        self.onSubmitTitle = onSubmitTitle
+        self.onEditTitle = onEditTitle
         _titleDraft   = State(initialValue: taskTitle)
         _currentTitle = State(initialValue: taskTitle)
     }
@@ -105,7 +99,7 @@ struct TaskMenuSheet: View {
                 ChooseArchivedCategorySheet(
                     archivedCategories: archivedCategories,
                     onSelect: { cat in
-                        onPickArchivedCategory(cat)
+                        onArchive(cat)
                         showChooseCategoryOverlay = false
                     },
                     onCancel: {
@@ -146,7 +140,6 @@ struct TaskMenuSheet: View {
             
             // --- Edit button ---
             Button {
-                onEdit()
                 if isEditingTitle {
                     commitTitleChange()
                 } else {
@@ -203,7 +196,6 @@ struct TaskMenuSheet: View {
                 systemIcon: "folder",
                 title: "Archive a Task",
                 action: {
-                    onArchive()
                     withAnimation(.easeInOut(duration: 0.2)) {
                         showChooseCategoryOverlay = true
                     }
@@ -249,7 +241,7 @@ struct TaskMenuSheet: View {
             titleFieldFocused = false
             return
         }
-        onSubmitTitle(trimmed)
+        onEditTitle(trimmed)
         currentTitle = trimmed
         titleFieldFocused = false
         isEditingTitle = false

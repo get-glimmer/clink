@@ -50,7 +50,7 @@ struct TaskListView: View {
                 isDueToday: isToday,
                 initialDueDate: task.dueDate,
                 archivedCategories: archivedCats,
-                onPickArchivedCategory: { selected in
+                onArchive: { selected in
                     Task {
                         await viewModel.moveTaskToCategory(taskId: task.id, toCategoryId: selected.id)
                     }
@@ -77,15 +77,13 @@ struct TaskListView: View {
                     }
                 },
                 onMakeRoutine:{ /* hook later */ },
-                onArchive:   { /* do nothing */ },
-                onEdit:      { /* do nothing */ },
                 onDelete:    {
                     Task {
                         await viewModel.deleteTask(task: task)
                         activeTask = nil
                     }
                 },
-                onSubmitTitle: { newTitle in
+                onEditTitle: { newTitle in
                     Task {
                         await viewModel.updateTaskTitle(taskId: task.id, newTitle: newTitle)
                     }
