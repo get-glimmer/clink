@@ -24,7 +24,7 @@ struct TaskListView: View {
         self.viewModel = viewModel
     }
     
-    // ---------- main view ----------
+    // MARK: - Main View
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
@@ -41,10 +41,21 @@ struct TaskListView: View {
             let isToday: Bool = task.dueDate.map { Calendar.current.isDateInToday($0) } ?? false
             let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
             
+            let archivedCats = viewModel.categoriesWithTasks
+                .filter { $0.category.type == .archived }
+                .map { $0.category }
+            
             TaskMenuSheet(
                 taskTitle: task.title,
                 isDueToday: isToday,
                 initialDueDate: task.dueDate,
+                archivedCategories: archivedCats,
+                onPickArchivedCategory: { selected in
+                    Task {
+                        await viewModel.moveTaskToCategory(taskId: task.id, toCategoryId: selected.id)
+                    }
+                    activeTask = nil
+                },
                 
                 onDoToday: {
                     Task {
@@ -66,7 +77,7 @@ struct TaskListView: View {
                     }
                 },
                 onMakeRoutine:{ /* hook later */ },
-                onArchive:   { /* hook later */ },
+                onArchive:   { /* do nothing */ },
                 onEdit:      { /* do nothing */ },
                 onDelete:    {
                     Task {
@@ -85,7 +96,6 @@ struct TaskListView: View {
             .presentationDragIndicator(.visible)
         }
     }
-    // -----------------------------------
     
     // MARK: - Headers
     private var dailyTaskHeader: some View {

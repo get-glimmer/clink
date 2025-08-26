@@ -4,6 +4,8 @@ struct TaskMenuSheet: View {
     let taskTitle: String
     let isDueToday: Bool
     let initialDueDate: Date?
+    let archivedCategories: [CategoryItem]
+    var onPickArchivedCategory: (CategoryItem) -> Void = { _ in }
 
     var onDoToday: () -> Void = {}
     var onDoTomorrow: () -> Void = {}
@@ -22,13 +24,16 @@ struct TaskMenuSheet: View {
     @FocusState private var titleFieldFocused: Bool
     
     // --- change date overlay state ---
-        @State private var showChangeDateOverlay: Bool = false
+    @State private var showChangeDateOverlay: Bool = false
+    @State private var showChooseCategoryOverlay: Bool = false
     
     // Ensure initial text matches sheet input
     init(
         taskTitle: String,
         isDueToday: Bool,
         initialDueDate: Date?,
+        archivedCategories: [CategoryItem],
+        onPickArchivedCategory: @escaping (CategoryItem) -> Void = { _ in },
         onDoToday: @escaping () -> Void = {},
         onDoTomorrow: @escaping () -> Void = {},
         onChangeDate: @escaping () -> Void = {},
@@ -42,6 +47,9 @@ struct TaskMenuSheet: View {
         self.taskTitle = taskTitle
         self.isDueToday = isDueToday
         self.initialDueDate = initialDueDate
+        self.archivedCategories = archivedCategories
+        self.onPickArchivedCategory = onPickArchivedCategory
+
         self.onDoToday = onDoToday
         self.onDoTomorrow = onDoTomorrow
         self.onChangeDate = onChangeDate
@@ -90,7 +98,28 @@ struct TaskMenuSheet: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: showChangeDateOverlay)
+        
+        // ── ChooseArchivedCategory overlay ────────────────────────────
+        .fullScreenCover(isPresented: $showChooseCategoryOverlay) {
+            if showChooseCategoryOverlay {
+                ChooseArchivedCategorySheet(
+                    archivedCategories: archivedCategories,
+                    onSelect: { cat in
+                        onPickArchivedCategory(cat)
+                        showChooseCategoryOverlay = false
+                    },
+                    onCancel: {
+                        showChooseCategoryOverlay = false
+                    }
+                )
+                .transition(.opacity)
+                .ignoresSafeArea()
+                .zIndex(10)
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: showChooseCategoryOverlay)
     }
+    
     // MARK: - Header
     private var header: some View {
         HStack(alignment: .center) {
@@ -173,7 +202,12 @@ struct TaskMenuSheet: View {
             optionRow(
                 systemIcon: "folder",
                 title: "Archive a Task",
-                action: onArchive
+                action: {
+                    onArchive()
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showChooseCategoryOverlay = true
+                    }
+                }
             )
         }
         .padding(.horizontal, 16)

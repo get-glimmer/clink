@@ -82,7 +82,7 @@ class TaskListViewModel: ObservableObject {
                     case .daily:
                         tasks = try await client
                             .from("task")
-                            .select() // explicit
+                            .select()
                             .eq("userid", value: userId)
                             .eq("categoryid", value: category.id.uuidString)
                             .eq("duedate", value: formattedDate(taskSelectedDate))
@@ -105,10 +105,9 @@ class TaskListViewModel: ObservableObject {
                     result.append(CategoryWithTasks(id: category.id, category: category, tasks: tasks))
                 }
 
-                // 3) 상태 반영
                 await MainActor.run {
                     self.categoriesWithTasks = result
-                    self.updateAllCompleted() // daily만 기준
+                    self.updateAllCompleted()
                 }
 
                 // ──────── Lid Gradient Colors load ────────
@@ -531,14 +530,14 @@ class TaskListViewModel: ObservableObject {
 
     // MARK: - reorder categories (local only)
     func moveCategoriesWithinType(_ type: CategoryType, from source: IndexSet, to destination: Int) {
-        // 1) Collect original indices of categories that match the given type
+        // 1. Collect original indices of categories that match the given type
         let matchingOriginalIndices: [Int] = categoriesWithTasks.enumerated()
             .filter { $0.element.category.type == type }
             .map { $0.offset }
 
         guard !matchingOriginalIndices.isEmpty else { return }
 
-        // 2) Map filtered source indices -> original indices
+        // 2. Map filtered source indices -> original indices
         let fromOffsetsInOriginal = IndexSet(
             source.compactMap { filteredIndex in
                 guard filteredIndex >= 0 && filteredIndex < matchingOriginalIndices.count else { return nil }
@@ -546,7 +545,7 @@ class TaskListViewModel: ObservableObject {
             }
         )
 
-        // 3) Compute original destination index
+        // 3. Compute original destination index
         let toOffsetInOriginal: Int = {
             if destination >= matchingOriginalIndices.count {
                 return (matchingOriginalIndices.last ?? categoriesWithTasks.count - 1) + 1
@@ -555,9 +554,59 @@ class TaskListViewModel: ObservableObject {
             }
         }()
 
-        // 4) Move on the original array
+        // 4. Move on the original array
         categoriesWithTasks.move(fromOffsets: fromOffsetsInOriginal, toOffset: toOffsetInOriginal)
     }
+    
+    // MARK: - move task into another category
+    func moveTaskToCategory(taskId: UUID, toCategoryId: UUID) async {
+        guard let client = self.client, let userId = self.userId else { return }
 
+        // 1. DB update (only categoryid)
+        struct MovePayload: Encodable { let categoryid: String }
+        do {
+            try await client
+                .from("task")
+                .update(MovePayload(categoryid: toCategoryId.uuidString))
+                .eq("taskid", value: taskId.uuidString)
+                .eq("userid", value: userId)
+                .execute()
+        } catch {
+            print("[Task] move failed:", error)
+            return
+        }
 
+        // 2. Local state update
+        await MainActor.run {
+            // remove from the old category list
+            var movedTask: TaskListItem?
+            for i in categoriesWithTasks.indices {
+                if let tIndex = categoriesWithTasks[i].tasks.firstIndex(where: { $0.id == taskId }) {
+                    movedTask = categoriesWithTasks[i].tasks.remove(at: tIndex)
+                    break
+                }
+            }
+            guard let task = movedTask else {
+                self.updateAllCompleted()
+                return
+            }
+
+            // append into destination if it matches that section's filter
+            if let destIdx = categoriesWithTasks.firstIndex(where: { $0.category.id == toCategoryId }) {
+                let destCat = categoriesWithTasks[destIdx].category
+                switch destCat.type {
+                case .daily:
+                    let isSameDay = task.dueDate.map { Calendar.current.isDate($0, inSameDayAs: self.taskSelectedDate) } ?? false
+                    if isSameDay {
+                        categoriesWithTasks[destIdx].tasks.append(task)
+                    }
+                case .archived:
+                    categoriesWithTasks[destIdx].tasks.append(task)
+                }
+            }
+
+            // recompute completion using daily tasks only
+            self.updateAllCompleted()
+        }
+    }
 }
