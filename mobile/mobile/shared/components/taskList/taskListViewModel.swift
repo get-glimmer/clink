@@ -464,10 +464,15 @@ class TaskListViewModel: ObservableObject {
         let categorytype: String? // send only when provided (nil -> key omitted)
     }
     
-    func updateCategory(categoryId: UUID, name: String, emoji: String, privacyStatus: String, type: CategoryType? = nil) async {
+    func updateCategory(
+        categoryId: UUID,
+        name: String,
+        emoji: String,
+        privacyStatus: String,
+        type: CategoryType? = nil
+    ) async {
         guard let client = self.client, let userId = self.userId else { return }
         do {
-            // Build Encodable payload (no [String: Any])
             let payload = UpdateCategoryPayload(
                 categoryname: name,
                 categoryemoji: emoji,
@@ -475,7 +480,6 @@ class TaskListViewModel: ObservableObject {
                 categorytype: type?.rawValue
             )
 
-            // DB update
             try await client
                 .from("category")
                 .update(payload)
@@ -483,7 +487,7 @@ class TaskListViewModel: ObservableObject {
                 .eq("userid", value: userId)
                 .execute()
 
-            // Reflect locally
+            // 1) Reflect locally
             await MainActor.run {
                 if let idx = categoriesWithTasks.firstIndex(where: { $0.id == categoryId }) {
                     let old = categoriesWithTasks[idx]
@@ -501,8 +505,13 @@ class TaskListViewModel: ObservableObject {
                         category: updatedCategory,
                         tasks: old.tasks
                     )
+                    categoriesWithTasks = categoriesWithTasks
                 }
             }
+
+            // 2) Refresh shaker data so marble emojis update right away
+            try? await trackerViewModel?.fetchShakers()
+
         } catch {
             print("[Category] update failed:", error)
         }
