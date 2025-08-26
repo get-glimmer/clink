@@ -455,8 +455,8 @@ class TaskListViewModel: ObservableObject {
             throw error
         }
     }
-    
-    // MARK: - DTOs for Supabase updates
+
+    // MARK: - update category
     struct UpdateCategoryPayload: Encodable {
         let categoryname: String
         let categoryemoji: String
@@ -464,7 +464,6 @@ class TaskListViewModel: ObservableObject {
         let categorytype: String? // send only when provided (nil -> key omitted)
     }
     
-    // MARK: - update category
     func updateCategory(categoryId: UUID, name: String, emoji: String, privacyStatus: String, type: CategoryType? = nil) async {
         guard let client = self.client, let userId = self.userId else { return }
         do {

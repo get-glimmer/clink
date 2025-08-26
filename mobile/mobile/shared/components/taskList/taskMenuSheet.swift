@@ -6,6 +6,8 @@ struct TaskMenuSheet: View {
     let initialDueDate: Date?
     let archivedCategories: [CategoryItem]
     var onArchive: (CategoryItem) -> Void = { _ in }
+    
+    let isArchivedTask: Bool
 
     var onDoToday: () -> Void = {}
     var onDoTomorrow: () -> Void = {}
@@ -38,14 +40,16 @@ struct TaskMenuSheet: View {
         onConfirmChangeDate: @escaping (Date) -> Void = { _ in },
         onMakeRoutine: @escaping () -> Void = {},
         onDelete: @escaping () -> Void = {},
-        onEditTitle: @escaping (String) -> Void = { _ in }
+        onEditTitle: @escaping (String) -> Void = { _ in },
+        isArchivedTask: Bool = false
     ) {
         self.taskTitle = taskTitle
         self.isDueToday = isDueToday
         self.initialDueDate = initialDueDate
         self.archivedCategories = archivedCategories
+        self.isArchivedTask = isArchivedTask
+        
         self.onArchive = onArchive
-
         self.onDoToday = onDoToday
         self.onDoTomorrow = onDoTomorrow
         self.onChangeDate = onChangeDate
@@ -165,16 +169,23 @@ struct TaskMenuSheet: View {
     
     // MARK: - Options
     private var options: some View {
-        VStack(spacing: 20) {
+        let disableAll = isArchivedTask   // archived task -> disable 4 options
+
+        return VStack(spacing: 20) {
             if isDueToday {
-                optionRow(systemIcon: "arrow.right",
-                          title: "Do it Tomorrow",
-                          action: onDoTomorrow)
+                optionRow(
+                    systemIcon: "arrow.right",
+                    title: "Do it Tomorrow",
+                    action: onDoTomorrow,
+                    isDisabled: disableAll
+                )
             } else {
-                optionRow(systemIcon:
-                            "arrow.down",
-                          title: "Do it Today",
-                          action: onDoToday)
+                optionRow(
+                    systemIcon: "arrow.down",
+                    title: "Do it Today",
+                    action: onDoToday,
+                    isDisabled: disableAll
+                )
             }
 
             optionRow(
@@ -185,13 +196,18 @@ struct TaskMenuSheet: View {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         showChangeDateOverlay = true
                     }
-                }
+                },
+                isDisabled: disableAll
             )
+
+            // Always disabled for now
             optionRow(
                 systemIcon: "clock.arrow.circlepath",
                 title: "Make it a Routine",
-                action: onMakeRoutine
+                action: onMakeRoutine,
+                isDisabled: true
             )
+
             optionRow(
                 systemIcon: "folder",
                 title: "Archive a Task",
@@ -199,7 +215,8 @@ struct TaskMenuSheet: View {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         showChooseCategoryOverlay = true
                     }
-                }
+                },
+                isDisabled: disableAll
             )
         }
         .padding(.horizontal, 16)
@@ -208,10 +225,14 @@ struct TaskMenuSheet: View {
 
     // MARK: - Row factory
     @ViewBuilder
-    private func optionRow(systemIcon: String, title: String, action: @escaping () -> Void) -> some View {
+    private func optionRow(
+        systemIcon: String,
+        title: String,
+        action: @escaping () -> Void,
+        isDisabled: Bool = false
+    ) -> some View {
         Button(action: action) {
             HStack(spacing: 14) {
-
                 ZStack {
                     Circle()
                         .fill(Color("Green-300"))
@@ -221,9 +242,11 @@ struct TaskMenuSheet: View {
                         .foregroundColor(Color("White"))
                 }
 
+                // text dims when disabled
                 Text(title)
                     .appFont(AppFont.labelM)
                     .foregroundColor(Color("White"))
+                    .opacity(isDisabled ? 0.5 : 1.0)
 
                 Spacer()
             }
