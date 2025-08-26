@@ -5,9 +5,17 @@ struct TaskView: View {
     @StateObject private var viewModel: TaskListViewModel
     @State private var sheetProgress: CGFloat = 0
     
-    // on a TaskView, "today" which is accepted as a parameter will not be changed as the
-    // page only shows today's tasks.
-    @State private var today: Date = Date()
+    // --- date selection ---
+    //@State private var today: Date = Date()
+    @State private var selectedDate: Date = Date()
+    @State private var showChangeDateSheet: Bool = false
+    
+    private var monthDayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.setLocalizedDateFormatFromTemplate("MMMM d") // ex. July 2
+        return f
+    }()
     
     // --- options & sheet states ---
     @State private var showOptionsSheet: Bool = false
@@ -38,8 +46,53 @@ struct TaskView: View {
                 VStack(spacing: 12) {
                     // ---- Header ----
                     ZStack {
-                        Text("Hi \(getUserName() ?? "User") 👋")
-                            .appFont(AppFont.title2)
+                        // Center: Date controls
+                        HStack(spacing: 20) {
+
+                            // 1) Previous day
+                            Button {
+                                if let prev = Calendar.current.date(byAdding: .day, value: -1, to: selectedDate) {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        selectedDate = prev
+                                    }
+                                    viewModel.taskSelectedDate = prev
+                                }
+                            } label: {
+                                Image(systemName: "chevron.left")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(Color("Neutral-400"))
+                            }
+                            .buttonStyle(.plain)
+
+                            // 2) Open calendar sheet (date text)
+                            Button {
+                                showChangeDateSheet = true
+                            } label: {
+                                Text(monthDayFormatter.string(from: selectedDate))
+                                    .appFont(AppFont.title2)
+                                    .foregroundColor(Color("White"))
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+
+                            // 3) Next day
+                            Button {
+                                if let next = Calendar.current.date(byAdding: .day, value: 1, to: selectedDate) {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        selectedDate = next
+                                    }
+                                    viewModel.taskSelectedDate = next
+                                }
+                            } label: {
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(Color("Neutral-400"))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .frame(maxWidth: .infinity)
+                        
+                        // Right: option button
                         HStack {
                             Spacer()
                             Button {
@@ -47,25 +100,27 @@ struct TaskView: View {
                             } label: {
                                 ZStack {
                                     Circle()
-                                        .fill(Color("Neutral-800").opacity(0.3))
+                                        .fill(Color("Neutral-900"))
                                         .frame(width: 44, height: 44)
                                     Image(systemName: "ellipsis")
                                         .font(.system(size: 14))
                                         .foregroundColor(Color("White"))
                                 }
+                                .contentShape(Circle())
                             }
                             .buttonStyle(.plain)
                         }
+                        .frame(maxWidth: .infinity)
+                        .padding(.trailing, 16)
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 16)
+                    .padding(.top, 12)
 
                     // ---- Shaker (scaled) ----
                     ShakerView(viewModel: viewModel)
                         .frame(width: shakerSide, height: shakerSide)
-                        .padding(.top, 24)
+                        .frame(maxWidth: 275)
+                        .padding(.top, 16)
                 }
-                .frame(maxWidth: 270, alignment: .top)
 
                 // ---- Bottom Sheet ----
                 BottomSheet(
@@ -75,13 +130,16 @@ struct TaskView: View {
                 ) {
                     // --Task List Content--
                     ScrollView {
-                        TaskListView(taskSelectedDate: $today, viewModel: viewModel)
+//                        Text("Daily Task")
+//                            .font(.headline)
+//                            .frame(maxWidth: 340, alignment: .leading)
+                        TaskListView(taskSelectedDate: $selectedDate, viewModel: viewModel)
                             .padding(.bottom, 120)
                     }
                 }
             }
             .animation(.easeInOut, value: scale)
-            // Options overlay
+            // --- "Options" sheet overlay ---
             .overlay(alignment: .bottomLeading) {
                 if showOptionsSheet {
                     OptionsSheet(
@@ -112,7 +170,11 @@ struct TaskView: View {
         .ignoresSafeArea(edges: .bottom)
         .onAppear {
             viewModel.fetchCategoriesAndTasks()
-            //animateSheetBounce()
+            viewModel.taskSelectedDate = selectedDate
+        }
+        .onChange(of: selectedDate) { newValue in
+            viewModel.taskSelectedDate = newValue
+            // viewModel.fetchCategoriesAndTasks()
         }
         // -- "Add category" sheet --
         .fullScreenCover(isPresented: $showAddCategorySheet) {
@@ -140,6 +202,23 @@ struct TaskView: View {
         .fullScreenCover(isPresented: $showCategoriesSheet) {
             CategoriesSheet(viewModel: viewModel)
         }
+        // -- "Change Date" sheet --
+        .overlay(alignment: .bottomLeading) {
+            if showChangeDateSheet {
+                ChangeDateSheet(
+                    initialDate: selectedDate,
+                    onConfirm: { picked in
+                        selectedDate = picked
+                        viewModel.taskSelectedDate = picked
+                        showChangeDateSheet = false
+                    },
+                    onCancel: { showChangeDateSheet = false }
+                )
+                .transition(.opacity)
+                .ignoresSafeArea()
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: showChangeDateSheet)
     }
 }
-#Preview {TaskView()}
+//#Preview {TaskView()}

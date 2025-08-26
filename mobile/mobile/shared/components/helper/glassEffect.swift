@@ -19,7 +19,7 @@ struct LiquidGlass: ViewModifier {
                 ZStack {
                     // 1) Base material (glass blur)
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(.ultraThinMaterial)
+                        .fill(.ultraThinMaterial).opacity(0.9)
                     
                     // 2) Color tint overlay
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)

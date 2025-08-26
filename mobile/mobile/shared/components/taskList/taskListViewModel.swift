@@ -96,9 +96,9 @@ class TaskListViewModel: ObservableObject {
                         .value
                     {
                         // UI reflected state
-                        isAllCompleted   = row.iscompleted
                         lidColorStart = row.lid_color_start
                         lidColorEnd   = row.lid_color_end
+                        isAllCompleted   = row.iscompleted
                     }
                 } catch {
                     // ignore load failures
@@ -266,6 +266,88 @@ class TaskListViewModel: ObservableObject {
         
     }
     
+    // MARK: - update task title
+    func updateTaskTitle(taskId: UUID, newTitle: String) async {
+        guard let client = self.client, let userId = self.userId else { return }
+        do {
+            // 1) DB update
+            try await client
+                .from("task")
+                .update(["tasktitle": newTitle])
+                .eq("taskid", value: taskId)
+                .eq("userid", value: userId)
+                .execute()
+
+            // 2) Reflect locally
+            await MainActor.run {
+                for (catIdx, cat) in categoriesWithTasks.enumerated() {
+                    if let tIdx = cat.tasks.firstIndex(where: { $0.id == taskId }) {
+                        let old = categoriesWithTasks[catIdx].tasks[tIdx]
+
+                        let updated = TaskListItem(
+                            id: old.id,
+                            title: newTitle,
+                            isCompleted: old.isCompleted,
+                            dueDate: old.dueDate,
+                            isTemporary: old.isTemporary
+                        )
+
+                        categoriesWithTasks[catIdx].tasks[tIdx] = updated
+
+                        break
+                    }
+                }
+            }
+        } catch {
+            print("[Task] title update failed:", error)
+        }
+    }
+    
+    // MARK: - update task (due)date
+    func updateTaskDate(taskId: UUID, newDate: Date) async {
+        guard let client = self.client, let userId = self.userId else { return }
+        // 1) DB update
+        do {
+            try await client
+                .from("task")
+                .update([
+                    "duedate": dateToPostgreSQLString(newDate), //"yyyy-MM-dd" string
+                    "updatedat": ISO8601DateFormatter().string(from: Date())
+                ])
+                .eq("taskid", value: taskId)
+                .eq("userid", value: userId)
+                .execute()
+
+            // 2) Reflect locally
+            await MainActor.run {
+                for (catIdx, cat) in categoriesWithTasks.enumerated() {
+                    if let tIdx = cat.tasks.firstIndex(where: { $0.id == taskId }) {
+                        let old = categoriesWithTasks[catIdx].tasks[tIdx]
+
+                        let updated = TaskListItem(
+                            id: old.id,
+                            title: old.title,
+                            isCompleted: old.isCompleted,
+                            dueDate: newDate,
+                            isTemporary: old.isTemporary
+                        )
+                        // If the currently selected list is NOT newDate, remove from current taskList
+                        if Calendar.current.isDate(taskSelectedDate, inSameDayAs: newDate) {
+                            categoriesWithTasks[catIdx].tasks[tIdx] = updated
+                        } else {
+                            categoriesWithTasks[catIdx].tasks.remove(at: tIdx)
+                        }
+                        break
+                    }
+                }
+                updateAllCompleted()
+            }
+        } catch {
+            print("[Task] duedate update failed:", error)
+        }
+    }
+
+    
     // MARK: - delete task
     func removeTemporaryTask(task: TaskListItem) {
         for (catIdx, cat) in categoriesWithTasks.enumerated() {
@@ -400,7 +482,6 @@ class TaskListViewModel: ObservableObject {
     // MARK: - reorder categories (local only for now)
     func moveCategories(from source: IndexSet, to destination: Int) {
         categoriesWithTasks.move(fromOffsets: source, toOffset: destination)
-        // TODO: DB에 order 업데이트 (추후 구현)
     }
 
 

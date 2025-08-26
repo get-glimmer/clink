@@ -20,11 +20,11 @@ struct OptionsSheet: View {
             ZStack {
                 // 1) System material blur
                 Rectangle()
-                    .fill(.ultraThinMaterial)
+                    .fill(.ultraThinMaterial).opacity(0.85)
                     .ignoresSafeArea()
                 
                 // 2) Additional dim
-                Color.black.opacity(0.5)
+                Color.black.opacity(0.8)
                     .ignoresSafeArea()
             }
             .contentShape(Rectangle())
@@ -75,8 +75,8 @@ private struct OptionRow: View {
             Text(title)
                 .appFont(AppFont.title3)
                 .foregroundStyle(.white)
+                .opacity(isEnabled ? 1.0 : 0.5)
         }
-        .opacity(isEnabled ? 1.0 : 0.5)
         .contentShape(Rectangle())
         .onTapGesture {
             guard isEnabled else { return }
@@ -86,15 +86,15 @@ private struct OptionRow: View {
     }
 }
 
-#Preview {
-    ZStack {
-        Color.black.ignoresSafeArea()
-        OptionsSheet(
-            onTapOutside: {},
-            onTapRoutines: {},
-            onTapCategories: {},
-            onTapAddCategory: {}
-        )
-    }
-    .preferredColorScheme(.dark)
-}
+//#Preview {
+//    ZStack {
+//        Color.black.ignoresSafeArea()
+//        OptionsSheet(
+//            onTapOutside: {},
+//            onTapRoutines: {},
+//            onTapCategories: {},
+//            onTapAddCategory: {}
+//        )
+//    }
+//    .preferredColorScheme(.dark)
+//}

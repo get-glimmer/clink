@@ -17,6 +17,7 @@ struct ShakerBarView: View {
         let lidColor = shakerRecord?.lidColor
         
         ZStack(alignment: .bottom) {
+            
             if totalCount == 0 {
                     VStack(spacing: 0) {
                         // lid

@@ -12,6 +12,9 @@ struct TaskListView: View {
     @State private var editingTexts: [UUID: String] = [:]
     @FocusState private var focusedTaskId: UUID?
     
+    // task menu sheet state
+    @State private var activeTask: TaskListItem? = nil
+    
     // used so that fetchCategoriesAndTasks() can fetch data at wanted date
     @Binding var taskSelectedDate: Date
   
@@ -21,15 +24,63 @@ struct TaskListView: View {
         self.viewModel = viewModel
     }
     
+    // ---------- main view ----------
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 dailyTaskHeader
                 categoriesSection
             }
-            //.padding(.horizontal)
+        }
+        .sheet(item: $activeTask, onDismiss: { activeTask = nil }) { task in
+            let isToday: Bool = task.dueDate.map { Calendar.current.isDateInToday($0) } ?? false
+            let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+            
+            TaskMenuSheet(
+                taskTitle: task.title,
+                isDueToday: isToday,
+                initialDueDate: task.dueDate,
+                
+                onDoToday: {
+                    Task {
+                        await viewModel.updateTaskDate(taskId: task.id, newDate: Date())
+                        activeTask = nil
+                    }
+                },
+                onDoTomorrow: {
+                    Task {
+                        await viewModel.updateTaskDate(taskId: task.id, newDate: tomorrow)
+                        activeTask = nil
+                    }
+                },
+                onChangeDate:{ /* do nothing */ },
+                onConfirmChangeDate: { picked in
+                    Task {
+                        await viewModel.updateTaskDate(taskId: task.id, newDate: picked)
+                        activeTask = nil
+                    }
+                },
+                onMakeRoutine:{ /* hook later */ },
+                onArchive:   { /* hook later */ },
+                onEdit:      { /* do nothing */ },
+                onDelete:    {
+                    Task {
+                        await viewModel.deleteTask(task: task)
+                        activeTask = nil
+                    }
+                },
+                onSubmitTitle: { newTitle in
+                    Task {
+                        await viewModel.updateTaskTitle(taskId: task.id, newTitle: newTitle)
+                    }
+                }
+            )
+            .presentationDetents([ .height(380) ])
+            .presentationCornerRadius(24)
+            .presentationDragIndicator(.visible)
         }
     }
+    // -----------------------------------
     
     private var dailyTaskHeader: some View {
         HStack {
@@ -95,7 +146,8 @@ struct TaskListView: View {
             taskCheckbox(for: task)
             taskContent(for: task)
             Spacer()
-            taskMenu(for: task)
+            //taskMenu(for: task)
+            taskMenuButton(for: task)
         }
     }
     
@@ -154,22 +206,34 @@ struct TaskListView: View {
     }
     
     @ViewBuilder
-    private func taskMenu(for task: TaskListItem) -> some View {
-        if !task.isTemporary {
-            Menu {
-                Button("Delete") {
-                    Task {
-                        await viewModel.deleteTask(task: task)
-                    }
-                }
-            } label: {
-                Image(systemName: "ellipsis")
-                    .foregroundColor(.primary)
-                    .imageScale(.medium)
-                    .frame(width: 25, height: 25)
-            }
-            .contentShape(Rectangle())
+//    private func taskMenu(for task: TaskListItem) -> some View {
+//        if !task.isTemporary {
+//            Menu {
+//                Button("Delete") {
+//                    Task {
+//                        await viewModel.deleteTask(task: task)
+//                    }
+//                }
+//            } label: {
+//                Image(systemName: "ellipsis")
+//                    .foregroundColor(.primary)
+//                    .imageScale(.medium)
+//                    .frame(width: 25, height: 25)
+//            }
+//            .contentShape(Rectangle())
+//        }
+//    }
+    private func taskMenuButton(for task: TaskListItem) -> some View {
+        Button {
+            activeTask = task
+        } label: {
+            Image(systemName: "ellipsis")
+                .foregroundColor(.primary)
+                .imageScale(.medium)
+                .frame(width: 25, height: 25)
         }
+        .buttonStyle(.plain)
+        .contentShape(Rectangle())
     }
     
     private func handleTaskSubmit(task: TaskListItem) {
