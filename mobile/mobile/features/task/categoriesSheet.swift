@@ -14,6 +14,20 @@ struct CategoriesSheet: View {
     @State private var showAddCategorySheet = false
     @State private var editingCategory: CategoryItem? = nil
     
+    // AddCategorySheet States
+    @State private var newCategoryEmoji: String = ""
+    @State private var newCategoryName: String = ""
+    @State private var isSavingCategory: Bool = false
+    @State private var categorySaveError: String? = nil
+    
+    // Type filters
+    private var dailyCategories: [CategoryWithTasks] {
+        viewModel.categoriesWithTasks.filter { $0.category.type == .daily }
+    }
+    private var archivedCategories: [CategoryWithTasks] {
+        viewModel.categoriesWithTasks.filter { $0.category.type == .archived }
+    }
+    
     var body: some View {
         VStack(spacing: 0) {
             // --- Header ---
@@ -52,62 +66,95 @@ struct CategoriesSheet: View {
             List {
                 // Daily
                 Section(header:
-                    Text("Daily Tasks")
+                    Text("Daily Task")
                         .appFont(AppFont.labelS)
                         .foregroundColor(Color("Neutral-300"))
                 ) {
-                    ForEach(viewModel.categoriesWithTasks, id: \.id) { catWithTasks in
+                    ForEach(dailyCategories, id: \.id) { catWithTasks in
                         categoryRow(cat: catWithTasks.category)
                             .listRowSeparator(.hidden)
                     }
                     .onDelete { indexSet in
                         Task {
-                            for index in indexSet {
-                                let cat = viewModel.categoriesWithTasks[index].category
-                                await viewModel.deleteCategory(categoryId: cat.id)
+                            for idx in indexSet {
+                                let catId = dailyCategories[idx].category.id
+                                await viewModel.deleteCategory(categoryId: catId)
                             }
                         }
                     }
                     .onMove { indices, newOffset in
-                        viewModel.moveCategories(from: indices, to: newOffset)
+                        viewModel.moveCategoriesWithinType(.daily, from: indices, to: newOffset)
                     }
                 }
                 
                 // Archived
                 Section(header:
-                    Text("Archived Tasks")
+                    Text("Archived Task")
                         .appFont(AppFont.labelS)
                         .foregroundColor(Color("Neutral-300"))
                 ) {
-                    // TODO: archived categories
+                    ForEach(archivedCategories, id: \.id) { catWithTasks in
+                        categoryRow(cat: catWithTasks.category)
+                            .listRowSeparator(.hidden)
+                    }
+                    .onDelete { indexSet in
+                        Task {
+                            for idx in indexSet {
+                                let catId = archivedCategories[idx].category.id
+                                await viewModel.deleteCategory(categoryId: catId)
+                            }
+                        }
+                    }
+                    .onMove { indices, newOffset in
+                        viewModel.moveCategoriesWithinType(.archived, from: indices, to: newOffset)
+                    }
                 }
             }
             .listStyle(.plain)
         }
         .fullScreenCover(isPresented: $showAddCategorySheet) {
             AddCategorySheet(
-                emoji: .constant(""),
-                name: .constant(""),
-                isSaving: .constant(false),
-                errorMessage: .constant(nil),
-                onSave: { emoji, name, privacy in
-                    Task {
-                        try? await viewModel.addCategory(name: name, emoji: emoji, privacyStatus: privacy)
-                        showAddCategorySheet = false
+                emoji: $newCategoryEmoji,
+                name: $newCategoryName,
+                isSaving: $isSavingCategory,
+                errorMessage: $categorySaveError
+            ) { emoji, name, privacy, type in
+                isSavingCategory = true
+                Task {
+                    do {
+                        try await viewModel.addCategory(
+                            name: name,
+                            emoji: emoji,
+                            privacyStatus: privacy,
+                            type: type
+                        )
+                        await MainActor.run {
+                            isSavingCategory = false
+                            showAddCategorySheet = false
+                            newCategoryEmoji = ""
+                            newCategoryName  = ""
+                            categorySaveError = nil
+                        }
+                    } catch {
+                        await MainActor.run {
+                            isSavingCategory = false
+                            categorySaveError = "Failed to save. Please try again."
+                        }
                     }
                 }
-            )
+            }
         }
         .fullScreenCover(item: $editingCategory) { cat in
             EditCategorySheet(
                 category: cat,
-                onDone: { emoji, name, privacy in
+                onDone: { emoji, name, privacy, type in
                     Task {
                         await viewModel.updateCategory(
                             categoryId: cat.id,
                             name: name,
                             emoji: emoji,
-                            privacyStatus: privacy
+                            privacyStatus: privacy,
+                            type: type
                         )
                         editingCategory = nil
                     }

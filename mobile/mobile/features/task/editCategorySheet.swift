@@ -13,7 +13,7 @@ struct EditCategorySheet: View {
     let category: CategoryItem
 
     // Output callbacks
-    var onDone: (_ emoji: String, _ name: String, _ privacy: String) -> Void
+    var onDone: (_ emoji: String, _ name: String, _ privacy: String, _ type: CategoryType) -> Void
     var onDelete: () -> Void
 
     // Local UI states
@@ -24,10 +24,11 @@ struct EditCategorySheet: View {
     @State private var isEmojiPickerPresented = false
     @State private var errorMessage: String? = nil
     @State private var isSaving = false
+    @State private var catType: CategoryType
 
     // Initialize local states from category
     init(category: CategoryItem,
-         onDone: @escaping (_ emoji: String, _ name: String, _ privacy: String) -> Void,
+         onDone: @escaping (_ emoji: String, _ name: String, _ privacy: String, _ type: CategoryType) -> Void,
          onDelete: @escaping () -> Void)
     {
         self.category = category
@@ -39,6 +40,7 @@ struct EditCategorySheet: View {
         _name  = State(initialValue: category.name)
         let p = Privacy(rawValue: category.privacyStatus ?? "public") ?? .publicShare
         _privacy = State(initialValue: p)
+        _catType = State(initialValue: category.type)
     }
 
     enum Privacy: String, CaseIterable, Identifiable {
@@ -211,7 +213,7 @@ struct EditCategorySheet: View {
                         .frame(height: 0.7)
                         .padding(.horizontal, 12)
 
-                    // Row 2: Type (fixed)
+                    // Row 2: Type
                     HStack {
                         HStack(spacing: 10) {
                             Image(systemName: "rectangle.grid.1x2")
@@ -221,16 +223,21 @@ struct EditCategorySheet: View {
                                 .appFont(AppFont.body1)
                                 .foregroundColor(Color("White"))
                         }
-
                         Spacer()
-
-                        HStack(spacing: 6) {
-                            Text("Daily")
-                                .appFont(AppFont.body1)
-                                .foregroundColor(Color("White"))
-                            Image(systemName: "lock.fill")
-                                .font(.footnote)
-                                .foregroundColor(Color("Neutral-400"))
+                        Menu {
+                            Button("Daily")    { catType = .daily }
+                            Button("Archived") { catType = .archived }
+                        } label: {
+                            HStack(spacing: 6) {
+                                Text(catType == .daily ? "Daily" : "Archived")
+                                    .appFont(AppFont.body1)
+                                    .foregroundColor(Color("White"))
+                                Image(systemName: "chevron.up.chevron.down")
+                                    .font(.footnote)
+                                    .foregroundColor(Color("White"))
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
                         }
                     }
                     .frame(height: 52)
@@ -267,7 +274,7 @@ struct EditCategorySheet: View {
                     return
                 }
                 isSaving = true
-                onDone(emoji, name, privacy.rawValue)
+                onDone(emoji, name, privacy.rawValue, catType)
                 isSaving = false
                 dismiss()
             } label: {

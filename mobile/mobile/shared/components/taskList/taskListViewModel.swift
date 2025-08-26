@@ -76,18 +76,40 @@ class TaskListViewModel: ObservableObject {
 
                 var result: [CategoryWithTasks] = []
                 for category in categories {
-                    let tasks: [TaskListItem] = try await client
-                        .from("task")
-                        .select()
-                        .eq("userid", value: userId)
-                        .eq("categoryid", value: category.id.uuidString)
-                        .eq("duedate", value: formattedDate(taskSelectedDate)) // changed so that "duedate" can be changed by users
-                        .order("createdat", ascending: true)
-                        .execute()
-                        .value
+                    let tasks: [TaskListItem]
+
+                    switch category.type {
+                    case .daily:
+                        tasks = try await client
+                            .from("task")
+                            .select() // explicit
+                            .eq("userid", value: userId)
+                            .eq("categoryid", value: category.id.uuidString)
+                            .eq("duedate", value: formattedDate(taskSelectedDate))
+                            .order("createdat", ascending: true)
+                            .execute()
+                            .value
+
+                    case .archived:
+                        // No date filter: fetch all tasks
+                        tasks = try await client
+                            .from("task")
+                            .select()
+                            .eq("userid", value: userId)
+                            .eq("categoryid", value: category.id.uuidString)
+                            .order("createdat", ascending: true)
+                            .execute()
+                            .value
+                    }
+
                     result.append(CategoryWithTasks(id: category.id, category: category, tasks: tasks))
                 }
-                categoriesWithTasks = result
+
+                // 3) 상태 반영
+                await MainActor.run {
+                    self.categoriesWithTasks = result
+                    self.updateAllCompleted() // daily만 기준
+                }
 
                 // ──────── Lid Gradient Colors load ────────
                 suppressSync = true
@@ -164,8 +186,10 @@ class TaskListViewModel: ObservableObject {
     // MARK: - shaker lid sealing
     // All‑completed checker
     private func updateAllCompleted() {
-        let allTasks = categoriesWithTasks.flatMap { $0.tasks }
-        isAllCompleted = !allTasks.isEmpty && allTasks.allSatisfy { $0.isCompleted }
+        let dailyTasks = categoriesWithTasks
+            .filter { $0.category.type == .daily }
+            .flatMap { $0.tasks }
+        isAllCompleted = !dailyTasks.isEmpty && dailyTasks.allSatisfy { $0.isCompleted }
     }
 
     // Supabase: shaker table sync
@@ -398,7 +422,7 @@ class TaskListViewModel: ObservableObject {
     }
     
     // MARK: - create category
-    func addCategory(name: String, emoji: String, privacyStatus: String) async throws {
+    func addCategory(name: String, emoji: String, privacyStatus: String, type: CategoryType) async throws {
         guard let client = self.client, let userId = self.userId else { return }
 
         // Match your Supabase schema column names exactly.
@@ -407,13 +431,15 @@ class TaskListViewModel: ObservableObject {
             let categoryname: String
             let categoryemoji: String
             let privacy_status: String
+            let categorytype: String
         }
 
         let payload = NewCategory(
             userid: userId,
             categoryname: name,
             categoryemoji: emoji,
-            privacy_status: privacyStatus
+            privacy_status: privacyStatus,
+            categorytype: type.rawValue
         )
 
         do {
@@ -431,32 +457,46 @@ class TaskListViewModel: ObservableObject {
         }
     }
     
+    // MARK: - DTOs for Supabase updates
+    struct UpdateCategoryPayload: Encodable {
+        let categoryname: String
+        let categoryemoji: String
+        let privacy_status: String
+        let categorytype: String? // send only when provided (nil -> key omitted)
+    }
+    
     // MARK: - update category
-    func updateCategory(categoryId: UUID, name: String, emoji: String, privacyStatus: String) async {
+    func updateCategory(categoryId: UUID, name: String, emoji: String, privacyStatus: String, type: CategoryType? = nil) async {
         guard let client = self.client, let userId = self.userId else { return }
         do {
-            // 1) Update on DB
+            // Build Encodable payload (no [String: Any])
+            let payload = UpdateCategoryPayload(
+                categoryname: name,
+                categoryemoji: emoji,
+                privacy_status: privacyStatus,
+                categorytype: type?.rawValue
+            )
+
+            // DB update
             try await client
                 .from("category")
-                .update([
-                    "categoryname": name,
-                    "categoryemoji": emoji,
-                    "privacy_status": privacyStatus
-                ])
-                .eq("categoryid", value: categoryId)
+                .update(payload)
+                .eq("categoryid", value: categoryId.uuidString)
                 .eq("userid", value: userId)
                 .execute()
 
-            // 2) Reflect locally (rebuild the item since `category` is let)
+            // Reflect locally
             await MainActor.run {
                 if let idx = categoriesWithTasks.firstIndex(where: { $0.id == categoryId }) {
                     let old = categoriesWithTasks[idx]
+                    let newType = type ?? old.category.type
                     let updatedCategory = CategoryItem(
                         id: old.category.id,
                         userId: old.category.userId,
                         name: name,
                         emoji: emoji,
-                        privacyStatus: privacyStatus
+                        privacyStatus: privacyStatus,
+                        type: newType
                     )
                     categoriesWithTasks[idx] = CategoryWithTasks(
                         id: old.id,
@@ -489,9 +529,34 @@ class TaskListViewModel: ObservableObject {
         }
     }
 
-    // MARK: - reorder categories (local only for now)
-    func moveCategories(from source: IndexSet, to destination: Int) {
-        categoriesWithTasks.move(fromOffsets: source, toOffset: destination)
+    // MARK: - reorder categories (local only)
+    func moveCategoriesWithinType(_ type: CategoryType, from source: IndexSet, to destination: Int) {
+        // 1) Collect original indices of categories that match the given type
+        let matchingOriginalIndices: [Int] = categoriesWithTasks.enumerated()
+            .filter { $0.element.category.type == type }
+            .map { $0.offset }
+
+        guard !matchingOriginalIndices.isEmpty else { return }
+
+        // 2) Map filtered source indices -> original indices
+        let fromOffsetsInOriginal = IndexSet(
+            source.compactMap { filteredIndex in
+                guard filteredIndex >= 0 && filteredIndex < matchingOriginalIndices.count else { return nil }
+                return matchingOriginalIndices[filteredIndex]
+            }
+        )
+
+        // 3) Compute original destination index
+        let toOffsetInOriginal: Int = {
+            if destination >= matchingOriginalIndices.count {
+                return (matchingOriginalIndices.last ?? categoriesWithTasks.count - 1) + 1
+            } else {
+                return matchingOriginalIndices[destination]
+            }
+        }()
+
+        // 4) Move on the original array
+        categoriesWithTasks.move(fromOffsets: fromOffsetsInOriginal, toOffset: toOffsetInOriginal)
     }
 
 

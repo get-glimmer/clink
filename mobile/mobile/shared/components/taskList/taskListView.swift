@@ -28,8 +28,13 @@ struct TaskListView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
+                // --- daily section ---
                 dailyTaskHeader
-                categoriesSection
+                dailyCategoriesSection
+                
+                // --- archived section ---
+                archivedTaskHeader
+                archivedCategoriesSection
             }
         }
         .sheet(item: $activeTask, onDismiss: { activeTask = nil }) { task in
@@ -82,6 +87,7 @@ struct TaskListView: View {
     }
     // -----------------------------------
     
+    // MARK: - Headers
     private var dailyTaskHeader: some View {
         HStack {
             Text("Daily Task")
@@ -91,14 +97,31 @@ struct TaskListView: View {
         .padding(.top, 24)
         .padding(.bottom, 4)
     }
-    
-    private var categoriesSection: some View {
-        ForEach(viewModel.categoriesWithTasks) { categoryWithTasks in
-            categoryCard(for: categoryWithTasks)
+    private var archivedTaskHeader: some View {
+        HStack {
+            Text("Archived Task")
+                .font(.headline)
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 24)
+        .padding(.bottom, 4)
+    }
+
+    // MARK: - Sections
+    private var dailyCategoriesSection: some View {
+        ForEach(viewModel.categoriesWithTasks.filter { $0.category.type == .daily }) { item in
+            categoryCard(for: item)
+        }
+        .padding(.horizontal)
+    }
+    private var archivedCategoriesSection: some View {
+        ForEach(viewModel.categoriesWithTasks.filter { $0.category.type == .archived }) { item in
+            categoryCard(for: item)
         }
         .padding(.horizontal)
     }
     
+    // MARK: - categoryCard
     private func categoryCard(for categoryWithTasks: CategoryWithTasks) -> some View {
         ZStack {
             RoundedRectangle(cornerRadius: 16)
@@ -206,23 +229,7 @@ struct TaskListView: View {
     }
     
     @ViewBuilder
-//    private func taskMenu(for task: TaskListItem) -> some View {
-//        if !task.isTemporary {
-//            Menu {
-//                Button("Delete") {
-//                    Task {
-//                        await viewModel.deleteTask(task: task)
-//                    }
-//                }
-//            } label: {
-//                Image(systemName: "ellipsis")
-//                    .foregroundColor(.primary)
-//                    .imageScale(.medium)
-//                    .frame(width: 25, height: 25)
-//            }
-//            .contentShape(Rectangle())
-//        }
-//    }
+
     private func taskMenuButton(for task: TaskListItem) -> some View {
         Button {
             activeTask = task
