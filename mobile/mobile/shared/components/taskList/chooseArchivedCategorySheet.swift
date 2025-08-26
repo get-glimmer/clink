@@ -16,7 +16,7 @@ struct ChooseArchivedCategorySheet: View {
 
     var body: some View {
         ZStack {
-            // --- Dimmed background (same as ChangeDateSheet) ---
+            // --- Dimmed background ---
             ZStack {
                 Rectangle()
                     .fill(.ultraThinMaterial).opacity(0.85)
@@ -57,7 +57,7 @@ struct ChooseArchivedCategorySheet: View {
                     .frame(width: 329)
                     .background(Color("Neutral-800"))
 
-                // List (scrolls if content exceeds max height)
+                // List (scrolls if content exceeds)
                 ScrollView {
                     VStack(spacing: 14) {
                         ForEach(archivedCategories, id: \.id) { cat in
@@ -65,9 +65,14 @@ struct ChooseArchivedCategorySheet: View {
                                 onSelect(cat)
                                 dismiss()
                             } label: {
-                                HStack(spacing: 12) {
-                                    Text(cat.emoji)
-                                        .appFont(AppFont.title2)
+                                HStack(spacing: 28) {
+                                    ZStack {
+                                        Circle()
+                                            .fill(Color("Neutral-800"))
+                                            .frame(width: 44, height: 44)
+                                        Text(cat.emoji)
+                                            .font(.system(size: 26))
+                                    }
                                     Text(cat.name)
                                         .appFont(AppFont.labelM)
                                         .foregroundColor(Color("White"))
@@ -76,23 +81,16 @@ struct ChooseArchivedCategorySheet: View {
                                 .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
-
-                            Divider()
-                                .frame(width: 329)
-                                .background(Color("Neutral-800"))
-                                .opacity(0.5)
                         }
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.top, 6)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 12)
                 }
-
-                // bottom spacer to match ChangeDateSheet padding
                 Spacer(minLength: 0)
                     .frame(height: 8)
             }
             .padding(16)
-            .frame(width: 361, height: 481) // max height 481
+            .frame(width: 361, height: 321)
             .background(
                 RoundedRectangle(cornerRadius: 24)
                     .fill(Color(.black)).opacity(0.5)
