@@ -47,7 +47,7 @@ struct TaskView: View {
                     // ---- Header ----
                     ZStack {
                         // Center: Date controls
-                        HStack(spacing: 18) {
+                        HStack(spacing: 20) {
 
                             // 1) Previous day
                             Button {
@@ -130,10 +130,9 @@ struct TaskView: View {
                 ) {
                     // --Task List Content--
                     ScrollView {
-                        Text("Daily Task")
-                            .font(.headline)
-                            .frame(maxWidth: 340, alignment: .leading)
-                            //.padding(.top, 8)
+//                        Text("Daily Task")
+//                            .font(.headline)
+//                            .frame(maxWidth: 340, alignment: .leading)
                         TaskListView(taskSelectedDate: $selectedDate, viewModel: viewModel)
                             .padding(.bottom, 120)
                     }

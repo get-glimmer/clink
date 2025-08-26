@@ -13,8 +13,7 @@ struct TaskListView: View {
     @FocusState private var focusedTaskId: UUID?
     
     // task menu sheet state
-    @State private var showMenuSheet: Bool = false
-    @State private var selectedTaskTitle: String = ""
+    @State private var activeTask: TaskListItem? = nil
     
     // used so that fetchCategoriesAndTasks() can fetch data at wanted date
     @Binding var taskSelectedDate: Date
@@ -25,25 +24,73 @@ struct TaskListView: View {
         self.viewModel = viewModel
     }
     
+    // ---------- main view ----------
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                //dailyTaskHeader
+                dailyTaskHeader
                 categoriesSection
             }
-            //.padding(.horizontal)
+        }
+        .sheet(item: $activeTask, onDismiss: { activeTask = nil }) { task in
+            let isToday: Bool = task.dueDate.map { Calendar.current.isDateInToday($0) } ?? false
+            let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+            
+            TaskMenuSheet(
+                taskTitle: task.title,
+                isDueToday: isToday,
+                initialDueDate: task.dueDate,
+                
+                onDoToday: {
+                    Task {
+                        await viewModel.updateTaskDate(taskId: task.id, newDate: Date())
+                        activeTask = nil
+                    }
+                },
+                onDoTomorrow: {
+                    Task {
+                        await viewModel.updateTaskDate(taskId: task.id, newDate: tomorrow)
+                        activeTask = nil
+                    }
+                },
+                onChangeDate:{ /* do nothing */ },
+                onConfirmChangeDate: { picked in
+                    Task {
+                        await viewModel.updateTaskDate(taskId: task.id, newDate: picked)
+                        activeTask = nil
+                    }
+                },
+                onMakeRoutine:{ /* hook later */ },
+                onArchive:   { /* hook later */ },
+                onEdit:      { /* do nothing */ },
+                onDelete:    {
+                    Task {
+                        await viewModel.deleteTask(task: task)
+                        activeTask = nil
+                    }
+                },
+                onSubmitTitle: { newTitle in
+                    Task {
+                        await viewModel.updateTaskTitle(taskId: task.id, newTitle: newTitle)
+                    }
+                }
+            )
+            .presentationDetents([ .height(380) ])
+            .presentationCornerRadius(24)
+            .presentationDragIndicator(.visible)
         }
     }
+    // -----------------------------------
     
-//    private var dailyTaskHeader: some View {
-//        HStack {
-//            Text("Daily Task")
-//                .font(.headline)
-//        }
-//        .padding(.horizontal, 24)
-//        .padding(.top, 24)
-//        .padding(.bottom, 4)
-//    }
+    private var dailyTaskHeader: some View {
+        HStack {
+            Text("Daily Task")
+                .font(.headline)
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 24)
+        .padding(.bottom, 4)
+    }
     
     private var categoriesSection: some View {
         ForEach(viewModel.categoriesWithTasks) { categoryWithTasks in
@@ -178,8 +225,7 @@ struct TaskListView: View {
 //    }
     private func taskMenuButton(for task: TaskListItem) -> some View {
         Button {
-            selectedTaskTitle = task.title
-            showMenuSheet = true
+            activeTask = task
         } label: {
             Image(systemName: "ellipsis")
                 .foregroundColor(.primary)
@@ -188,20 +234,6 @@ struct TaskListView: View {
         }
         .buttonStyle(.plain)
         .contentShape(Rectangle())
-        .sheet(isPresented: $showMenuSheet) {
-            TaskMenuSheet(
-                taskTitle: selectedTaskTitle,
-                onDoToday: { /* hook later */ },
-                onChangeDate: { /* hook later */ },
-                onMakeRoutine: { /* hook later */ },
-                onArchive: { /* hook later */ },
-                onEdit: { /* hook later */ },
-                onDelete: { /* hook later */ }
-            )
-            .presentationDetents([.height(380)])
-            .presentationCornerRadius(24)
-            .presentationDragIndicator(.visible)
-        }
     }
     
     private func handleTaskSubmit(task: TaskListItem) {

@@ -33,7 +33,7 @@ public struct ChangeDateSheet: View {
             // Dim background behind the card
             ZStack {
                 Rectangle()
-                    .fill(.ultraThinMaterial).opacity(0.9)
+                    .fill(.ultraThinMaterial).opacity(0.85)
                     .ignoresSafeArea()
 
                 Color.black.opacity(0.8)
