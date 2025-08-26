@@ -19,7 +19,7 @@ final class ShakerScene: SKScene {
     private var filteredGravity = CGVector.zero
     private let gAlpha:  CGFloat = 0.2   // gravity LPF
     private let accScale: CGFloat = 600  // shaking force scale
-    private let gravityScale:  CGFloat = 10          // gravity when shaker is on
+    private let gravityScale:  CGFloat = 12 // gravity applied to charms
     private var motionEnabled = false
     
     // Storage for marbles keyed by Task UUID
@@ -102,10 +102,10 @@ final class ShakerScene: SKScene {
     func addEmoji(_ symbol: String, for taskId: UUID) {
         guard marbles[taskId] == nil else { return }
         let margin: CGFloat = 14
-        let minX = -size.width/2 + margin
-        let maxX =  size.width/2 - margin
+        let minX = -size.width/2 + margin*2
+        let maxX =  size.width/2 - margin*2
         let spawnX = CGFloat.random(in: minX...maxX)
-        let spawnY =  size.height/2 - margin*2 - lidHeight - margin
+        let spawnY =  size.height/2 - margin*2 - lidHeight - margin*(CGFloat.random(in: 2...3))
         
         let node = SKLabelNode(fontNamed: "AppleColorEmoji")
         node.text = symbol

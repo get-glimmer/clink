@@ -65,15 +65,15 @@ struct TrackerView: View {
                 }) {
                     HStack(spacing: 10) {
                         Text(formattedMonthYear(trackerViewModel.selectedMonth))
-                            .font(.title2)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.primary)
+                            .appFont(AppFont.title3)
+                            .foregroundColor(Color("White"))
+                            .padding(.leading, 5)
 
                         Image(systemName: "chevron.down")
                             .resizable()
                             .scaledToFit()
-                            .frame(width: 12, height: 12)
-                            .foregroundColor(.primary)
+                            .frame(width: 9, height: 9)
+                            .foregroundColor(Color("White"))
                     }
                 }
                 .sheet(isPresented: $showMonthPicker) {
@@ -89,22 +89,22 @@ struct TrackerView: View {
                 Spacer()
                 
                 // move left and right button
-                HStack(spacing: 20) {
+                HStack(spacing: 27) {
                     Button(action: {
                         moveDate(by: -1)
                     }) {
                         Image(systemName: "chevron.left")
-                            .foregroundColor(.primary)
+                            .foregroundColor(Color("Neutral-400"))
                     }
 
                     Button(action: {
                         moveDate(by: 1)
                     }) {
                         Image(systemName: "chevron.right")
-                            .foregroundColor(.primary)
+                            .foregroundColor(Color("Neutral-400"))
                     }
                 }
-                .padding(.horizontal, 15)
+                .padding(.trailing, 20)
                 
                 ZStack {
                     RoundedRectangle(cornerRadius: 15)
@@ -116,20 +116,20 @@ struct TrackerView: View {
                         trackerViewModel.selectedDate = taskListViewModel.taskSelectedDate
                     }) {
                         Text(isWeeklyView ? "W" : "M")
-                            .font(.subheadline)
-                            .foregroundColor(.primary)
+                            .appFont(AppFont.labelM)
+                            .foregroundColor(Color("White"))
                     }
                 }
             }
-            .padding(.horizontal)
+            .padding(.horizontal, 16)
             
             
             LazyVGrid(columns: columns, spacing: 0) {
                 // weekday labels
                 ForEach(weekdaySymbols, id: \.self) { day in
                     Text(day.uppercased())
-                        .font(.caption)
-                        .foregroundColor(.gray)
+                        .appFont(AppFont.captionXS)
+                        .foregroundColor(Color("Neutral-50"))
                         .frame(maxWidth: .infinity)
                 }
                 
@@ -147,18 +147,18 @@ struct TrackerView: View {
                                 )
                                 ZStack {
                                     if calendar.isDate(date, inSameDayAs: taskListViewModel.taskSelectedDate) {
-                                        RoundedRectangle(cornerRadius: 10)
-                                            .fill(Color.green)
-                                            .frame(width: shakerWidth, height: 17)
+                                        RoundedRectangle(cornerRadius: 7)
+                                            .fill(Color("Green-300"))
+                                            .frame(width: 26, height: 14)
                                         
                                         Text("\(calendar.component(.day, from: date))")
-                                            .font(.caption2)
+                                            .appFont(AppFont.captionXS_M)
                                             .foregroundColor(Color.black)
                                         
                                     } else {
                                         Text("\(calendar.component(.day, from: date))")
-                                            .font(.caption2)
-                                            .foregroundColor(.primary)
+                                            .appFont(AppFont.captionXS_M)
+                                            .foregroundColor(Color("Neutral-400"))
                                     }
                                 }
                                 .frame(width: shakerWidth, height: 10)
@@ -170,11 +170,15 @@ struct TrackerView: View {
                     }
                 }
             }
-            .padding(10)
+            .padding(.vertical, 12)
+            .padding(.horizontal, 15)
             .task(id: trackerViewModel.selectedDate) {
                 try? await trackerViewModel.fetchShakers()
             }
-            TaskListView(taskSelectedDate: $taskListViewModel.taskSelectedDate, viewModel: taskListViewModel)
+            ScrollView {
+                TaskListView(taskSelectedDate: $taskListViewModel.taskSelectedDate, viewModel: taskListViewModel)
+                    .padding(.bottom, 86)
+            }
                 .onAppear {
                     taskListViewModel.fetchCategoriesAndTasks()
                 }

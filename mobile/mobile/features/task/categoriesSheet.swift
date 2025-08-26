@@ -21,7 +21,7 @@ struct CategoriesSheet: View {
                 Button(action: { dismiss() }) {
                     ZStack {
                         Circle()
-                            .fill(Color("Neutral-800").opacity(0.3))
+                            .fill(Color("Neutral-900"))
                             .frame(width: 44, height: 44)
                         Image(systemName: "chevron.left")
                             .font(.system(size: 12))
@@ -36,7 +36,7 @@ struct CategoriesSheet: View {
                 Button(action: { showAddCategorySheet = true }) {
                     ZStack {
                         Circle()
-                            .fill(Color("Neutral-800").opacity(0.3))
+                            .fill(Color("Neutral-900"))
                             .frame(width: 44, height: 44)
                         Image(systemName: "plus")
                             .font(.system(size: 16))
