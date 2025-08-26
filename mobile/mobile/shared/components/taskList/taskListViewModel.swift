@@ -25,12 +25,22 @@ class TaskListViewModel: ObservableObject {
     private let userId: String?
     @Published var taskSelectedDate: Date = Date()
     
+    @Published var username: String? = nil
+    
     // is used to call its function "fetchShakers()"
     var trackerViewModel: TrackerViewModel?
 
     // MARK: - init
     init(userId: String?, date: Date = todayDate()) {
         self.userId = userId
+        
+        Task {
+            do {
+                self.username = try await getUsername()
+            } catch {
+                print("Error fetching username:", error)
+            }
+        }
 
         // calls fetchCategoriesAndTasks() whenever taskSelectedDate changes
         $taskSelectedDate
