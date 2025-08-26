@@ -1,5 +1,6 @@
 import Foundation
 import UIKit
+import SwiftUI
 import Supabase
 
 @MainActor
@@ -12,6 +13,8 @@ class AuthViewModel: ObservableObject {
     @Published var isProfileLoaded = false
     @Published var isAppReady = false // true only when profile + auth check are done
     @Published var errorMessage: String = ""
+    @Published var emailStatus: String? = nil   // "Available" / "Already in use"
+    @Published var emailStatusColor: Color = .white
     
     private let client = SupabaseClientManager.shared.client
 
@@ -150,11 +153,6 @@ class AuthViewModel: ObservableObject {
         isAppReady = true
     }
 
-
-
-
-
-
     func checkUsername(_ username: String) async -> Bool {
         guard let client else { return false }
 
@@ -174,7 +172,23 @@ class AuthViewModel: ObservableObject {
         }
     }
 
+    @MainActor
+    func checkEmailInUse(_ email: String) async -> Bool {
+        guard let client = client else { return true } // assume in use if no client
 
+        do {
+            let response: PostgrestResponse<[Profile]> = try await client
+                .from("profiles")
+                .select("id")
+                .eq("email", value: email)
+                .execute()
+
+            return !response.value.isEmpty // true if email is already taken
+        } catch {
+            print("Error checking email:", error.localizedDescription)
+            return true
+        }
+    }
 
 
 

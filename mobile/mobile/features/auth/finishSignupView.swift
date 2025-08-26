@@ -5,8 +5,12 @@ import Supabase
 struct FinishSignupView: View {
     let phoneNumber: String?
     let email: String?
-    let userId: String
+    let password: String?
+    let userId: String?
+    
+    @Binding var path: NavigationPath
     @EnvironmentObject var authViewModel: AuthViewModel
+    @Environment(\.dismiss) var dismiss
 
     @State private var fullName: String = ""
     @State private var username: String = ""
@@ -19,16 +23,18 @@ struct FinishSignupView: View {
     @State private var usernameStatus: String? = nil
     @State private var usernameStatusColor: Color = .white
     @State private var navigateToSuccess = false
+    
+    // Add a state to track if the user has picked a date
+    @State private var hasSelectedDate = false
+
 
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(spacing: 24) {
-                    // MARK: Header
-                    Text("Finish signing up")
-                        .font(.title2)
-                        .bold()
-                        .padding(.top, 20)
+                    TopNavBar(title: "Finish signing up") {
+                        dismiss()
+                    }
 
                     // MARK: Profile Avatar
 //                    PhotosPicker(selection: $photoItem, matching: .images) {
@@ -129,11 +135,16 @@ struct FinishSignupView: View {
                             .foregroundColor(Color("Neutral-300"))
 
                         Button {
-                            showDatePicker.toggle()
+                            showDatePicker = true
                         } label: {
                             HStack {
-                                Text(dateOfBirth, style: .date)
-                                    .foregroundColor(.white)
+                                if hasSelectedDate {
+                                    Text(dateOfBirth, style: .date)
+                                        .foregroundColor(.white)
+                                } else {
+                                    Text("Birthdate")
+                                        .foregroundColor(.gray)
+                                }
                                 Spacer()
                                 Image(systemName: "chevron.down")
                                     .foregroundColor(Color("Neutral-300"))
@@ -143,17 +154,33 @@ struct FinishSignupView: View {
                             .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color("Neutral-600")))
                             .cornerRadius(12)
                         }
+                        .sheet(isPresented: $showDatePicker) {
+                            VStack {
+                                Text("Select your birthdate")
+                                    .font(.headline)
+                                    .padding()
 
-                        if showDatePicker {
-                            DatePicker(
-                                "",
-                                selection: $dateOfBirth,
-                                displayedComponents: .date
-                            )
-                            .datePickerStyle(.graphical)
-                            .onChange(of: dateOfBirth) {
-                                showDatePicker = false
+                                DatePicker(
+                                    "",
+                                    selection: $dateOfBirth,
+                                    displayedComponents: .date
+                                )
+                                .datePickerStyle(.graphical)
+                                .labelsHidden()
+                                .padding()
+
+                                Button("Done") {
+                                    hasSelectedDate = true
+                                    showDatePicker = false
+                                }
+                                .padding()
+                                .frame(maxWidth: .infinity)
+                                .background(Color.green)
+                                .foregroundColor(.black)
+                                .cornerRadius(12)
+                                .padding()
                             }
+                            .presentationDetents([.medium]) // Optional: sets the sheet height
                         }
 
                         Text("Your birthday won't be shared with other people who use Shaka.")
@@ -169,17 +196,44 @@ struct FinishSignupView: View {
             Button {
                 Task {
                     isLoading = true
-                    await authViewModel.saveProfile(
-                        userId: userId,
-                        phoneNumber: phoneNumber,
-                        name: fullName,
-                        username: username,
-                        dob: dateOfBirth,
-                        profileImage: profileImage,
-                        email: email
-                    )
+                    guard let client = SupabaseClientManager.shared.client else { return }
+
+                    var finalUserId: String?
+
+                    // Case 1: Email flow → create user now
+                    if let email, let password {
+                        do {
+                            let result = try await client.auth.signUp(email: email, password: password)
+                            finalUserId = result.user.id.uuidString
+                        } catch {
+                            print("❌ Email signup failed:", error.localizedDescription)
+                        }
+                    }
+
+                    // Case 2: Phone flow → user already exists
+                    if let uid = userId {
+                        finalUserId = uid
+                    }
+
+                    // Save profile if we have a userId
+                    if let finalUserId {
+                        await authViewModel.saveProfile(
+                            userId: finalUserId,
+                            phoneNumber: phoneNumber,
+                            name: fullName,
+                            username: username,
+                            dob: dateOfBirth,
+                            profileImage: profileImage,
+                            email: email
+                        )
+
+                        // ✅ Push SignupSuccessView
+                        await MainActor.run {
+                            path.append(Screen.signupSuccess)
+                        }
+                    }
+
                     isLoading = false
-                    navigateToSuccess = true
                 }
             } label: {
                 Text("Continue")
@@ -191,14 +245,8 @@ struct FinishSignupView: View {
                     .padding()
             }
             .disabled(!usernameConfirmed || fullName.isEmpty)
-
-            // Hidden navigation link to SignupSuccessView
-            NavigationLink(
-                destination: SignupSuccessView()
-                    .environmentObject(authViewModel),
-                isActive: $navigateToSuccess,
-                label: { EmptyView() }
-            )
         }
+        .navigationTitle("")
+        .navigationBarBackButtonHidden(true)
     }
 }

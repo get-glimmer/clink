@@ -10,15 +10,13 @@ struct OTPView: View {
     @State private var timeRemaining = 30
     @EnvironmentObject var authViewModel: AuthViewModel
     @FocusState private var isTextFieldFocused: Bool
+    @Environment(\.dismiss) var dismiss
     
     var body: some View {
         VStack(spacing: 24) {
-            // MARK: - Title
-            Text("Verification Code")
-                .font(.title2)
-                .bold()
-                .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.top, 40)
+            TopNavBar(title: "Verification Code") {
+                dismiss()
+            }
             
             Text("Enter the code sent to \(phoneNumber)")
                 .multilineTextAlignment(.center)
@@ -83,6 +81,8 @@ struct OTPView: View {
                 isTextFieldFocused = true
             }
         }
+        .navigationTitle("")
+        .navigationBarBackButtonHidden(true)
     }
     
     // MARK: - Verify OTP
@@ -99,7 +99,14 @@ struct OTPView: View {
             
             await MainActor.run {
                 if isSignup {
-                    path.append(Screen.finishSignup(phoneNumber: phoneNumber, email: nil, userId: userId))
+                    path.append(
+                        Screen.finishSignup(
+                            phoneNumber: phoneNumber,
+                            email: nil,
+                            password: nil,
+                            userId: userId
+                        )
+                    )
                 } else {
                     authViewModel.isAuthenticated = true
                 }

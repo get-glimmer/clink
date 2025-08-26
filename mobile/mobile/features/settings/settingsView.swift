@@ -11,78 +11,77 @@ struct SettingsView: View {
     @State private var notif3 = true
     
     var body: some View {
-    
-            List {
-                // MARK: - My Account
-                Section(header: sectionHeader("My Account")) {
-                    NavigationLink(destination: UsernameView()) {
-                        HStack {
-                            Text("Username")
-                                .subTextStyle()
-                            Spacer()
-                        }
-                    }
-                    
-                }
-                
-                // MARK: - Notifications
-                Section(header: sectionHeader("Notifications")) {
-                    Toggle("Notification 01", isOn: $notif1)
-                        .subTextStyle()
-                    Toggle("Notification 02", isOn: $notif2)
-                        .subTextStyle()
-                    Toggle("Notification 03", isOn: $notif3)
-                        .subTextStyle()
-                }
-                
-                // MARK: - Privacy & Security
-                Section(header: sectionHeader("Privacy & Security")) {
-                    NavigationLink("Privacy Policy", destination: PrivacyPolicyView())
-                        .subTextStyle()
-                }
-                
-                // MARK: - Help & Support
-                Section(header: sectionHeader("Help & Support")) {
-                    NavigationLink("Terms of Service", destination: TermsOfServiceView())
-                        .subTextStyle()
-                    NavigationLink("About", destination: AboutView())
-                        .subTextStyle()
-                    
+        List {
+            // MARK: - My Account
+            Section(header: sectionHeader("My Account")) {
+                NavigationLink(destination: UsernameView()) {
                     HStack {
-                        Text("Version")
+                        Text("Username")
                             .subTextStyle()
                         Spacer()
-                        Text("1.0")
-                            .foregroundColor(.gray)
                     }
-                }
-                Spacer()
-                
-                // MARK: - Logout / Delete
-                Button(role: .destructive) {
-                    Task {
-                        await authViewModel.logout()
-                    }
-                } label: {
-                    Text("Logout")
-                        .foregroundColor(.red)
-                        .subTextStyle()
-                }
-                
-                Button(role: .destructive) {
-                    Task {
-                        await authViewModel.deleteAccount()
-                        dismiss()
-                    }
-                } label: {
-                    Text("Delete Account")
-                        .foregroundColor(.red)
-                        .subTextStyle()
                 }
                 
             }
-            .navigationTitle("Settings")
-            .listStyle(.plain)
+            
+            // MARK: - Notifications
+            Section(header: sectionHeader("Notifications")) {
+                Toggle("Notification 01", isOn: $notif1)
+                    .subTextStyle()
+                Toggle("Notification 02", isOn: $notif2)
+                    .subTextStyle()
+                Toggle("Notification 03", isOn: $notif3)
+                    .subTextStyle()
+            }
+            
+            // MARK: - Privacy & Security
+            Section(header: sectionHeader("Privacy & Security")) {
+                NavigationLink("Privacy Policy", destination: PrivacyPolicyView())
+                    .subTextStyle()
+            }
+            
+            // MARK: - Help & Support
+            Section(header: sectionHeader("Help & Support")) {
+                NavigationLink("Terms of Service", destination: TermsOfServiceView())
+                    .subTextStyle()
+                NavigationLink("About", destination: AboutView())
+                    .subTextStyle()
+                
+                HStack {
+                    Text("Version")
+                        .subTextStyle()
+                    Spacer()
+                    Text("1.0")
+                        .foregroundColor(.gray)
+                }
+            }
+            Spacer()
+            
+            // MARK: - Logout / Delete
+            Button(role: .destructive) {
+                Task {
+                    await authViewModel.logout()
+                }
+            } label: {
+                Text("Logout")
+                    .foregroundColor(.red)
+                    .subTextStyle()
+            }
+            
+            Button(role: .destructive) {
+                Task {
+                    await authViewModel.deleteAccount()
+                    dismiss()
+                }
+            } label: {
+                Text("Delete Account")
+                    .foregroundColor(.red)
+                    .subTextStyle()
+            }
+            
+        }
+        .navigationTitle("Settings")
+        .listStyle(.plain)
         
         .navigationBarBackButtonHidden(true) // hide default "Back" text
 

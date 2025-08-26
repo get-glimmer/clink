@@ -3,6 +3,7 @@ import SwiftUI
 struct EmailLoginView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @Binding var path: NavigationPath
+    @Environment(\.dismiss) var dismiss
     
     @State private var email = ""
     @State private var password = ""
@@ -12,34 +13,39 @@ struct EmailLoginView: View {
     @State private var alertMessage = ""
     
     var body: some View {
-        VStack(spacing: 20) {
-            Text("Log in with Email")
-                .font(.title2)
-                .bold()
-                .padding(.top, 20)
-            
-            VStack(alignment: .leading, spacing: 4) {
+        // custom top nav
+        TopNavBar(title: "Log in") {
+            dismiss()
+        }
+        
+        VStack (spacing: 35) {
+            // Email Field
+            VStack(alignment: .leading, spacing: 5) {
                 Text("Email")
-                    .font(.subheadline)
+                    .font(.headline)
                     .foregroundColor(.white)
+                    .padding(.leading, 5)
+                    .padding(.top, 10)
+                
                 TextField("Enter your email", text: $email)
                     .keyboardType(.emailAddress)
                     .textInputAutocapitalization(.never)
                     .padding()
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.gray))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color("Neutral-600")))
             }
             
-            // Password field with label
-            VStack(alignment: .leading, spacing: 4) {
+            // Password Field
+            VStack(alignment: .leading, spacing: 5) {
                 Text("Password")
-                    .font(.subheadline)
+                    .font(.headline)
                     .foregroundColor(.white)
+                    .padding(.leading, 5)
+                
                 SecureField("Enter your password", text: $password)
                     .padding()
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.gray))
-            }
-            
-            HStack {
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color("Neutral-600")))
+                
+                // Forgot password? right below password
                 Button {
                     Task {
                         let success = await authViewModel.resetPassword(for: email)
@@ -54,32 +60,41 @@ struct EmailLoginView: View {
                         .font(.caption)
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, 5)
+                        .padding(.leading, 5)
                 }
             }
-            .padding(.horizontal, 10)
             
-            // 🔴 Error message below password
+            // Error message below password
             if !authViewModel.errorMessage.isEmpty {
                 Text(authViewModel.errorMessage)
                     .foregroundColor(.red)
                     .font(.caption)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 10)
+                    .padding(.horizontal, 5)
             }
             
             Spacer()
             
-            // Sign up text
+            // Don't have an account? right above Continue button
             HStack {
                 Text("Don't have an account?")
                     .foregroundColor(.gray)
-                Button("Sign up") {
-                    path.append(Screen.emailSignup)
+                
+                Button {
+                    Task {
+                        path.append(Screen.emailSignup)
+                    }
+                } label: {
+                    Text("Sign up")
+                        .underline(true, color: .white)
+                        .font(.caption)
+                        .foregroundColor(.white)
                 }
-                .foregroundColor(.blue)
             }
+            .frame(maxWidth: .infinity, alignment: .center)
             
-            // Continue button
+            // Continue Button
             Button {
                 Task {
                     isLoading = true
@@ -92,8 +107,8 @@ struct EmailLoginView: View {
                 Text(isLoading ? "Logging in..." : "Continue")
                     .frame(maxWidth: .infinity)
                     .frame(height: 50)
-                    .background(email.isEmpty || password.isEmpty ? Color.gray : Color("Green-300"))
-                    .foregroundColor(.black)
+                    .background(!email.isEmpty && !password.isEmpty ? Color("Green-300") : Color("Neutral-800"))
+                    .foregroundColor(!email.isEmpty && !password.isEmpty ? Color("Neutral-900") : Color("Neutral-600"))
                     .cornerRadius(12)
             }
             .disabled(email.isEmpty || password.isEmpty || isLoading)
@@ -102,5 +117,7 @@ struct EmailLoginView: View {
         .alert(alertMessage, isPresented: $showAlert) {
             Button("OK", role: .cancel) { }
         }
+        .navigationTitle("")
+        .navigationBarBackButtonHidden(true)
     }
 }
