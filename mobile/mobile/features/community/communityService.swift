@@ -110,6 +110,7 @@ class CommunityService: ObservableObject {
                 let isFavorite = favoriteMapping[profile.id] ?? false
                 
                 let friend = Friend(
+                    userId: profile.id,
                     name: profile.name ?? profile.username ?? "Unknown",
                     profileImageName: profile.avatar_url ?? "nav-profile1x",
                     progress: progress,
@@ -420,6 +421,7 @@ class CommunityService: ObservableObject {
                 let emojis = await getCategoryEmojis(for: profile.id)
                 
                 let friend = Friend(
+                    userId: profile.id,
                     name: profile.name ?? profile.username ?? "Unknown",
                     profileImageName: profile.avatar_url ?? "nav-profile1x",
                     progress: progress,
@@ -434,6 +436,61 @@ class CommunityService: ObservableObject {
             
         } catch {
             print("Error fetching pending friend requests: \(error)")
+            throw error
+        }
+    }
+    
+    // MARK: - Fetch Friend's Tasks with Privacy Filtering
+    func getFriendTasks(friendId: String, date: Date) async throws -> [CategoryWithTasks] {
+        guard let supabase = supabase,
+              let currentUserId = currentUserId else {
+            throw NSError(domain: "CommunityService", code: 1, userInfo: [NSLocalizedDescriptionKey: "Service not properly initialized"])
+        }
+        
+        // Format date for database query
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        let dateString = formatter.string(from: date)
+        
+        do {
+            // First, fetch friend's categories with privacy filtering
+            let categories: [CategoryItem] = try await supabase
+                .from("category")
+                .select("*")
+                .eq("userid", value: friendId)
+                .in("privacy_status", value: ["public", "friends_only"]) // Exclude user_only
+                .execute()
+                .value
+            
+            var categoriesWithTasks: [CategoryWithTasks] = []
+            
+            // For each category, fetch its tasks for the specified date
+            for category in categories {
+                let tasks: [TaskListItem] = try await supabase
+                    .from("task")
+                    .select("*")
+                    .eq("userid", value: friendId)
+                    .eq("categoryid", value: category.id.uuidString)
+                    .gte("createdat", value: dateString)
+                    .lt("createdat", value: dateString + " 23:59:59")
+                    .execute()
+                    .value
+                
+                // Only include categories that have tasks for this date or are public
+                if !tasks.isEmpty {
+                    let categoryWithTasks = CategoryWithTasks(
+                        id: category.id,
+                        category: category,
+                        tasks: tasks
+                    )
+                    categoriesWithTasks.append(categoryWithTasks)
+                }
+            }
+            
+            return categoriesWithTasks
+            
+        } catch {
+            print("Error fetching friend's tasks: \(error)")
             throw error
         }
     }

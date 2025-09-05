@@ -55,6 +55,7 @@ class CommunityViewModel: ObservableObject {
     private func loadSampleData() {
         friends = [
             Friend(
+                userId: "sample-nikki-id",
                 name: "Nikki",
                 profileImageName: "nav-profile1x",
                 progress: 0.85,
@@ -63,6 +64,7 @@ class CommunityViewModel: ObservableObject {
                 isFavorite: true
             ),
             Friend(
+                userId: "sample-jeremie-id",
                 name: "Jeremie",
                 profileImageName: "nav-profile1x",
                 progress: 0.92,
@@ -71,6 +73,7 @@ class CommunityViewModel: ObservableObject {
                 isFavorite: false
             ),
             Friend(
+                userId: "sample-eunsoo-id",
                 name: "Eunsoo",
                 profileImageName: "nav-profile1x",
                 progress: 0.78,
@@ -79,6 +82,7 @@ class CommunityViewModel: ObservableObject {
                 isFavorite: true
             ),
             Friend(
+                userId: "sample-fiona-id",
                 name: "Fiona",
                 profileImageName: "nav-profile1x",
                 progress: 0.45,
@@ -99,6 +103,7 @@ class CommunityViewModel: ObservableObject {
         // Update friends array to reflect selection
         friends = friends.map { currentFriend in
             Friend(
+                userId: currentFriend.userId,
                 name: currentFriend.name,
                 profileImageName: currentFriend.profileImageName,
                 progress: currentFriend.progress,

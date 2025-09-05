@@ -9,6 +9,7 @@ import SwiftUI
 
 struct Friend: Identifiable {
     let id = UUID()
+    let userId: String // Database user ID for fetching their tasks
     let name: String
     let profileImageName: String
     let progress: Double // 0.0 to 1.0
