@@ -24,22 +24,47 @@ struct TaskListView: View {
         self.viewModel = viewModel
     }
     
-    // ---------- main view ----------
+    // MARK: - Main View
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
+                // --- daily section ---
                 dailyTaskHeader
-                categoriesSection
+                dailyCategoriesSection
+                
+                // --- archived section ---
+                archivedTaskHeader
+                archivedCategoriesSection
             }
         }
         .sheet(item: $activeTask, onDismiss: { activeTask = nil }) { task in
             let isToday: Bool = task.dueDate.map { Calendar.current.isDateInToday($0) } ?? false
             let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
             
+            let archivedCats = viewModel.categoriesWithTasks
+                .filter { $0.category.type == .archived }
+                .map { $0.category }
+            
+            let isArchivedTask: Bool = {
+                if let holder = viewModel.categoriesWithTasks.first(
+                    where: { $0.tasks.contains(where: { $0.id == task.id }) }
+                ) {
+                    return holder.category.type == .archived
+                }
+                return false
+            }()
+            
             TaskMenuSheet(
                 taskTitle: task.title,
                 isDueToday: isToday,
                 initialDueDate: task.dueDate,
+                archivedCategories: archivedCats,
+                onArchive: { selected in
+                    Task {
+                        await viewModel.moveTaskToCategory(taskId: task.id, toCategoryId: selected.id)
+                    }
+                    activeTask = nil
+                },
                 
                 onDoToday: {
                     Task {
@@ -61,27 +86,26 @@ struct TaskListView: View {
                     }
                 },
                 onMakeRoutine:{ /* hook later */ },
-                onArchive:   { /* hook later */ },
-                onEdit:      { /* do nothing */ },
                 onDelete:    {
                     Task {
                         await viewModel.deleteTask(task: task)
                         activeTask = nil
                     }
                 },
-                onSubmitTitle: { newTitle in
+                onEditTitle: { newTitle in
                     Task {
                         await viewModel.updateTaskTitle(taskId: task.id, newTitle: newTitle)
                     }
-                }
+                },
+                isArchivedTask: isArchivedTask   // NEW
             )
             .presentationDetents([ .height(380) ])
             .presentationCornerRadius(24)
             .presentationDragIndicator(.visible)
         }
     }
-    // -----------------------------------
     
+    // MARK: - Headers
     private var dailyTaskHeader: some View {
         HStack {
             Text("Daily Task")
@@ -91,14 +115,31 @@ struct TaskListView: View {
         .padding(.top, 24)
         .padding(.bottom, 4)
     }
-    
-    private var categoriesSection: some View {
-        ForEach(viewModel.categoriesWithTasks) { categoryWithTasks in
-            categoryCard(for: categoryWithTasks)
+    private var archivedTaskHeader: some View {
+        HStack {
+            Text("Archived Task")
+                .font(.headline)
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 24)
+        .padding(.bottom, 4)
+    }
+
+    // MARK: - Sections
+    private var dailyCategoriesSection: some View {
+        ForEach(viewModel.categoriesWithTasks.filter { $0.category.type == .daily }) { item in
+            categoryCard(for: item)
+        }
+        .padding(.horizontal)
+    }
+    private var archivedCategoriesSection: some View {
+        ForEach(viewModel.categoriesWithTasks.filter { $0.category.type == .archived }) { item in
+            categoryCard(for: item)
         }
         .padding(.horizontal)
     }
     
+    // MARK: - categoryCard
     private func categoryCard(for categoryWithTasks: CategoryWithTasks) -> some View {
         ZStack {
             RoundedRectangle(cornerRadius: 16)
@@ -206,23 +247,7 @@ struct TaskListView: View {
     }
     
     @ViewBuilder
-//    private func taskMenu(for task: TaskListItem) -> some View {
-//        if !task.isTemporary {
-//            Menu {
-//                Button("Delete") {
-//                    Task {
-//                        await viewModel.deleteTask(task: task)
-//                    }
-//                }
-//            } label: {
-//                Image(systemName: "ellipsis")
-//                    .foregroundColor(.primary)
-//                    .imageScale(.medium)
-//                    .frame(width: 25, height: 25)
-//            }
-//            .contentShape(Rectangle())
-//        }
-//    }
+
     private func taskMenuButton(for task: TaskListItem) -> some View {
         Button {
             activeTask = task

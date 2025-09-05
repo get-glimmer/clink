@@ -8,14 +8,15 @@ struct AddCategorySheet: View {
     @Binding var isSaving: Bool
     @Binding var errorMessage: String?
 
-    // Save callback: (emoji, name, privacy)
-    var onSave: (_ emoji: String, _ name: String, _ privacy: String) -> Void
-
+    // Save callback
+    var onSave: (_ emoji: String, _ name: String, _ privacy: String, _ type: CategoryType) -> Void
+    
     // Local UI states
     @Environment(\.dismiss) private var dismiss
     @State private var privacy: Privacy = .publicShare
     @State private var isEmojiPickerPresented: Bool = false
     @State private var isValidEmoji: Bool = true
+    @State private var catType: CategoryType = .daily
 
     // Keep same Privacy enum & display text as Edit sheet
     enum Privacy: String, CaseIterable, Identifiable {
@@ -193,16 +194,21 @@ struct AddCategorySheet: View {
                                 .appFont(AppFont.body1)
                                 .foregroundColor(Color("White"))
                         }
-
                         Spacer()
-
-                        HStack(spacing: 6) {
-                            Text("Daily")
-                                .appFont(AppFont.body1)
-                                .foregroundColor(Color("White"))
-                            Image(systemName: "lock.fill")
-                                .font(.footnote)
-                                .foregroundColor(Color("Neutral-400"))
+                        Menu {
+                            Button("Daily")    { catType = .daily }
+                            Button("Archived") { catType = .archived }
+                        } label: {
+                            HStack(spacing: 6) {
+                                Text(catType == .daily ? "Daily" : "Archived")
+                                    .appFont(AppFont.body1)
+                                    .foregroundColor(Color("White"))
+                                Image(systemName: "chevron.up.chevron.down")
+                                    .font(.footnote)
+                                    .foregroundColor(Color("White"))
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
                         }
                     }
                     .frame(height: 52)
@@ -237,7 +243,7 @@ struct AddCategorySheet: View {
                     errorMessage = "Please enter a category name."
                     return
                 }
-                onSave(emoji, name, privacy.rawValue)
+                onSave(emoji, name, privacy.rawValue, catType)
             } label: {
                 Text(isSaving ? "Saving..." : "Done")
                     .frame(maxWidth: .infinity, minHeight: 56)
@@ -276,6 +282,6 @@ extension AddCategorySheet {
         name: .constant("Exercise"),
         isSaving: .constant(false),
         errorMessage: .constant(nil),
-        onSave: {_,_,_ in}
+        onSave: {_,_,_,_ in}
     )
 }
