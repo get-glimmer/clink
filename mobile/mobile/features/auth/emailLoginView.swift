@@ -1,25 +1,45 @@
 import SwiftUI
 
+/**
+ * A view for users to log in with their email and password.
+ */
 struct EmailLoginView: View {
+    // MARK: - Environment and State
+
+    /// The authentication view model from the environment.
     @EnvironmentObject var authViewModel: AuthViewModel
+
+    /// The navigation path for programmatic navigation.
     @Binding var path: NavigationPath
+
+    /// The presentation mode of the view.
     @Environment(\.dismiss) var dismiss
-    
+
+    /// The user's email address.
     @State private var email = ""
+
+    /// The user's password.
     @State private var password = ""
+
+    /// A boolean to indicate if a network request is in progress.
     @State private var isLoading = false
-    
+
+    /// A boolean to control the visibility of an alert.
     @State private var showAlert = false
+
+    /// The message to display in the alert.
     @State private var alertMessage = ""
-    
+
+    // MARK: - Body
+
     var body: some View {
-        // custom top nav
+        // Custom top navigation bar
         TopNavBar(title: "Log in") {
             dismiss()
         }
         
         VStack (spacing: 35) {
-            // Email Field
+            // Email input field
             VStack(alignment: .leading, spacing: 5) {
                 Text("Email")
                     .font(.headline)
@@ -32,9 +52,12 @@ struct EmailLoginView: View {
                     .textInputAutocapitalization(.never)
                     .padding()
                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color("Neutral-600")))
+                    .onChange(of: email) { _, newValue in
+                        email = newValue.lowercased()
+                    }
             }
             
-            // Password Field
+            // Password input field
             VStack(alignment: .leading, spacing: 5) {
                 Text("Password")
                     .font(.headline)
@@ -45,13 +68,13 @@ struct EmailLoginView: View {
                     .padding()
                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color("Neutral-600")))
                 
-                // Forgot password? right below password
+                // Forgot password button
                 Button {
                     Task {
                         let success = await authViewModel.resetPassword(for: email)
                         alertMessage = success
                             ? "Password reset email sent to \(email)"
-                            : "Put valid email on the email section"
+                            : "Please enter a valid email address."
                         showAlert = true
                     }
                 } label: {
@@ -65,7 +88,7 @@ struct EmailLoginView: View {
                 }
             }
             
-            // Error message below password
+            // Error message display
             if !authViewModel.errorMessage.isEmpty {
                 Text(authViewModel.errorMessage)
                     .foregroundColor(.red)
@@ -76,15 +99,13 @@ struct EmailLoginView: View {
             
             Spacer()
             
-            // Don't have an account? right above Continue button
+            // Link to the sign-up view
             HStack {
                 Text("Don't have an account?")
                     .foregroundColor(.gray)
                 
                 Button {
-                    Task {
-                        path.append(Screen.emailSignup)
-                    }
+                    path.append(Screen.emailSignup)
                 } label: {
                     Text("Sign up")
                         .underline(true, color: .white)
@@ -94,11 +115,11 @@ struct EmailLoginView: View {
             }
             .frame(maxWidth: .infinity, alignment: .center)
             
-            // Continue Button
+            // Continue button
             Button {
                 Task {
                     isLoading = true
-                    authViewModel.email = email
+                    authViewModel.email = email.lowercased()
                     authViewModel.password = password
                     await authViewModel.logIn()
                     isLoading = false

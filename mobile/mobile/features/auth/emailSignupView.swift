@@ -1,25 +1,47 @@
 import SwiftUI
 
+/**
+ * A view for users to sign up with their email and password.
+ */
 struct EmailSignupView: View {
+    // MARK: - Environment and State
+
+    /// The authentication view model from the environment.
     @EnvironmentObject var authViewModel: AuthViewModel
+
+    /// The navigation path for programmatic navigation.
     @Binding var path: NavigationPath
+
+    /// The presentation mode of the view.
     @Environment(\.dismiss) var dismiss
-    
+
+    /// The user's email address.
     @State private var email = ""
+
+    /// The user's password.
     @State private var password = ""
+
+    /// A boolean to toggle password visibility.
     @State private var showPassword = false
+
+    /// A boolean to indicate if a network request is in progress.
     @State private var isLoading = false
+
+    /// An optional string to display an error message for the email field.
     @State private var emailError: String? = nil
-    
+
+    // MARK: - Body
+
     var body: some View {
         VStack {
             ScrollView {
+                // Custom top navigation bar
                 TopNavBar(title: "Sign up") {
                     dismiss()
                 }
                 
                 VStack(alignment: .leading, spacing: 35) {
-                    // Email Field
+                    // Email input field
                     VStack(alignment: .leading, spacing: 5) {
                         Text("Email")
                             .font(.headline)
@@ -32,7 +54,8 @@ struct EmailSignupView: View {
                             .textInputAutocapitalization(.never)
                             .padding()
                             .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color("Neutral-600")))
-                            .onChange(of: email) {
+                            .onChange(of: email) { _, newValue in
+                                email = newValue.lowercased()
                                 emailError = nil
                             }
 
@@ -44,12 +67,13 @@ struct EmailSignupView: View {
                         }
                     }
                     
-                    // Password Field
+                    // Password input field
                     VStack(alignment: .leading, spacing: 5) {
                         Text("Password")
                             .font(.headline)
                             .foregroundColor(.white)
                             .padding(.leading, 5)
+                        
                         ZStack(alignment: .trailing) {
                             Group {
                                 if showPassword {
@@ -68,7 +92,7 @@ struct EmailSignupView: View {
                             }
                         }
                         
-                        // Password Requirements (Left-aligned)
+                        // Password requirements display
                         let reqs = authViewModel.passwordRequirements(password)
                         VStack(alignment: .leading, spacing: 10) {
                             Text("Your password must include the following")
@@ -87,35 +111,28 @@ struct EmailSignupView: View {
                 .padding()
             }
             
-            // Continue Button
+            // Continue button
             Button {
                 guard authViewModel.validatePassword(password) else { return }
-                guard let client = SupabaseClientManager.shared.client else { return }
+                guard SupabaseClientManager.shared.client != nil else { return }
 
                 Task {
                     isLoading = true
 
                     let inUse = await authViewModel.checkEmailInUse(email)
 
-                    await MainActor.run {
-                        if inUse {
-                            emailError = "Email is already in use"
-                        } else {
-                            emailError = nil
-                        }
-                    }
-
-                    if !inUse {
-                        await MainActor.run {
-                            path.append(
-                                Screen.finishSignup(
-                                    phoneNumber: nil,
-                                    email: email,
-                                    password: password,
-                                    userId: nil
-                                )
+                    if inUse {
+                        emailError = "Email is already in use"
+                    } else {
+                        emailError = nil
+                        path.append(
+                            Screen.finishSignup(
+                                phoneNumber: nil,
+                                email: email,
+                                password: password,
+                                userId: nil
                             )
-                        }
+                        )
                     }
 
                     isLoading = false
@@ -124,34 +141,32 @@ struct EmailSignupView: View {
                 Text("Continue")
                     .frame(maxWidth: .infinity)
                     .frame(height: 50)
-                    .background(!email.isEmpty && !password.isEmpty && authViewModel.validatePassword(password) ? Color("Green-300") : Color("Neutral-800"))
-                    .foregroundColor(!email.isEmpty && !password.isEmpty && authViewModel.validatePassword(password) ? Color("Neutral-900") : Color("Neutral-600"))
+                    .background(!email.isEmpty && authViewModel.validatePassword(password) ? Color("Green-300") : Color("Neutral-800"))
+                    .foregroundColor(!email.isEmpty && authViewModel.validatePassword(password) ? Color("Neutral-900") : Color("Neutral-600"))
                     .cornerRadius(12)
                     .padding()
             }
-            .disabled(email.isEmpty || password.isEmpty || !authViewModel.validatePassword(password))
+            .disabled(email.isEmpty || !authViewModel.validatePassword(password))
         }
         .navigationTitle("")
-        .navigationBarBackButtonHidden(true) // hide default "Back" text
+        .navigationBarBackButtonHidden(true)
     }
-    
+
+    // MARK: - Private Methods
+
+    /**
+     * A helper view to display a password requirement row.
+     * - Parameters:
+     * - text: The requirement text.
+     * - check: A boolean indicating if the requirement is met.
+     * - Returns: A view representing the requirement row.
+     */
     private func passwordRequirementRow(_ text: String, check: Bool) -> some View {
         HStack {
             Text(check ? "✅" : "☑️")
             Text(text)
                 .foregroundColor(.white)
                 .font(.subheadline)
-        }
-    }
-}
-
-struct EmailSignupView_Previews: PreviewProvider {
-    @State static var path = NavigationPath()
-    
-    static var previews: some View {
-        NavigationStack(path: $path) {
-            EmailSignupView(path: $path)
-                .environmentObject(AuthViewModel())
         }
     }
 }

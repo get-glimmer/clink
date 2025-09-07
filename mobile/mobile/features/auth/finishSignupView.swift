@@ -2,41 +2,80 @@ import SwiftUI
 import PhotosUI
 import Supabase
 
+/**
+ * A view for users to complete their profile information after signing up.
+ */
 struct FinishSignupView: View {
+    // MARK: - Properties
+
+    /// The user's phone number, if available.
     let phoneNumber: String?
+
+    /// The user's email address, if available.
     let email: String?
+
+    /// The user's password, if available.
     let password: String?
+
+    /// The user's unique identifier, if available.
     let userId: String?
     
+    // MARK: - Environment and State
+
+    /// The navigation path for programmatic navigation.
     @Binding var path: NavigationPath
+
+    /// The authentication view model from the environment.
     @EnvironmentObject var authViewModel: AuthViewModel
+
+    /// The presentation mode of the view.
     @Environment(\.dismiss) var dismiss
 
+    /// The user's full name.
     @State private var fullName: String = ""
+
+    /// The user's chosen username.
     @State private var username: String = ""
+
+    /// The user's date of birth.
     @State private var dateOfBirth: Date = Date()
+
+    /// A boolean to control the visibility of the date picker.
     @State private var showDatePicker = false
+
+    /// The user's selected profile image.
     @State private var profileImage: UIImage?
+
+    /// A boolean to indicate if a network request is in progress.
     @State private var isLoading = false
+
+    /// The selected item from the photo picker.
     @State private var photoItem: PhotosPickerItem?
+
+    /// A boolean to indicate if the chosen username is confirmed to be available.
     @State private var usernameConfirmed: Bool = false
+
+    /// The status message for the username availability check.
     @State private var usernameStatus: String? = nil
+
+    /// The color of the username status message.
     @State private var usernameStatusColor: Color = .white
-    @State private var navigateToSuccess = false
     
-    // Add a state to track if the user has picked a date
+    /// A boolean to track if the user has selected a date of birth.
     @State private var hasSelectedDate = false
 
+    // MARK: - Body
 
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(spacing: 24) {
+                    // Custom top navigation bar
                     TopNavBar(title: "Finish signing up") {
                         dismiss()
                     }
 
-                    // MARK: Profile Avatar
+                    // Profile avatar picker
                     PhotosPicker(selection: $photoItem, matching: .images) {
                         if let profileImage {
                             Image(uiImage: profileImage)
@@ -66,7 +105,7 @@ struct FinishSignupView: View {
                         }
                     }
 
-                    // MARK: Full Name
+                    // Full name input field
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Your name")
                             .font(.subheadline)
@@ -79,7 +118,7 @@ struct FinishSignupView: View {
                             .cornerRadius(12)
                     }
 
-                    // MARK: Username
+                    // Username input field and confirmation
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Username")
                             .font(.subheadline)
@@ -128,7 +167,7 @@ struct FinishSignupView: View {
                         }
                     }
 
-                    // MARK: Date of Birth
+                    // Date of birth picker
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Date of Birth (Optional)")
                             .font(.subheadline)
@@ -180,10 +219,10 @@ struct FinishSignupView: View {
                                 .cornerRadius(12)
                                 .padding()
                             }
-                            .presentationDetents([.medium]) // Optional: sets the sheet height
+                            .presentationDetents([.medium])
                         }
 
-                        Text("Your birthday won't be shared with other people who use Shaka.")
+                        Text("Your birthday won't be shared with other people.")
                             .font(.caption2)
                             .foregroundColor(.gray)
                             .padding(.horizontal, 4)
@@ -192,7 +231,7 @@ struct FinishSignupView: View {
                 .padding()
             }
 
-            // MARK: Continue Button
+            // Continue button
             Button {
                 Task {
                     isLoading = true
@@ -200,7 +239,7 @@ struct FinishSignupView: View {
 
                     var finalUserId: String?
 
-                    // Case 1: Email flow → create user now
+                    // If signing up with email, create the user now
                     if let email, let password {
                         do {
                             let result = try await client.auth.signUp(email: email, password: password)
@@ -210,12 +249,12 @@ struct FinishSignupView: View {
                         }
                     }
 
-                    // Case 2: Phone flow → user already exists
+                    // If signing up with phone, the user already exists
                     if let uid = userId {
                         finalUserId = uid
                     }
 
-                    // Save profile if we have a userId
+                    // Save the profile if a user ID is available
                     if let finalUserId {
                         await authViewModel.saveProfile(
                             userId: finalUserId,
@@ -227,10 +266,7 @@ struct FinishSignupView: View {
                             email: email
                         )
 
-                        // ✅ Push SignupSuccessView
-                        await MainActor.run {
-                            path.append(Screen.signupSuccess)
-                        }
+                        path.append(Screen.signupSuccess)
                     }
 
                     isLoading = false

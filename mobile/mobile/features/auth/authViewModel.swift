@@ -3,35 +3,67 @@ import UIKit
 import SwiftUI
 import Supabase
 
+/**
+ * Manages authentication state and user profile data.
+ * This class is an ObservableObject, making it suitable for use in SwiftUI views.
+ */
 @MainActor
 class AuthViewModel: ObservableObject {
+    // MARK: - Published Properties
+
+    /// The user's email address.
     @Published var email: String = ""
+
+    /// The user's password.
     @Published var password: String = ""
+
+    /// The current user's profile.
     @Published var profile: Profile?
+
+    /// A boolean indicating if the user is currently authenticated.
     @Published var isAuthenticated = false
+
+    /// A boolean to track if the authentication check is in progress.
     @Published var isCheckingAuth = true
+
+    /// A boolean to indicate if the user's profile has been loaded.
     @Published var isProfileLoaded = false
-    @Published var isAppReady = false // true only when profile + auth check are done
+
+    /// A boolean that is true only when both profile and authentication checks are complete.
+    @Published var isAppReady = false
+
+    /// A message to display in case of an error.
     @Published var errorMessage: String = ""
-    @Published var emailStatus: String? = nil   // "Available" / "Already in use"
+
+    /// The availability status of an email address ("Available" or "Already in use").
+    @Published var emailStatus: String? = nil
+
+    /// The color associated with the email status message.
     @Published var emailStatusColor: Color = .white
-    
+
+    /// The Supabase client instance.
     private let client = SupabaseClientManager.shared.client
 
     init() {
         Task { await initializeApp() }
     }
 
-    @MainActor
+    // MARK: - Public Methods
+
+    /**
+     * Initializes the app by checking the session and loading the profile if the user is authenticated.
+     */
     func initializeApp() async {
         await checkSession()
         if isAuthenticated {
             await loadProfile()
         }
-        isAppReady = true  // now everything is loaded
+        isAppReady = true
     }
 
-
+    /**
+     * Checks the current authentication session.
+     */
     func checkSession() async {
         guard let client = self.client else { return }
         do {
@@ -40,63 +72,55 @@ class AuthViewModel: ObservableObject {
         } catch {
             isAuthenticated = false
         }
-        isCheckingAuth = false // done checking
+        isCheckingAuth = false
     }
-    
+
     // MARK: - Signup
+
+    /**
+     * Signs up a new user.
+     * - Parameters:
+     * - email: The user's email address.
+     * - password: The user's password.
+     * - name: The user's full name.
+     */
     func signup(email: String, password: String, name: String) async {
         guard let client = client else { return }
         do {
-            // 1. Sign up user
+            // 1. Sign up the user
             let result = try await client.auth.signUp(email: email, password: password)
             let userId = result.user.id
 
-            // 2. Update profile fields
+            // 2. Update the user's profile
             try await client
                 .from("profiles")
-                .update([
-                    "name": name,
-                ])
+                .update(["name": name])
                 .eq("id", value: userId.uuidString)
                 .execute()
 
-            // 3. Update AuthViewModel state
+            // 3. Update the view model's state
             self.email = email
             self.isAuthenticated = true
 
-            // 4. Load profile immediately
+            // 4. Load the user's profile
             await loadProfile()
 
         } catch {
             self.errorMessage = error.localizedDescription
         }
     }
-    
-    // Save Profile Through Phone Number
-    // Helper wrapper for encoding Any optional values
-    struct AnyEncodable: Encodable {
-        let value: Any?
 
-        func encode(to encoder: Encoder) throws {
-            var container = encoder.singleValueContainer()
-            switch value {
-            case let v as String: try container.encode(v)
-            case let v as Int: try container.encode(v)
-            case let v as Bool: try container.encode(v)
-            case let v as Double: try container.encode(v)
-            case let v as Date: try container.encode(v.ISO8601Format())
-            case nil: try container.encodeNil()
-            default:
-                let context = EncodingError.Context(
-                    codingPath: container.codingPath,
-                    debugDescription: "Unsupported type: \(type(of: value))"
-                )
-                throw EncodingError.invalidValue(value as Any, context)
-            }
-        }
-    }
-
-    @MainActor
+    /**
+     * Saves the user's profile information.
+     * - Parameters:
+     * - userId: The user's unique identifier.
+     * - phoneNumber: The user's phone number.
+     * - name: The user's full name.
+     * - username: The user's chosen username.
+     * - dob: The user's date of birth.
+     * - profileImage: The user's profile image.
+     * - email: The user's email address.
+     */
     func saveProfile(
         userId: String,
         phoneNumber: String?,
@@ -112,9 +136,8 @@ class AuthViewModel: ObservableObject {
         do {
             var avatarUrl: String? = nil
 
-            // Upload avatar if exists
-            if let profileImage,
-               let data = profileImage.jpegData(compressionQuality: 0.8) {
+            // Upload avatar if one is provided
+            if let profileImage, let data = profileImage.jpegData(compressionQuality: 0.8) {
                 let filePath = "\(userId)/profile.jpg"
 
                 try await client.storage
@@ -126,7 +149,7 @@ class AuthViewModel: ObservableObject {
                 }
             }
 
-            // Prepare input struct
+            // Prepare the profile input
             let input = ProfileInput(
                 id: userId,
                 name: name,
@@ -137,13 +160,13 @@ class AuthViewModel: ObservableObject {
                 dob: dob?.ISO8601Format()
             )
 
-            // Upsert profile
+            // Upsert the profile data
             try await client
                 .from("profiles")
                 .upsert(input)
                 .execute()
 
-            // Reload profile
+            // Reload the profile
             await loadProfile()
         } catch {
             print("❌ Error saving profile:", error.localizedDescription)
@@ -152,29 +175,35 @@ class AuthViewModel: ObservableObject {
         isAppReady = true
     }
 
-
+    /**
+     * Checks if a username is already in use.
+     * - Parameter username: The username to check.
+     * - Returns: `true` if the username is available, `false` otherwise.
+     */
     func checkUsername(_ username: String) async -> Bool {
         guard let client else { return false }
 
         do {
-            // Execute the query and decode directly to [Profile]
             let response: PostgrestResponse<[Profile]> = try await client
                 .from("profiles")
                 .select("id, username")
                 .eq("username", value: username)
-                .execute() // <-- generic execute
+                .execute()
 
-            // response.value contains the decoded array
-            return response.value.isEmpty // true if username is available
+            return response.value.isEmpty
         } catch {
             print("Error checking username:", error.localizedDescription)
             return false
         }
     }
 
-    @MainActor
+    /**
+     * Checks if an email is already in use.
+     * - Parameter email: The email to check.
+     * - Returns: `true` if the email is already in use, `false` otherwise.
+     */
     func checkEmailInUse(_ email: String) async -> Bool {
-        guard let client = client else { return true } // assume in use if no client
+        guard let client = client else { return true }
 
         do {
             let response: PostgrestResponse<[Profile]> = try await client
@@ -183,17 +212,18 @@ class AuthViewModel: ObservableObject {
                 .eq("email", value: email)
                 .execute()
 
-            return !response.value.isEmpty // true if email is already taken
+            return !response.value.isEmpty
         } catch {
             print("Error checking email:", error.localizedDescription)
             return true
         }
     }
 
-
-
-
-    @MainActor
+    /**
+     * Validates a password based on a set of rules.
+     * - Parameter password: The password to validate.
+     * - Returns: `true` if the password is valid, `false` otherwise.
+     */
     func validatePassword(_ password: String) -> Bool {
         let hasMin8 = password.count >= 8
         let hasNumber = password.rangeOfCharacter(from: .decimalDigits) != nil
@@ -202,8 +232,11 @@ class AuthViewModel: ObservableObject {
         return hasMin8 && hasNumber && hasUpperLower
     }
 
-    // Optional: helper for individual checks if you want dynamic checkmarks
-    @MainActor
+    /**
+     * Checks password requirements individually.
+     * - Parameter password: The password to check.
+     * - Returns: A tuple of booleans indicating if each requirement is met.
+     */
     func passwordRequirements(_ password: String) -> (min8: Bool, number: Bool, upperLower: Bool) {
         let min8 = password.count >= 8
         let number = password.rangeOfCharacter(from: .decimalDigits) != nil
@@ -211,23 +244,31 @@ class AuthViewModel: ObservableObject {
                          password.rangeOfCharacter(from: .lowercaseLetters) != nil
         return (min8, number, upperLower)
     }
-    
+
     // MARK: - Log In
+
+    /**
+     * Logs in the user.
+     */
     func logIn() async {
         guard let client = self.client else { return }
         do {
             try await client.auth.signIn(email: email, password: password)
             await loadProfile()
             isAuthenticated = true
-            errorMessage = "" // clear any old errors
+            errorMessage = ""
         } catch {
             isAuthenticated = false
             errorMessage = "Invalid email or password"
             print("Login failed:", error.localizedDescription)
         }
     }
-    
-    @MainActor
+
+    /**
+     * Resets the password for a given email.
+     * - Parameter email: The email for which to reset the password.
+     * - Returns: `true` if the reset email was sent successfully, `false` otherwise.
+     */
     func resetPassword(for email: String) async -> Bool {
         guard let client = client else { return false }
         
@@ -241,8 +282,11 @@ class AuthViewModel: ObservableObject {
         }
     }
 
-    
     // MARK: - Logout
+
+    /**
+     * Logs out the current user.
+     */
     func logout() async {
         guard let client = self.client else { return }
         do {
@@ -254,8 +298,12 @@ class AuthViewModel: ObservableObject {
             print("Logout failed:", error.localizedDescription)
         }
     }
-    
-    // MARK: - Delete Profile (only)
+
+    // MARK: - Delete Profile
+
+    /**
+     * Deletes the current user's account.
+     */
     func deleteAccount() async {
         guard let client = self.client else { return }
         do {
@@ -267,7 +315,6 @@ class AuthViewModel: ObservableObject {
                 .eq("id", value: user.id.uuidString)
                 .execute()
             
-            // Log out locally after deletion
             try await client.auth.signOut()
             isAuthenticated = false
             profile = nil
@@ -277,8 +324,11 @@ class AuthViewModel: ObservableObject {
             print("Delete profile error:", error.localizedDescription)
         }
     }
-    
-    @MainActor
+
+    /**
+     * Updates the user's name.
+     * - Parameter newName: The new name to set.
+     */
     func updateName(_ newName: String) async throws {
         guard let client = client, let profile = profile else { return }
 
@@ -290,13 +340,13 @@ class AuthViewModel: ObservableObject {
             .single()
             .execute()
 
-        // ✅ Assign profile directly from typed response
         self.profile = response.value
-
         print("✅ Name updated in AuthViewModel: \(self.profile?.name ?? "nil")")
     }
 
-
+    /**
+     * Loads the current user's profile.
+     */
     func loadProfile() async {
         guard let client = client else { return }
         do {
