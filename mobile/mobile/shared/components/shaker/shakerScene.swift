@@ -159,12 +159,24 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
     // MARK: - Contact delegate
     func didBegin(_ contact: SKPhysicsContact) {
         guard isHapticsEnabled else { return }
+        
+        let impulse = contact.collisionImpulse
         let now = CACurrentMediaTime()
-        if now - lastHapticTime > hapticCooldown {
-            triggerHaptic()
-            lastHapticTime = now
+        guard now - lastHapticTime > hapticCooldown else { return }
+        
+        if impulse > 5 {
+            UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+        } else if impulse > 3 {
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        } else if impulse > 2 {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        } else {
+            return // 너무 약한 충돌은 무시
         }
+        
+        lastHapticTime = now
     }
+
     
     private func triggerHaptic() {
         let generator = UIImpactFeedbackGenerator(style: .medium)
