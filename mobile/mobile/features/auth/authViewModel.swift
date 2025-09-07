@@ -131,7 +131,7 @@ class AuthViewModel: ObservableObject {
                 id: userId,
                 name: name,
                 username: username,
-                email: phoneNumber == nil ? email : nil,
+                email: (phoneNumber == nil && !(email?.isEmpty ?? true)) ? email : nil,
                 phoneNumber: phoneNumber,
                 avatar_url: avatarUrl,
                 dob: dob?.ISO8601Format()
