@@ -29,9 +29,10 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
     private let inset: CGFloat = 12
     private let lidHeight: CGFloat = 40
     
-    // MARK: - Haptic cooldown
+    // MARK: - Haptic settings
+    var isHapticsEnabled: Bool = true
     private var lastHapticTime: TimeInterval = 0
-    private let hapticCooldown: TimeInterval = 0.2
+    private let hapticCooldown: TimeInterval = 0.25
     
     override init(size: CGSize) {
         super.init(size: size)
@@ -157,6 +158,7 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
     
     // MARK: - Contact delegate
     func didBegin(_ contact: SKPhysicsContact) {
+        guard isHapticsEnabled else { return }
         let now = CACurrentMediaTime()
         if now - lastHapticTime > hapticCooldown {
             triggerHaptic()
@@ -165,7 +167,7 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
     }
     
     private func triggerHaptic() {
-        let generator = UIImpactFeedbackGenerator(style: .light)
+        let generator = UIImpactFeedbackGenerator(style: .medium)
         generator.impactOccurred()
     }
     
