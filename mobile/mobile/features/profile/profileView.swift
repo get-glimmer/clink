@@ -42,7 +42,7 @@ struct ProfileView: View {
                         Circle()
                             .fill(Color.gray.opacity(0.3))
                             .frame(width: 100, height: 100)
-                            .overlay(Text("No Avatar"))
+                            .overlay(Text("No Avatar").appFont(AppFont.body2))
                     }
                 }
                 .buttonStyle(.plain)
@@ -78,22 +78,23 @@ struct ProfileView: View {
                 VStack(spacing: 4) {
                     // name
                     Text(viewModel.profile?.name ?? "")
-                        .font(.title2)
+                        .appFont(AppFont.title2)
                         .bold()
                         .foregroundColor(Color("White"))
                     
                     // email
                     Text(viewModel.profile?.email ?? "")
-                        .font(.caption)
+                        .appFont(AppFont.body2)
                         .foregroundColor(Color("Neutral-300"))
                 }
                 
                 // Friends Count
                 HStack {
                     let count = viewModel.profile?.friendsCount ?? 0
-                    Image(systemName: "person.2")
+                    Image("friends")
                             .foregroundColor(Color("White"))
                     Text("\(count) friends")
+                        .appFont(AppFont.body2)
                 }
                 Spacer()
             }
@@ -103,12 +104,11 @@ struct ProfileView: View {
                     ZStack {
                         Circle()
                             .fill(Color("Neutral-900"))
-                            .frame(width: 40, height: 40)
+                            .frame(width: 44, height: 44)
                         
                         NavigationLink(destination: SettingsView().environmentObject(authViewModel)) {
-                            Image(systemName: "gearshape")
+                            Image("setting")
                                 .foregroundColor(.white)
-                                .frame(width: 20, height: 20, alignment: .center)
                         }
                         .buttonStyle(PlainButtonStyle())
                     }

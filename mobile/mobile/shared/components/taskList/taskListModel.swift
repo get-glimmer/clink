@@ -1,5 +1,10 @@
 import Foundation
 
+enum CategoryType: String, Codable, Equatable {
+    case daily
+    case archived
+}
+
 struct TaskListItem: Codable, Identifiable {
     let id: UUID
     let title: String
@@ -43,6 +48,7 @@ struct CategoryItem: Codable, Identifiable {
     let name: String
     let emoji: String
     let privacyStatus: String?
+    let type: CategoryType
 
     enum CodingKeys: String, CodingKey {
         case id = "categoryid"
@@ -50,6 +56,7 @@ struct CategoryItem: Codable, Identifiable {
         case name = "categoryname"
         case emoji = "categoryemoji"
         case privacyStatus = "privacy_status"
+        case type = "categorytype"
     }
 }
 
@@ -66,13 +73,15 @@ struct CategoryModel: Identifiable, Codable, Equatable {
     var name: String                     // categoryname
     var emoji: String                    // categoryemoji
     var privacyStatus: String            // privacy_status
-    var order: Int?                      // optional: order column for sorting (future)
+    //var order: Int?                      // optional: order column for sorting (future)
+    var type: CategoryType? = nil        // categorytype
 
     enum CodingKeys: String, CodingKey {
         case id = "categoryid"
         case name = "categoryname"
         case emoji = "categoryemoji"
         case privacyStatus = "privacy_status"
-        case order
+        //case order
+        case type = "categorytype"
     }
 }

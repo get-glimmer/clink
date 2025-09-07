@@ -76,18 +76,39 @@ class TaskListViewModel: ObservableObject {
 
                 var result: [CategoryWithTasks] = []
                 for category in categories {
-                    let tasks: [TaskListItem] = try await client
-                        .from("task")
-                        .select()
-                        .eq("userid", value: userId)
-                        .eq("categoryid", value: category.id.uuidString)
-                        .eq("duedate", value: formattedDate(taskSelectedDate)) // changed so that "duedate" can be changed by users
-                        .order("createdat", ascending: true)
-                        .execute()
-                        .value
+                    let tasks: [TaskListItem]
+
+                    switch category.type {
+                    case .daily:
+                        tasks = try await client
+                            .from("task")
+                            .select()
+                            .eq("userid", value: userId)
+                            .eq("categoryid", value: category.id.uuidString)
+                            .eq("duedate", value: formattedDate(taskSelectedDate))
+                            .order("createdat", ascending: true)
+                            .execute()
+                            .value
+
+                    case .archived:
+                        // No date filter: fetch all tasks
+                        tasks = try await client
+                            .from("task")
+                            .select()
+                            .eq("userid", value: userId)
+                            .eq("categoryid", value: category.id.uuidString)
+                            .order("createdat", ascending: true)
+                            .execute()
+                            .value
+                    }
+
                     result.append(CategoryWithTasks(id: category.id, category: category, tasks: tasks))
                 }
-                categoriesWithTasks = result
+
+                await MainActor.run {
+                    self.categoriesWithTasks = result
+                    self.updateAllCompleted()
+                }
 
                 // ──────── Lid Gradient Colors load ────────
                 suppressSync = true
@@ -164,8 +185,10 @@ class TaskListViewModel: ObservableObject {
     // MARK: - shaker lid sealing
     // All‑completed checker
     private func updateAllCompleted() {
-        let allTasks = categoriesWithTasks.flatMap { $0.tasks }
-        isAllCompleted = !allTasks.isEmpty && allTasks.allSatisfy { $0.isCompleted }
+        let dailyTasks = categoriesWithTasks
+            .filter { $0.category.type == .daily }
+            .flatMap { $0.tasks }
+        isAllCompleted = !dailyTasks.isEmpty && dailyTasks.allSatisfy { $0.isCompleted }
     }
 
     // Supabase: shaker table sync
@@ -398,7 +421,7 @@ class TaskListViewModel: ObservableObject {
     }
     
     // MARK: - create category
-    func addCategory(name: String, emoji: String, privacyStatus: String) async throws {
+    func addCategory(name: String, emoji: String, privacyStatus: String, type: CategoryType) async throws {
         guard let client = self.client, let userId = self.userId else { return }
 
         // Match your Supabase schema column names exactly.
@@ -407,13 +430,15 @@ class TaskListViewModel: ObservableObject {
             let categoryname: String
             let categoryemoji: String
             let privacy_status: String
+            let categorytype: String
         }
 
         let payload = NewCategory(
             userid: userId,
             categoryname: name,
             categoryemoji: emoji,
-            privacy_status: privacyStatus
+            privacy_status: privacyStatus,
+            categorytype: type.rawValue
         )
 
         do {
@@ -430,41 +455,63 @@ class TaskListViewModel: ObservableObject {
             throw error
         }
     }
-    
+
     // MARK: - update category
-    func updateCategory(categoryId: UUID, name: String, emoji: String, privacyStatus: String) async {
+    struct UpdateCategoryPayload: Encodable {
+        let categoryname: String
+        let categoryemoji: String
+        let privacy_status: String
+        let categorytype: String? // send only when provided (nil -> key omitted)
+    }
+    
+    func updateCategory(
+        categoryId: UUID,
+        name: String,
+        emoji: String,
+        privacyStatus: String,
+        type: CategoryType? = nil
+    ) async {
         guard let client = self.client, let userId = self.userId else { return }
         do {
-            // 1) Update on DB
+            let payload = UpdateCategoryPayload(
+                categoryname: name,
+                categoryemoji: emoji,
+                privacy_status: privacyStatus,
+                categorytype: type?.rawValue
+            )
+
             try await client
                 .from("category")
-                .update([
-                    "categoryname": name,
-                    "categoryemoji": emoji,
-                    "privacy_status": privacyStatus
-                ])
-                .eq("categoryid", value: categoryId)
+                .update(payload)
+                .eq("categoryid", value: categoryId.uuidString)
                 .eq("userid", value: userId)
                 .execute()
 
-            // 2) Reflect locally (rebuild the item since `category` is let)
+            // 1) Reflect locally
             await MainActor.run {
                 if let idx = categoriesWithTasks.firstIndex(where: { $0.id == categoryId }) {
                     let old = categoriesWithTasks[idx]
+                    let newType = type ?? old.category.type
                     let updatedCategory = CategoryItem(
                         id: old.category.id,
                         userId: old.category.userId,
                         name: name,
                         emoji: emoji,
-                        privacyStatus: privacyStatus
+                        privacyStatus: privacyStatus,
+                        type: newType
                     )
                     categoriesWithTasks[idx] = CategoryWithTasks(
                         id: old.id,
                         category: updatedCategory,
                         tasks: old.tasks
                     )
+                    categoriesWithTasks = categoriesWithTasks
                 }
             }
+
+            // 2) Refresh shaker data so marble emojis update right away
+            try? await trackerViewModel?.fetchShakers()
+
         } catch {
             print("[Category] update failed:", error)
         }
@@ -489,10 +536,85 @@ class TaskListViewModel: ObservableObject {
         }
     }
 
-    // MARK: - reorder categories (local only for now)
-    func moveCategories(from source: IndexSet, to destination: Int) {
-        categoriesWithTasks.move(fromOffsets: source, toOffset: destination)
+    // MARK: - reorder categories (local only)
+    func moveCategoriesWithinType(_ type: CategoryType, from source: IndexSet, to destination: Int) {
+        // 1. Collect original indices of categories that match the given type
+        let matchingOriginalIndices: [Int] = categoriesWithTasks.enumerated()
+            .filter { $0.element.category.type == type }
+            .map { $0.offset }
+
+        guard !matchingOriginalIndices.isEmpty else { return }
+
+        // 2. Map filtered source indices -> original indices
+        let fromOffsetsInOriginal = IndexSet(
+            source.compactMap { filteredIndex in
+                guard filteredIndex >= 0 && filteredIndex < matchingOriginalIndices.count else { return nil }
+                return matchingOriginalIndices[filteredIndex]
+            }
+        )
+
+        // 3. Compute original destination index
+        let toOffsetInOriginal: Int = {
+            if destination >= matchingOriginalIndices.count {
+                return (matchingOriginalIndices.last ?? categoriesWithTasks.count - 1) + 1
+            } else {
+                return matchingOriginalIndices[destination]
+            }
+        }()
+
+        // 4. Move on the original array
+        categoriesWithTasks.move(fromOffsets: fromOffsetsInOriginal, toOffset: toOffsetInOriginal)
     }
+    
+    // MARK: - move task into another category
+    func moveTaskToCategory(taskId: UUID, toCategoryId: UUID) async {
+        guard let client = self.client, let userId = self.userId else { return }
 
+        // 1. DB update (only categoryid)
+        struct MovePayload: Encodable { let categoryid: String }
+        do {
+            try await client
+                .from("task")
+                .update(MovePayload(categoryid: toCategoryId.uuidString))
+                .eq("taskid", value: taskId.uuidString)
+                .eq("userid", value: userId)
+                .execute()
+        } catch {
+            print("[Task] move failed:", error)
+            return
+        }
 
+        // 2. Local state update
+        await MainActor.run {
+            // remove from the old category list
+            var movedTask: TaskListItem?
+            for i in categoriesWithTasks.indices {
+                if let tIndex = categoriesWithTasks[i].tasks.firstIndex(where: { $0.id == taskId }) {
+                    movedTask = categoriesWithTasks[i].tasks.remove(at: tIndex)
+                    break
+                }
+            }
+            guard let task = movedTask else {
+                self.updateAllCompleted()
+                return
+            }
+
+            // append into destination if it matches that section's filter
+            if let destIdx = categoriesWithTasks.firstIndex(where: { $0.category.id == toCategoryId }) {
+                let destCat = categoriesWithTasks[destIdx].category
+                switch destCat.type {
+                case .daily:
+                    let isSameDay = task.dueDate.map { Calendar.current.isDate($0, inSameDayAs: self.taskSelectedDate) } ?? false
+                    if isSameDay {
+                        categoriesWithTasks[destIdx].tasks.append(task)
+                    }
+                case .archived:
+                    categoriesWithTasks[destIdx].tasks.append(task)
+                }
+            }
+
+            // recompute completion using daily tasks only
+            self.updateAllCompleted()
+        }
+    }
 }
