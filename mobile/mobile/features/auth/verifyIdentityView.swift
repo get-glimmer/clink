@@ -5,8 +5,8 @@ import Supabase
 struct VerifyIdentityView: View {
     @Binding var path: NavigationPath
     @State private var phoneNumber: String = ""
-    @State private var selectedCountryFlag: String = "🇰🇷"
-    @State private var selectedCountryCode: String = "+82"
+    @State private var selectedCountryFlag: String = "🇺🇸"
+    @State private var selectedCountryCode: String = "+1"
     @State private var isLoading = false
     @State private var showCountryPicker = false
     @EnvironmentObject var authViewModel: AuthViewModel

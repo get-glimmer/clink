@@ -115,36 +115,35 @@ class AuthViewModel: ObservableObject {
             // Upload avatar if exists
             if let profileImage,
                let data = profileImage.jpegData(compressionQuality: 0.8) {
-                let filePath = "avatars/\(userId)/profile.jpg"
+                let filePath = "\(userId)/profile.jpg"
 
-                // Upload the file
                 try await client.storage
                     .from("avatars")
                     .upload(filePath, data: data, options: FileOptions(upsert: true))
 
-                // Get public URL
                 if let url = try? client.storage.from("avatars").getPublicURL(path: filePath) {
                     avatarUrl = url.absoluteString
                 }
             }
 
-            let profileData: [String: AnyEncodable?] = [
-                "id": AnyEncodable(value: userId),
-                "phoneNumber": AnyEncodable(value: phoneNumber),
-                "email": AnyEncodable(value: phoneNumber == nil ? email : nil),
-                "name": AnyEncodable(value: name),
-                "username": AnyEncodable(value: username),
-                "dob": AnyEncodable(value: dob),
-                "avatar_url": AnyEncodable(value: avatarUrl)
-            ]
-            
-            print("Saving profile for userId:", userId, "avatarUrl:", avatarUrl ?? "nil")
+            // Prepare input struct
+            let input = ProfileInput(
+                id: userId,
+                name: name,
+                username: username,
+                email: phoneNumber == nil ? email : nil,
+                phoneNumber: phoneNumber,
+                avatar_url: avatarUrl,
+                dob: dob?.ISO8601Format()
+            )
+
+            // Upsert profile
             try await client
                 .from("profiles")
-                .upsert(profileData)
+                .upsert(input)
                 .execute()
 
-            // Optionally reload profile after saving
+            // Reload profile
             await loadProfile()
         } catch {
             print("❌ Error saving profile:", error.localizedDescription)
@@ -152,6 +151,7 @@ class AuthViewModel: ObservableObject {
 
         isAppReady = true
     }
+
 
     func checkUsername(_ username: String) async -> Bool {
         guard let client else { return false }

@@ -37,34 +37,34 @@ struct FinishSignupView: View {
                     }
 
                     // MARK: Profile Avatar
-//                    PhotosPicker(selection: $photoItem, matching: .images) {
-//                        if let profileImage {
-//                            Image(uiImage: profileImage)
-//                                .resizable()
-//                                .scaledToFill()
-//                                .frame(width: 100, height: 100)
-//                                .clipShape(Circle())
-//                                .padding(.top, 20)
-//                        } else {
-//                            ZStack {
-//                                Circle()
-//                                    .fill(Color.gray.opacity(0.3))
-//                                    .frame(width: 100, height: 100)
-//                                Image(systemName: "camera.fill")
-//                                    .font(.system(size: 30))
-//                                    .foregroundColor(Color("Neutral-100"))
-//                            }
-//                            .padding(.top, 20)
-//                        }
-//                    }
-//                    .onChange(of: photoItem) { _, newItem in
-//                        Task {
-//                            if let data = try? await newItem?.loadTransferable(type: Data.self),
-//                               let uiImage = UIImage(data: data) {
-//                                profileImage = uiImage
-//                            }
-//                        }
-//                    }
+                    PhotosPicker(selection: $photoItem, matching: .images) {
+                        if let profileImage {
+                            Image(uiImage: profileImage)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 100, height: 100)
+                                .clipShape(Circle())
+                                .padding(.top, 20)
+                        } else {
+                            ZStack {
+                                Circle()
+                                    .fill(Color.gray.opacity(0.3))
+                                    .frame(width: 100, height: 100)
+                                Image(systemName: "camera.fill")
+                                    .font(.system(size: 30))
+                                    .foregroundColor(Color("Neutral-100"))
+                            }
+                            .padding(.top, 20)
+                        }
+                    }
+                    .onChange(of: photoItem) { _, newItem in
+                        Task {
+                            if let data = try? await newItem?.loadTransferable(type: Data.self),
+                               let uiImage = UIImage(data: data) {
+                                profileImage = uiImage
+                            }
+                        }
+                    }
 
                     // MARK: Full Name
                     VStack(alignment: .leading, spacing: 4) {

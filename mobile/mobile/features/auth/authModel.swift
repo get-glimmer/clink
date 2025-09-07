@@ -16,3 +16,13 @@ struct Profile: Codable, Identifiable, Equatable {
         // exclude friendsCount
     }
 }
+
+struct ProfileInput: Encodable {
+    let id: String
+    let name: String?
+    let username: String?
+    let email: String?
+    let phoneNumber: String?
+    let avatar_url: String?
+    let dob: String? // ISO8601 string
+}
