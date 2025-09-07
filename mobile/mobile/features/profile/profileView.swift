@@ -1,5 +1,6 @@
 import SwiftUI
 import Supabase
+import PhotosUI
 
 struct ProfileView: View {
     @StateObject private var viewModel = ProfileViewModel()
@@ -9,30 +10,69 @@ struct ProfileView: View {
     @State private var newName: String = ""
     @State private var newBio: String = ""
     @State private var newAvatarURL: String = ""
+    
+    // Photo picker state
+    @State private var showImagePicker = false
+    @State private var selectedItem: PhotosPickerItem? = nil
+    @State private var selectedImage: UIImage? = nil
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 20) {
                 Spacer().frame(height: 20)
                 
-                // MARK: - Avatar
-                if let avatar = viewModel.profile?.avatar_url, let url = URL(string: avatar) {
-                    AsyncImage(url: url) { image in
-                        image.resizable()
-                             .scaledToFill()
-                             .frame(width: 100, height: 100)
-                             .clipShape(Circle())
-                    } placeholder: {
+                // MARK: - Avatar (tap to change)
+                Button {
+                    showImagePicker = true
+                } label: {
+                    if let avatar = viewModel.profile?.avatar_url,
+                       let url = URL(string: avatar) {
+                        AsyncImage(url: url) { image in
+                            image.resizable()
+                                 .scaledToFill()
+                                 .frame(width: 100, height: 100)
+                                 .clipShape(Circle())
+                        } placeholder: {
+                            Circle()
+                                .fill(Color.gray.opacity(0.3))
+                                .frame(width: 100, height: 100)
+                                .overlay(Text("No Avatar"))
+                        }
+                    } else {
                         Circle()
                             .fill(Color.gray.opacity(0.3))
                             .frame(width: 100, height: 100)
                             .overlay(Text("No Avatar").appFont(AppFont.body2))
                     }
-                } else {
-                    Circle()
-                        .fill(Color.gray.opacity(0.3))
-                        .frame(width: 100, height: 100)
-                        .overlay(Text("No Avatar").appFont(AppFont.body2))
+                }
+                .buttonStyle(.plain)
+                .photosPicker(
+                    isPresented: $showImagePicker,
+                    selection: $selectedItem,
+                    matching: .images
+                )
+                .onChange(of: selectedItem) { newItem in
+                    Task {
+                        if let data = try? await newItem?.loadTransferable(type: Data.self),
+                           let image = UIImage(data: data) {
+                            selectedImage = image
+                            
+                            // ✅ Upload avatar to Supabase
+                            if let session = try? await SupabaseClientManager.shared.client?.auth.session {
+                                let userId = session.user.id.uuidString
+                                await authViewModel.saveProfile(
+                                    userId: userId,
+                                    phoneNumber: nil,
+                                    name: nil,
+                                    username: nil,
+                                    dob: nil,
+                                    profileImage: image,
+                                    email: authViewModel.email
+                                )
+                                await viewModel.fetchProfile(uuid: userId) // refresh UI
+                            }
+                        }
+                    }
                 }
 
                 VStack(spacing: 4) {
@@ -70,7 +110,7 @@ struct ProfileView: View {
                             Image("setting")
                                 .foregroundColor(.white)
                         }
-                        .buttonStyle(PlainButtonStyle()) // optional: removes any extra styling
+                        .buttonStyle(PlainButtonStyle())
                     }
                     .frame(width: 40, height: 40)
                 }
