@@ -79,6 +79,7 @@ struct ShakerView: View {
             }
         }
         .onReceive(viewModel.$categoriesWithTasks) { _ in syncWithTasks() }
+        .onReceive(viewModel.$emojiForDate) { _ in syncWithTasks() }
         .onReceive(viewModel.$isAllCompleted)      { _ in syncWithTasks()
             updateSeal(animated: true) }
         .onReceive(viewModel.$taskSelectedDate) { newDate in
@@ -96,7 +97,10 @@ struct ShakerView: View {
         var current: [UUID: (Bool, String)] = [:]
         for cat in viewModel.categoriesWithTasks {
             for task in cat.tasks {
-                current[task.id] = (task.isCompleted, cat.category.emoji)
+                current[task.id] = (
+                    task.isCompleted,
+                    viewModel.emojiFor(categoryId: cat.category.id, defaultEmoji: cat.category.emoji)
+                )
             }
         }
         // add marble

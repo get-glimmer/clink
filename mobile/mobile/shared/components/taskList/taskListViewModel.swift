@@ -29,6 +29,14 @@ class TaskListViewModel: ObservableObject {
     
     // is used to call its function "fetchShakers()"
     var trackerViewModel: TrackerViewModel?
+    
+    // Category emoji history
+    @Published var emojiForDate: [UUID: String] = [:]
+
+    // Date-aware emoji getter (for UI)
+    func emojiFor(categoryId: UUID, defaultEmoji: String) -> String {
+        emojiForDate[categoryId] ?? defaultEmoji
+    }
 
     // MARK: - init
     init(userId: String?, date: Date = todayDate()) {
@@ -52,6 +60,48 @@ class TaskListViewModel: ObservableObject {
         fetchCategoriesAndTasks()
     }
     
+    // MARK: - pre-fetching (for emoji history)
+    private func prefetchCategoryEmojisForSelectedDate(_ categories: [CategoryItem]) async {
+        guard let client = self.client else { return }
+
+        var map: [UUID: String] = [:]
+        for c in categories {
+            do {
+                // 1. 해당 날짜 이전 or 당일 기록 중 가장 최근 것
+                var rows: [CategoryEmojiHistoryRow] = try await client
+                    .from("category_emoji_history")
+                    .select("emoji,effective_date")
+                    .eq("categoryid", value: c.id.uuidString)
+                    .lte("effective_date", value: formattedDate(taskSelectedDate))
+                    .order("effective_date", ascending: false)
+                    .limit(1)
+                    .execute()
+                    .value
+
+                // 2. 없으면 (카테고리 생성 전 과거 날짜) → 가장 오래된 이모지
+                if rows.isEmpty {
+                    rows = try await client
+                        .from("category_emoji_history")
+                        .select("emoji,effective_date")
+                        .eq("categoryid", value: c.id.uuidString)
+                        .order("effective_date", ascending: true)
+                        .limit(1)
+                        .execute()
+                        .value
+                }
+
+                if let r = rows.first {
+                    map[c.id] = r.emoji
+                }
+            } catch {
+                print("[EmojiPrefetch] failed for category \(c.id):", error)
+            }
+        }
+        await MainActor.run { self.emojiForDate = map }
+    }
+
+
+    
     // MARK: - fetching
     func fetchCategoriesAndTasks() {
         guard let client = self.client else {
@@ -73,6 +123,8 @@ class TaskListViewModel: ObservableObject {
                     .order("createdat", ascending: true)
                     .execute()
                     .value
+                
+                await prefetchCategoryEmojisForSelectedDate(categories)
 
                 var result: [CategoryWithTasks] = []
                 for category in categories {

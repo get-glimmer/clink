@@ -54,7 +54,7 @@ struct CategoryItem: Codable, Identifiable {
         case id = "categoryid"
         case userId = "userid"
         case name = "categoryname"
-        case emoji = "categoryemoji"
+        case emoji = "categoryemoji" // disregard
         case privacyStatus = "privacy_status"
         case type = "categorytype"
     }
@@ -83,5 +83,22 @@ struct CategoryModel: Identifiable, Codable, Equatable {
         case privacyStatus = "privacy_status"
         //case order
         case type = "categorytype"
+    }
+}
+
+// MARK: - Category Emoji History
+struct CategoryEmojiHistoryRow: Decodable {
+    let emoji: String
+    let effectiveDate: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case emoji
+        case effectiveDate = "effective_date"
+    }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        emoji = try c.decode(String.self, forKey: .emoji)
+        let d = try? c.decodeIfPresent(String.self, forKey: .effectiveDate)
+        effectiveDate = dateFromPostgreSQL(d)
     }
 }
