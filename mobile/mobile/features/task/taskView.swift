@@ -113,7 +113,6 @@ struct TaskView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.trailing, 16)
                     }
-                    //.padding(.top, 12)
 
                     // ---- Shaker (scaled) ----
                     ShakerView(viewModel: viewModel)
