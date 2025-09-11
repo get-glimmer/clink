@@ -82,7 +82,7 @@ struct ShakerView: View {
             }
         }
         .onReceive(viewModel.$categoriesWithTasks) { _ in syncWithTasks() }
-        .onReceive(viewModel.$emojiForDate) { _ in syncWithTasks()
+        .onChange(of: viewModel.emojiForDate) { _ in syncWithTasks()
             // isAllCompleted 였다면 이모지 변경에 따라 기존 뚜껑색 변경 유도.
             viewModel.lidColorStart = nil
             viewModel.lidColorEnd = nil
@@ -90,7 +90,7 @@ struct ShakerView: View {
         .onReceive(viewModel.$isAllCompleted)      { _ in syncWithTasks()
             updateSeal(animated: true)
         }
-        .onReceive(viewModel.$taskSelectedDate) { newDate in
+        .onChange(of: viewModel.taskSelectedDate) { newDate in
             syncWithTasks()
             UnsealLidAndUpdate()
         }
