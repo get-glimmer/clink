@@ -128,7 +128,8 @@ class AuthViewModel: ObservableObject {
         username: String?,
         dob: Date?,
         profileImage: UIImage?,
-        email: String?
+        email: String?,
+        affectAuthState: Bool = true
     ) async {
         guard let client = client else { return }
 
@@ -385,6 +386,42 @@ class AuthViewModel: ObservableObject {
         self.profile = response.value
         print("✅ Name updated in AuthViewModel: \(self.profile?.name ?? "nil")")
     }
+    
+    func updateAvatar(userId: String, profileImage: UIImage) async {
+        guard let client = client else { return }
+        
+        do {
+            // 1. Convert image to Data
+            guard let data = profileImage.jpegData(compressionQuality: 0.8) else { return }
+            let filePath = "\(userId)/profile.jpg"
+            
+            // 2. Upload to Supabase storage
+            try await client.storage
+                .from("avatars")
+                .upload(filePath, data: data, options: FileOptions(upsert: true))
+            
+            // 3. Get public URL
+            guard let url = try? client.storage.from("avatars").getPublicURL(path: filePath) else { return }
+            let avatarUrl = url.absoluteString
+            
+            // 4. Update only avatar_url in profiles
+            try await client
+                .from("profiles")
+                .update(["avatar_url": avatarUrl])
+                .eq("id", value: userId)
+                .execute()
+            
+            // 5. Optimistically update local profile (no redirect)
+            DispatchQueue.main.async {
+                self.profile?.avatar_url = avatarUrl
+            }
+            
+            print("✅ Avatar updated successfully")
+        } catch {
+            print("❌ Error updating avatar:", error.localizedDescription)
+        }
+    }
+
 
     /**
      * Loads the current user's profile.

@@ -14,8 +14,8 @@ struct ProfileView: View {
     // Photo picker state
     @State private var showImagePicker = false
     @State private var selectedItem: PhotosPickerItem? = nil
-    @State private var selectedImage: UIImage? = nil
-
+    @State private var selectedImage: UIImage? = nil   // Optimistic UI
+    
     var body: some View {
         NavigationStack {
             VStack(spacing: 20) {
@@ -25,8 +25,16 @@ struct ProfileView: View {
                 Button {
                     showImagePicker = true
                 } label: {
-                    if let avatar = viewModel.profile?.avatar_url,
-                       let url = URL(string: avatar) {
+                    if let selectedImage = selectedImage {
+                        // ✅ Show picked image immediately
+                        Image(uiImage: selectedImage)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 100, height: 100)
+                            .clipShape(Circle())
+                    } else if let avatar = viewModel.profile?.avatar_url,
+                              let url = URL(string: "\(avatar)?t=\(Date().timeIntervalSince1970)") {
+                        // ✅ Cache-busting by appending timestamp
                         AsyncImage(url: url) { image in
                             image.resizable()
                                  .scaledToFill()
@@ -54,41 +62,33 @@ struct ProfileView: View {
                 .onChange(of: selectedItem) { newItem in
                     Task {
                         if let data = try? await newItem?.loadTransferable(type: Data.self),
-                           let image = UIImage(data: data) {
+                           let image = UIImage(data: data),
+                           let session = try? await SupabaseClientManager.shared.client?.auth.session {
+                            
+                            // Show local preview instantly
                             selectedImage = image
                             
-                            // ✅ Upload avatar to Supabase
-                            if let session = try? await SupabaseClientManager.shared.client?.auth.session {
-                                let userId = session.user.id.uuidString
-                                await authViewModel.saveProfile(
-                                    userId: userId,
-                                    phoneNumber: nil,
-                                    name: nil,
-                                    username: nil,
-                                    dob: nil,
-                                    profileImage: image,
-                                    email: authViewModel.email
-                                )
-                                await viewModel.fetchProfile(uuid: userId) // refresh UI
-                            }
+                            // Upload to Supabase
+                            let userId = session.user.id.uuidString
+                            await authViewModel.updateAvatar(userId: userId, profileImage: image)
                         }
                     }
                 }
 
+
+
+
                 VStack(spacing: 4) {
-                    // name
                     Text(viewModel.profile?.name ?? "")
                         .font(.title2)
                         .bold()
                         .foregroundColor(Color("White"))
                     
-                    // email
                     Text(viewModel.profile?.email ?? "")
                         .font(.caption)
                         .foregroundColor(Color("Neutral-300"))
                 }
                 
-                // Friends Count
                 HStack {
                     let count = viewModel.profile?.friendsCount ?? 0
                     Image(systemName: "person.2")
@@ -108,21 +108,17 @@ struct ProfileView: View {
                         NavigationLink(destination: SettingsView().environmentObject(authViewModel)) {
                             Image(systemName: "gearshape")
                                 .foregroundColor(.white)
-                                .frame(width: 20, height: 20, alignment: .center)
                         }
                         .buttonStyle(PlainButtonStyle())
                     }
-                    .frame(width: 40, height: 40)
                 }
             }
             .task {
-                // Fetch current user's profile safely
                 guard let client = SupabaseClientManager.shared.client else { return }
                 if let session = try? await client.auth.session {
                     let userId = session.user.id.uuidString
                     await viewModel.fetchProfile(uuid: userId)
                     
-                    // Populate edit fields with current profile data
                     newName = viewModel.profile?.name ?? ""
                     newBio = viewModel.profile?.bio ?? ""
                     newAvatarURL = viewModel.profile?.avatar_url ?? ""
