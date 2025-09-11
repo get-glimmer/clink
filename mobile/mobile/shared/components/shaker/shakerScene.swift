@@ -25,22 +25,9 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
     // Storage for marbles keyed by Task UUID
     private var marbles: [UUID: SKLabelNode] = [:]
     
-    // Callback for when notes emoji is tapped
-    var onNotesEmojiTapped: (() -> Void)?
-    
-    // Custom boundary configuration for friend shakers
-    private var customInset: CGFloat?
-    private var customLidHeight: CGFloat?
-    
     // MARK: - Edge-loop inset
     private let inset: CGFloat = 12
     private let lidHeight: CGFloat = 40
-
-    // MARK: - Visual tuning
-    // Strong, pleasant glow for emoji reactions
-    private let glowBlurRadius: CGFloat = 8.0
-    private let glowAlpha: CGFloat = 0.85
-    private let glowScale: CGFloat = 1.18
     
     // MARK: - Haptic settings
     var isHapticsEnabled: Bool = true
@@ -59,25 +46,12 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
     
     override func didMove(to view: SKView) {
         backgroundColor = .clear
-        setupPhysicsBoundaries()
-    }
-    
-    // MARK: - Boundary Configuration
-    func configureBoundaries(inset: CGFloat, lidHeight: CGFloat) {
-        customInset = inset
-        customLidHeight = lidHeight
-        setupPhysicsBoundaries()
-    }
-    
-    private func setupPhysicsBoundaries() {
-        let usedInset = customInset ?? inset
-        let usedLidHeight = customLidHeight ?? lidHeight
         
         /* ----- edge-loop smaller than PNG ----- */
-        let rect = CGRect(x: -size.width/2  + usedInset,
-                          y: -size.height/2 + usedInset,
-                          width:  size.width  - usedInset*2,
-                          height: size.height - usedInset*2 - usedLidHeight)
+        let rect = CGRect(x: -size.width/2  + inset,
+                          y: -size.height/2 + inset,
+                          width:  size.width  - inset*2,
+                          height: size.height - inset*2 - lidHeight)
         let wall = SKPhysicsBody(edgeLoopFrom: rect)
         wall.friction = 0
         wall.isDynamic = false
@@ -152,48 +126,6 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
         marbles[taskId] = node
     }
     
-    // Drops a glowing emoji reaction into the scene with special effects
-    func addGlowingEmoji(_ symbol: String, for taskId: UUID) {
-        guard marbles[taskId] == nil else { return }
-        let margin: CGFloat = 14
-        let minX = -size.width/2 + margin*2
-        let maxX =  size.width/2 - margin*2
-        let spawnX = CGFloat.random(in: minX...maxX)
-        let spawnY =  size.height/2 - margin*2 - lidHeight - margin*(CGFloat.random(in: 2...3))
-        
-        let node = SKLabelNode(fontNamed: "AppleColorEmoji")
-        node.text = symbol
-        node.fontSize = 64 // Slightly larger for reactions
-        node.verticalAlignmentMode = .center
-        node.position = CGPoint(x: spawnX, y: spawnY)
-        node.zPosition = 55 // Higher than regular emojis
-        node.physicsBody = makeBody()
-        
-        // Add glowing effect that FOLLOWS the emoji
-        // Build an effect node as a CHILD of the moving label node so it doesn't leave trails
-        let glowEffect = SKEffectNode()
-        glowEffect.filter = CIFilter(name: "CIGaussianBlur", parameters: ["inputRadius": glowBlurRadius])
-        glowEffect.shouldRasterize = true
-        glowEffect.zPosition = -1  // render behind the emoji label
-        glowEffect.alpha = glowAlpha
-        
-        let glowLabel = SKLabelNode(fontNamed: "AppleColorEmoji")
-        glowLabel.text = symbol
-        glowLabel.fontSize = node.fontSize
-        glowLabel.verticalAlignmentMode = .center
-        glowLabel.setScale(glowScale)
-        
-        glowEffect.addChild(glowLabel)
-        node.addChild(glowEffect)
-        
-        addChild(node)
-        
-        // Ensure no pulsing/thumping animations are applied
-        node.removeAllActions()
-        node.setScale(1.0)
-        
-        marbles[taskId] = node
-=======
     // Updates the emoji text for an existing marble without resetting physics.
     func updateEmoji(_ symbol: String, for taskId: UUID) {
         guard let node = marbles[taskId] else { return }
@@ -214,23 +146,10 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
         marbles.removeValue(forKey: taskId)
     }
     
-    // Removes one occurrence of an emoji by its symbol (first match)
-    func removeEmoji(symbol: String) {
-        if let match = marbles.first(where: { $0.value.text == symbol }) {
-            match.value.removeFromParent()
-            marbles.removeValue(forKey: match.key)
-        }
-    }
-    
     // Clears all emojis (used when the entire task list resets)
     func resetScene() {
         for (_, node) in marbles { node.removeFromParent() }
         marbles.removeAll()
-    }
-    
-    // Checks whether an emoji with the given symbol already exists in the scene
-    func hasEmoji(_ symbol: String) -> Bool {
-        return marbles.values.contains { $0.text == symbol }
     }
     
     // MARK: - Helpers
@@ -396,22 +315,6 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
             let g = CGFloat(((key >>  5) & 0x1F) << 3) / 255.0
             let b = CGFloat(( key        & 0x1F) << 3) / 255.0
             return UIColor(red: r, green: g, blue: b, alpha: 1.0)
-        }
-    }
-    
-    // MARK: - Touch Handling
-    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard let touch = touches.first else { return }
-        let location = touch.location(in: self)
-        let nodesAtPoint = nodes(at: location)
-        
-        // Check if any touched node is a notes emoji
-        for node in nodesAtPoint {
-            if let labelNode = node as? SKLabelNode,
-               labelNode.text == "🗒️" {
-                onNotesEmojiTapped?()
-                break
-            }
         }
     }
 }
