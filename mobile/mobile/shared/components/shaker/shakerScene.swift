@@ -12,7 +12,7 @@ import Vision
 import VisionKit
 import UIKit
 
-final class ShakerScene: SKScene {
+final class ShakerScene: SKScene, SKPhysicsContactDelegate {
     
     // MARK: - Motion & Storage
     private let motion = CMMotionManager()
@@ -42,9 +42,15 @@ final class ShakerScene: SKScene {
     private let glowAlpha: CGFloat = 0.85
     private let glowScale: CGFloat = 1.18
     
+    // MARK: - Haptic settings
+    var isHapticsEnabled: Bool = true
+    private var lastHapticTime: TimeInterval = 0
+    private let hapticCooldown: TimeInterval = 0.25
+    
     override init(size: CGSize) {
         super.init(size: size)
         anchorPoint = .init(x: 0.5, y: 0.5)
+        physicsWorld.contactDelegate = self
         //startMotion()         // commented out-> control from each view
     }
     required init?(coder: NSCoder) { fatalError("not implemented") }
@@ -74,8 +80,10 @@ final class ShakerScene: SKScene {
                           height: size.height - usedInset*2 - usedLidHeight)
         let wall = SKPhysicsBody(edgeLoopFrom: rect)
         wall.friction = 0
+        wall.isDynamic = false
+        wall.categoryBitMask = 0x1 << 1       // jar wall
+        wall.contactTestBitMask = 0x1 << 0    // detect marble-wall contact
         physicsBody   = wall
-        physicsBody?.isDynamic = false
     }
     
     // MARK: - Motion handlers
@@ -185,6 +193,17 @@ final class ShakerScene: SKScene {
         node.setScale(1.0)
         
         marbles[taskId] = node
+=======
+    // Updates the emoji text for an existing marble without resetting physics.
+    func updateEmoji(_ symbol: String, for taskId: UUID) {
+        guard let node = marbles[taskId] else { return }
+        guard node.text != symbol else { return }
+        node.text = symbol
+
+        // animation
+//        let up = SKAction.scale(to: 1.2, duration: 0.08)
+//        let down = SKAction.scale(to: 1.0, duration: 0.10)
+//        node.run(.sequence([up, down]))
     }
     
     // Removes the emoji associated with taskId if present.
@@ -222,7 +241,39 @@ final class ShakerScene: SKScene {
         body.friction = 0.9
         body.linearDamping = 0.8
         body.angularDamping = 0.9
+        
+        // contact haptic
+        body.categoryBitMask = 0x1 << 0      // marble
+        body.contactTestBitMask = 0x1 << 0   // 다른 marble과 충돌
+        body.collisionBitMask = 0xFFFFFFFF   // 기본 충돌
         return body
+    }
+    
+    // MARK: - Contact delegate
+    func didBegin(_ contact: SKPhysicsContact) {
+        guard isHapticsEnabled else { return }
+        
+        let impulse = contact.collisionImpulse
+        let now = CACurrentMediaTime()
+        guard now - lastHapticTime > hapticCooldown else { return }
+        
+        if impulse > 5 {
+            UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+        } else if impulse > 3 {
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        } else if impulse > 2 {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        } else {
+            return // 너무 약한 충돌은 무시
+        }
+        
+        lastHapticTime = now
+    }
+
+    
+    private func triggerHaptic() {
+        let generator = UIImpactFeedbackGenerator(style: .medium)
+        generator.impactOccurred()
     }
     
     

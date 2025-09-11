@@ -1,5 +1,10 @@
 import Foundation
 
+enum CategoryType: String, Codable, Equatable {
+    case daily
+    case archived
+}
+
 struct TaskListItem: Codable, Identifiable {
     let id: UUID
     let title: String
@@ -43,13 +48,15 @@ struct CategoryItem: Codable, Identifiable {
     let name: String
     let emoji: String
     let privacyStatus: String?
+    let type: CategoryType
 
     enum CodingKeys: String, CodingKey {
         case id = "categoryid"
         case userId = "userid"
         case name = "categoryname"
-        case emoji = "categoryemoji"
+        case emoji = "categoryemoji" // disregard
         case privacyStatus = "privacy_status"
+        case type = "categorytype"
     }
 }
 
@@ -66,13 +73,32 @@ struct CategoryModel: Identifiable, Codable, Equatable {
     var name: String                     // categoryname
     var emoji: String                    // categoryemoji
     var privacyStatus: String            // privacy_status
-    var order: Int?                      // optional: order column for sorting (future)
+    //var order: Int?                      // optional: order column for sorting (future)
+    var type: CategoryType? = nil        // categorytype
 
     enum CodingKeys: String, CodingKey {
         case id = "categoryid"
         case name = "categoryname"
         case emoji = "categoryemoji"
         case privacyStatus = "privacy_status"
-        case order
+        //case order
+        case type = "categorytype"
+    }
+}
+
+// MARK: - Category Emoji History
+struct CategoryEmojiHistoryRow: Decodable {
+    let emoji: String
+    let effectiveDate: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case emoji
+        case effectiveDate = "effective_date"
+    }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        emoji = try c.decode(String.self, forKey: .emoji)
+        let d = try? c.decodeIfPresent(String.self, forKey: .effectiveDate)
+        effectiveDate = dateFromPostgreSQL(d)
     }
 }

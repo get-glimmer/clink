@@ -1,9 +1,19 @@
 import SwiftUI
 import Supabase
 
+/**
+ * A view to be displayed after a user has successfully signed up.
+ */
 struct SignupSuccessView: View {
+    // MARK: - Environment and State
+
+    /// The authentication view model from the environment.
     @EnvironmentObject var authViewModel: AuthViewModel
+
+    /// A boolean to control navigation to the main app.
     @State private var navigateToApp = false
+
+    // MARK: - Body
 
     var body: some View {
         VStack(spacing: 24) {
@@ -27,6 +37,7 @@ struct SignupSuccessView: View {
             
             Spacer()
             
+            // Button to navigate to the main app
             Button {
                 navigateToApp = true
             } label: {
@@ -39,7 +50,7 @@ struct SignupSuccessView: View {
                     .padding(.horizontal)
             }
             
-            // Hidden navigation link to AppRouter
+            // Hidden navigation link for programmatic navigation
             NavigationLink(
                 destination: AppRouter()
                     .environmentObject(authViewModel),
@@ -48,6 +59,6 @@ struct SignupSuccessView: View {
             )
         }
         .padding()
-        .navigationBarBackButtonHidden(true) // prevent going back
+        .navigationBarBackButtonHidden(true)
     }
 }

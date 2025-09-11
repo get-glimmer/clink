@@ -113,7 +113,6 @@ struct TaskView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.trailing, 16)
                     }
-                    .padding(.top, 12)
 
                     // ---- Shaker (scaled) ----
                     ShakerView(viewModel: viewModel)
@@ -183,16 +182,18 @@ struct TaskView: View {
                 name: $newCategoryName,
                 isSaving: $isSavingCategory,
                 errorMessage: $categorySaveError,
-                onSave: { emoji, name, privacy in
+                onSave: { emoji, name, privacy, type in
                     isSavingCategory = true
                     Task {
                         do {
-                            try await viewModel.addCategory(name: name, emoji: emoji, privacyStatus: privacy)
+                            try? await viewModel.addCategory(
+                                name: name,
+                                emoji: emoji,
+                                privacyStatus: privacy,
+                                type: type
+                            )
                             isSavingCategory = false
                             showAddCategorySheet = false
-                        } catch {
-                            isSavingCategory = false
-                            categorySaveError = "Failed to add the category. Please try again."
                         }
                     }
                 }

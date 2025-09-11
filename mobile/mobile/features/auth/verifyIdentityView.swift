@@ -1,19 +1,37 @@
 import SwiftUI
 import Supabase
 
-// MARK: - Main View
+/**
+ * The initial view for logging in or signing up.
+ */
 struct VerifyIdentityView: View {
+    // MARK: - Environment and State
+
+    /// The navigation path for programmatic navigation.
     @Binding var path: NavigationPath
+
+    /// The user's phone number.
     @State private var phoneNumber: String = ""
-    @State private var selectedCountryFlag: String = "🇰🇷"
-    @State private var selectedCountryCode: String = "+82"
+
+    /// The flag of the selected country.
+    @State private var selectedCountryFlag: String = "🇺🇸"
+
+    /// The code of the selected country.
+    @State private var selectedCountryCode: String = "+1"
+
+    /// A boolean to indicate if a network request is in progress.
     @State private var isLoading = false
+
+    /// A boolean to control the visibility of the country picker.
     @State private var showCountryPicker = false
+
+    /// The authentication view model from the environment.
     @EnvironmentObject var authViewModel: AuthViewModel
+
+    // MARK: - Body
 
     var body: some View {
         VStack(spacing: 24) {
-            // Title
             Text("Log in or Sign up")
                 .font(.title2)
                 .bold()
@@ -21,12 +39,11 @@ struct VerifyIdentityView: View {
                 .multilineTextAlignment(.center)
                 .padding(.top, 20)
             
-            // Phone number label
             Text("Phone number")
                 .foregroundColor(Color("White"))
                 .frame(maxWidth: .infinity, alignment: .leading)
             
-            // Country picker + phone input
+            // Country picker and phone number input
             HStack(spacing: 8) {
                 Button {
                     showCountryPicker = true
@@ -37,7 +54,7 @@ struct VerifyIdentityView: View {
                             .foregroundColor(Color("Neutral-300"))
                             .font(.system(size: 12))
                     }
-                    .frame(height: 50) // match TextField height
+                    .frame(height: 50)
                     .frame(minWidth: 60)
                     .padding(.horizontal, 8)
                     .overlay(
@@ -50,24 +67,21 @@ struct VerifyIdentityView: View {
                     .keyboardType(.phonePad)
                     .foregroundColor(.white)
                     .padding()
-                    .frame(height: 50) // same as picker
+                    .frame(height: 50)
                     .background(
                         RoundedRectangle(cornerRadius: 12)
                             .stroke(Color.gray, lineWidth: 1)
                     )
-                    .onChange(of: phoneNumber) { old, newValue in
-                        let sanitized = newValue.replacingOccurrences(of: " ", with: "")
-                                                .replacingOccurrences(of: "-", with: "")
+                    .onChange(of: phoneNumber) { _, newValue in
+                        let sanitized = newValue.filter { "0123456789".contains($0) }
                         if sanitized != newValue { phoneNumber = sanitized }
                     }
             }
 
-            // Random gray texts
             Text("We’ll call or text to confirm your number. Standard message and data rates apply.")
                 .foregroundColor(.gray)
                 .font(.footnote)
             
-
             // Continue button
             Button {
                 Task { await sendOTP() }
@@ -81,7 +95,7 @@ struct VerifyIdentityView: View {
             }
             .disabled(phoneNumber.isEmpty || isLoading)
 
-            // Divider with "Or"
+            // Divider
             HStack {
                 Rectangle()
                     .frame(height: 1)
@@ -95,25 +109,24 @@ struct VerifyIdentityView: View {
             }
             .padding(.vertical, 10)
 
-            // SSO Buttons
+            // Social sign-on buttons
             VStack(spacing: 12) {
                 SSOButton(title: "Continue with Google", color: Color("White"), icon: "globe") {
-                    print("Google pressed") // <- action closure
+                    print("Google pressed")
                 }
 
-                SSOButton(title: "Continue with Apple", color: Color("White"), icon: "applelogo") {
+                SSOButton(title: "Continue with Apple", color: Color("White"), icon: "apple.logo") {
                     print("Apple pressed")
                 }
 
                 SSOButton(title: "Continue with Email", color: Color("White"), icon: "envelope") {
-                    path.append(Screen.emailLogin) // <- navigate to email login
+                    path.append(Screen.emailLogin)
                 }
             }
 
             Spacer()
             
             VStack(spacing: 5) {
-                // Bottom random text
                 Text("By signing up, you agree to our")
                     .foregroundColor(.gray)
                     .font(.footnote)
@@ -132,7 +145,11 @@ struct VerifyIdentityView: View {
         }
     }
 
-    // MARK: - OTP Sending
+    // MARK: - Private Methods
+
+    /**
+     * Sends an OTP to the user's phone number.
+     */
     private func sendOTP() async {
         guard let client = SupabaseClientManager.shared.client else { return }
         isLoading = true
@@ -147,14 +164,12 @@ struct VerifyIdentityView: View {
                 .select()
                 .eq("phoneNumber", value: fullPhone)
                 .execute()
-                .value ?? []
+                .value
 
-            await MainActor.run {
-                if users.isEmpty {
-                    path.append(Screen.otp(phoneNumber: fullPhone, isSignup: true))
-                } else {
-                    path.append(Screen.otp(phoneNumber: fullPhone, isSignup: false))
-                }
+            if users.isEmpty {
+                path.append(Screen.otp(phoneNumber: fullPhone, isSignup: true))
+            } else {
+                path.append(Screen.otp(phoneNumber: fullPhone, isSignup: false))
             }
 
         } catch {
@@ -164,13 +179,28 @@ struct VerifyIdentityView: View {
     }
 }
 
-// MARK: - SSO Button Component
+// MARK: - SSOButton
+
+/**
+ * A reusable button for social sign-on options.
+ */
 struct SSOButton: View {
+    // MARK: - Properties
+
+    /// The title of the button.
     var title: String
+
+    /// The background color of the button.
     var color: Color
+
+    /// The name of the system icon to display.
     var icon: String
+
+    /// The action to perform when the button is tapped.
     var action: () -> Void
     
+    // MARK: - Body
+
     var body: some View {
         Button(action: action) {
             HStack {
@@ -187,17 +217,32 @@ struct SSOButton: View {
     }
 }
 
+// MARK: - CountryPickerView
 
-// MARK: - Country Picker
+/**
+ * A view for picking a country code.
+ */
 struct CountryPickerView: View {
+    // MARK: - Environment and Bindings
+
+    /// The presentation mode of the view.
     @Environment(\.dismiss) var dismiss
+
+    /// The selected country code.
     @Binding var selectedCode: String
+
+    /// The flag of the selected country.
     @Binding var selectedFlag: String
 
+    // MARK: - Properties
+
+    /// A list of countries with their flags and codes.
     let countries = [
         ("🇰🇷", "+82"),
         ("🇺🇸", "+1"),
     ]
+
+    // MARK: - Body
 
     var body: some View {
         NavigationStack {
@@ -223,7 +268,8 @@ struct CountryPickerView: View {
     }
 }
 
-// MARK: - Preview
+// MARK: - Previews
+
 struct VerifyIdentityView_Previews: PreviewProvider {
     @State static var path = NavigationPath()
     

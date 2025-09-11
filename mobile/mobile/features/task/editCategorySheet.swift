@@ -9,11 +9,14 @@ import SwiftUI
 import MCEmojiPicker
 
 struct EditCategorySheet: View {
+    // Inject the shared view model
+    @ObservedObject var viewModel: TaskListViewModel
+    
     // Input model (read-only)
     let category: CategoryItem
 
     // Output callbacks
-    var onDone: (_ emoji: String, _ name: String, _ privacy: String) -> Void
+    var onDone: (_ emoji: String, _ name: String, _ privacy: String, _ type: CategoryType) -> Void
     var onDelete: () -> Void
 
     // Local UI states
@@ -24,21 +27,27 @@ struct EditCategorySheet: View {
     @State private var isEmojiPickerPresented = false
     @State private var errorMessage: String? = nil
     @State private var isSaving = false
+    @State private var catType: CategoryType
 
     // Initialize local states from category
-    init(category: CategoryItem,
-         onDone: @escaping (_ emoji: String, _ name: String, _ privacy: String) -> Void,
-         onDelete: @escaping () -> Void)
-    {
+    init(
+        viewModel: TaskListViewModel,
+        category: CategoryItem,
+        onDone: @escaping (_ emoji: String, _ name: String, _ privacy: String, _ type: CategoryType) -> Void,
+        onDelete: @escaping () -> Void
+    ) {
+        self.viewModel = viewModel
         self.category = category
         self.onDone = onDone
         self.onDelete = onDelete
 
-        // default states
-        _emoji = State(initialValue: category.emoji)
+        // Use latest emoji from history map; fallback to category.emoji for safety
+        let latest = viewModel.latestEmoji(for: category.id, defaultEmoji: category.emoji)
+        _emoji = State(initialValue: latest)         // ← changed
         _name  = State(initialValue: category.name)
         let p = Privacy(rawValue: category.privacyStatus ?? "public") ?? .publicShare
         _privacy = State(initialValue: p)
+        _catType = State(initialValue: category.type)
     }
 
     enum Privacy: String, CaseIterable, Identifiable {
@@ -98,6 +107,11 @@ struct EditCategorySheet: View {
             }
         }
         .padding(.top, 12)
+        .onReceive(viewModel.$latestEmojiForCategory) { map in
+            if let v = map[category.id], v != emoji {
+                emoji = v
+            }
+        }
     }
 
     private var content: some View {
@@ -211,7 +225,7 @@ struct EditCategorySheet: View {
                         .frame(height: 0.7)
                         .padding(.horizontal, 12)
 
-                    // Row 2: Type (fixed)
+                    // Row 2: Type
                     HStack {
                         HStack(spacing: 10) {
                             Image(systemName: "rectangle.grid.1x2")
@@ -221,16 +235,21 @@ struct EditCategorySheet: View {
                                 .appFont(AppFont.body1)
                                 .foregroundColor(Color("White"))
                         }
-
                         Spacer()
-
-                        HStack(spacing: 6) {
-                            Text("Daily")
-                                .appFont(AppFont.body1)
-                                .foregroundColor(Color("White"))
-                            Image(systemName: "lock.fill")
-                                .font(.footnote)
-                                .foregroundColor(Color("Neutral-400"))
+                        Menu {
+                            Button("Daily")    { catType = .daily }
+                            Button("Archived") { catType = .archived }
+                        } label: {
+                            HStack(spacing: 6) {
+                                Text(catType == .daily ? "Daily" : "Archived")
+                                    .appFont(AppFont.body1)
+                                    .foregroundColor(Color("White"))
+                                Image(systemName: "chevron.up.chevron.down")
+                                    .font(.footnote)
+                                    .foregroundColor(Color("White"))
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
                         }
                     }
                     .frame(height: 52)
@@ -267,7 +286,7 @@ struct EditCategorySheet: View {
                     return
                 }
                 isSaving = true
-                onDone(emoji, name, privacy.rawValue)
+                onDone(emoji, name, privacy.rawValue, catType)
                 isSaving = false
                 dismiss()
             } label: {
