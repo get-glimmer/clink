@@ -9,6 +9,9 @@ import SwiftUI
 import MCEmojiPicker
 
 struct EditCategorySheet: View {
+    // Inject the shared view model
+    @ObservedObject var viewModel: TaskListViewModel
+    
     // Input model (read-only)
     let category: CategoryItem
 
@@ -27,16 +30,20 @@ struct EditCategorySheet: View {
     @State private var catType: CategoryType
 
     // Initialize local states from category
-    init(category: CategoryItem,
-         onDone: @escaping (_ emoji: String, _ name: String, _ privacy: String, _ type: CategoryType) -> Void,
-         onDelete: @escaping () -> Void)
-    {
+    init(
+        viewModel: TaskListViewModel,
+        category: CategoryItem,
+        onDone: @escaping (_ emoji: String, _ name: String, _ privacy: String, _ type: CategoryType) -> Void,
+        onDelete: @escaping () -> Void
+    ) {
+        self.viewModel = viewModel
         self.category = category
         self.onDone = onDone
         self.onDelete = onDelete
 
-        // default states
-        _emoji = State(initialValue: category.emoji)
+        // Use latest emoji from history map; fallback to category.emoji for safety
+        let latest = viewModel.latestEmoji(for: category.id, defaultEmoji: category.emoji)
+        _emoji = State(initialValue: latest)         // ← changed
         _name  = State(initialValue: category.name)
         let p = Privacy(rawValue: category.privacyStatus ?? "public") ?? .publicShare
         _privacy = State(initialValue: p)
@@ -100,6 +107,11 @@ struct EditCategorySheet: View {
             }
         }
         .padding(.top, 12)
+        .onReceive(viewModel.$latestEmojiForCategory) { map in
+            if let v = map[category.id], v != emoji {
+                emoji = v
+            }
+        }
     }
 
     private var content: some View {

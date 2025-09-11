@@ -126,6 +126,18 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
         marbles[taskId] = node
     }
     
+    // Updates the emoji text for an existing marble without resetting physics.
+    func updateEmoji(_ symbol: String, for taskId: UUID) {
+        guard let node = marbles[taskId] else { return }
+        guard node.text != symbol else { return }
+        node.text = symbol
+
+        // animation
+//        let up = SKAction.scale(to: 1.2, duration: 0.08)
+//        let down = SKAction.scale(to: 1.0, duration: 0.10)
+//        node.run(.sequence([up, down]))
+    }
+    
     // Removes the emoji associated with taskId if present.
     // Removes the emoji associated with taskId if present.
     func removeEmoji(for taskId: UUID) {

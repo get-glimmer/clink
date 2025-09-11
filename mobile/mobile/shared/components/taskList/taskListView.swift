@@ -156,14 +156,22 @@ struct TaskListView: View {
     
     private func categoryHeader(for categoryWithTasks: CategoryWithTasks) -> some View {
         HStack {
-            Text(categoryWithTasks.category.emoji)
-                .appFont(AppFont.title1)
+            Text(
+                viewModel.emojiFor(
+                    categoryId: categoryWithTasks.category.id,
+                    defaultEmoji: categoryWithTasks.category.emoji
+                )
+            )
+            .appFont(AppFont.title1)
+
             Text(categoryWithTasks.category.name)
                 .appFont(AppFont.title3)
+
             Spacer()
             addTaskButton(for: categoryWithTasks.category.id)
         }
     }
+
     
     private func addTaskButton(for categoryId: UUID) -> some View {
         Button(action: {

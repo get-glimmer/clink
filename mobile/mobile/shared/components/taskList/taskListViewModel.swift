@@ -29,6 +29,22 @@ class TaskListViewModel: ObservableObject {
     
     // is used to call its function "fetchShakers()"
     var trackerViewModel: TrackerViewModel?
+    
+    // Category emoji history
+    @Published var emojiForDate: [UUID: String] = [:]
+    
+    // Latest emoji per category (for CategoriesSheet list)
+    @Published var latestEmojiForCategory: [UUID: String] = [:]
+
+    // Date-aware emoji getter (for UI)
+    func emojiFor(categoryId: UUID, defaultEmoji: String) -> String {
+        emojiForDate[categoryId] ?? defaultEmoji
+    }
+    
+    // Latest getter for CategoriesSheet row
+    func latestEmoji(for categoryId: UUID, defaultEmoji: String) -> String {
+        latestEmojiForCategory[categoryId] ?? defaultEmoji
+    }
 
     // MARK: - init
     init(userId: String?, date: Date = todayDate()) {
@@ -50,6 +66,88 @@ class TaskListViewModel: ObservableObject {
             .store(in: &cancellables)
 
         fetchCategoriesAndTasks()
+        
+        $latestEmojiForCategory
+            .debounce(for: .milliseconds(50), scheduler: RunLoop.main)
+            .sink { [weak self] _ in
+                guard let self = self else { return }
+                Task {
+                    // Recompute date-aware emojis for the currently selected date
+                    let cats = self.categoriesWithTasks.map { $0.category }
+                    await self.prefetchCategoryEmojisForSelectedDate(cats)
+                }
+            }
+            .store(in: &cancellables)
+
+    }
+    
+    // MARK: - pre-fetching (for emoji history)
+    // find valid category emoji for a selected date
+    private func prefetchCategoryEmojisForSelectedDate(_ categories: [CategoryItem]) async {
+        guard let client = self.client else { return }
+
+        var map: [UUID: String] = [:]
+        for c in categories {
+            do {
+                // 1. 해당 날짜 이전 or 당일 기록 중 가장 최근 것
+                var rows: [CategoryEmojiHistoryRow] = try await client
+                    .from("category_emoji_history")
+                    .select("emoji,effective_date")
+                    .eq("categoryid", value: c.id.uuidString)
+                    .lte("effective_date", value: formattedDate(taskSelectedDate))
+                    .order("effective_date", ascending: false)
+                    .limit(1)
+                    .execute()
+                    .value
+
+                // 2. 없으면 (카테고리 생성 전 과거 날짜 조회중) → 가장 오래된 이모지
+                if rows.isEmpty {
+                    rows = try await client
+                        .from("category_emoji_history")
+                        .select("emoji,effective_date")
+                        .eq("categoryid", value: c.id.uuidString)
+                        .order("effective_date", ascending: true)
+                        .limit(1)
+                        .execute()
+                        .value
+                }
+
+                if let r = rows.first {
+                    map[c.id] = r.emoji
+                }
+            } catch {
+                print("[EmojiPrefetch] failed for category \(c.id):", error)
+            }
+        }
+        await MainActor.run { self.emojiForDate = map }
+    }
+
+    // find the latest version of category emoji
+    private func prefetchLatestCategoryEmojis(_ categories: [CategoryItem]) async {
+        guard let client = self.client else { return }
+        var map: [UUID: String] = [:]
+
+        for c in categories {
+            do {
+                let rows: [CategoryEmojiHistoryRow] = try await client
+                    .from("category_emoji_history")
+                    .select("emoji,effective_date")
+                    .eq("categoryid", value: c.id.uuidString)
+                    .order("effective_date", ascending: false)
+                    .limit(1)
+                    .execute()
+                    .value
+                if let r = rows.first {
+                    map[c.id] = r.emoji
+                } else {
+                    // fallback (should be rare): use current category.emoji
+                    map[c.id] = c.emoji
+                }
+            } catch {
+                print("[LatestEmojiPrefetch] failed:", error)
+            }
+        }
+        await MainActor.run { self.latestEmojiForCategory = map }
     }
     
     // MARK: - fetching
@@ -73,6 +171,11 @@ class TaskListViewModel: ObservableObject {
                     .order("createdat", ascending: true)
                     .execute()
                     .value
+                
+                // 1) selected date → date-aware map
+                await prefetchCategoryEmojisForSelectedDate(categories)
+                // 2) always → latest map for CategoriesSheet
+                await prefetchLatestCategoryEmojis(categories)
 
                 var result: [CategoryWithTasks] = []
                 for category in categories {
@@ -420,15 +523,56 @@ class TaskListViewModel: ObservableObject {
         }
     }
     
+    private func insertEmojiHistory(categoryId: UUID, emoji: String, effectiveDate: Date = todayDate()) async {
+        guard let client = self.client else { return }
+        let dateStr = dateToPostgreSQLString(effectiveDate)
+
+        // 1) Try to find existing row for (categoryid, effective_date)
+        do {
+            let existing: [CategoryEmojiHistoryRow] = try await client
+                .from("category_emoji_history")
+                .select("emoji,effective_date")
+                .eq("categoryid", value: categoryId.uuidString)
+                .eq("effective_date", value: dateStr)
+                .limit(1)
+                .execute()
+                .value
+
+            if existing.first != nil {
+                // 2-a) Update emoji only (keep same date row)
+                try await client
+                    .from("category_emoji_history")
+                    .update(["emoji": emoji])
+                    .eq("categoryid", value: categoryId.uuidString)
+                    .eq("effective_date", value: dateStr)
+                    .execute()
+            } else {
+                // 2-b) Insert new row for that date
+                struct HistoryInsert: Encodable {
+                    let categoryid: String
+                    let emoji: String
+                    let effective_date: String
+                }
+                let payload = HistoryInsert(
+                    categoryid: categoryId.uuidString,
+                    emoji: emoji,
+                    effective_date: dateStr
+                )
+                try await client.from("category_emoji_history").insert(payload).execute()
+            }
+        } catch {
+            print("[CategoryEmojiHistory] upsert failed:", error)
+        }
+    }
+    
     // MARK: - create category
     func addCategory(name: String, emoji: String, privacyStatus: String, type: CategoryType) async throws {
         guard let client = self.client, let userId = self.userId else { return }
 
-        // Match your Supabase schema column names exactly.
         struct NewCategory: Encodable {
             let userid: String
             let categoryname: String
-            let categoryemoji: String
+            let categoryemoji: String // mirror
             let privacy_status: String
             let categorytype: String
         }
@@ -436,20 +580,27 @@ class TaskListViewModel: ObservableObject {
         let payload = NewCategory(
             userid: userId,
             categoryname: name,
-            categoryemoji: emoji,
+            categoryemoji: emoji, // mirror
             privacy_status: privacyStatus,
             categorytype: type.rawValue
         )
 
         do {
-            try await client
+            // 1) insert + select to get created id
+            let created: [CategoryItem] = try await client
                 .from("category")
                 .insert(payload)
+                .select()
                 .execute()
+                .value
 
-            await MainActor.run {
-                self.fetchCategoriesAndTasks()
+            // 2) history seed (so old date queries work)
+            if let cat = created.first {
+                await insertEmojiHistory(categoryId: cat.id, emoji: emoji, effectiveDate: todayDate())
             }
+
+            // 3) refresh both maps & lists
+            await MainActor.run { self.fetchCategoriesAndTasks() }
         } catch {
             print("[Category] insert failed:", error)
             throw error
@@ -473,9 +624,21 @@ class TaskListViewModel: ObservableObject {
     ) async {
         guard let client = self.client, let userId = self.userId else { return }
         do {
+            // 0) detect if emoji changed vs latest
+            let oldLatest = latestEmojiForCategory[categoryId]
+                ?? categoriesWithTasks.first(where: { $0.id == categoryId })?.category.emoji
+
+            // 1) category mirror update (unused by UI)
+            struct UpdateCategoryPayload: Encodable {
+                let categoryname: String
+                let categoryemoji: String
+                let privacy_status: String
+                let categorytype: String?
+            }
+
             let payload = UpdateCategoryPayload(
                 categoryname: name,
-                categoryemoji: emoji,
+                categoryemoji: emoji,          // mirror
                 privacy_status: privacyStatus,
                 categorytype: type?.rawValue
             )
@@ -487,7 +650,17 @@ class TaskListViewModel: ObservableObject {
                 .eq("userid", value: userId)
                 .execute()
 
-            // 1) Reflect locally
+            // 2) insert emoji history only when changed
+            if let old = oldLatest, old != emoji {
+                await insertEmojiHistory(categoryId: categoryId, emoji: emoji, effectiveDate: todayDate())
+            } else if oldLatest == nil {
+                // safety: if no latest existed, ensure a seed
+                await insertEmojiHistory(categoryId: categoryId, emoji: emoji, effectiveDate: todayDate())
+            }
+            await prefetchLatestCategoryEmojis(self.categoriesWithTasks.map { $0.category })
+            await prefetchCategoryEmojisForSelectedDate(self.categoriesWithTasks.map { $0.category })
+
+            // 3) reflect locally (type/name 등)
             await MainActor.run {
                 if let idx = categoriesWithTasks.firstIndex(where: { $0.id == categoryId }) {
                     let old = categoriesWithTasks[idx]
@@ -496,22 +669,22 @@ class TaskListViewModel: ObservableObject {
                         id: old.category.id,
                         userId: old.category.userId,
                         name: name,
-                        emoji: emoji,
+                        emoji: emoji,              // not used by UI
                         privacyStatus: privacyStatus,
                         type: newType
                     )
                     categoriesWithTasks[idx] = CategoryWithTasks(
-                        id: old.id,
-                        category: updatedCategory,
-                        tasks: old.tasks
+                        id: old.id, category: updatedCategory, tasks: old.tasks
                     )
                     categoriesWithTasks = categoriesWithTasks
                 }
             }
 
-            // 2) Refresh shaker data so marble emojis update right away
-            try? await trackerViewModel?.fetchShakers()
+            // 4) refresh maps (so UI shows newest emoji immediately)
+            await prefetchLatestCategoryEmojis(self.categoriesWithTasks.map { $0.category })
+            await prefetchCategoryEmojisForSelectedDate(self.categoriesWithTasks.map { $0.category })
 
+            try? await trackerViewModel?.fetchShakers()  // if shaker list needs refresh
         } catch {
             print("[Category] update failed:", error)
         }
