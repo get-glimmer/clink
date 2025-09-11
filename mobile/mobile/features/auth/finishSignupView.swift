@@ -8,60 +8,27 @@ import Supabase
 struct FinishSignupView: View {
     // MARK: - Properties
 
-    /// The user's phone number, if available.
     let phoneNumber: String?
-
-    /// The user's email address, if available.
     let email: String?
-
-    /// The user's password, if available.
     let password: String?
-
-    /// The user's unique identifier, if available.
     let userId: String?
     
     // MARK: - Environment and State
 
-    /// The navigation path for programmatic navigation.
     @Binding var path: NavigationPath
-
-    /// The authentication view model from the environment.
     @EnvironmentObject var authViewModel: AuthViewModel
-
-    /// The presentation mode of the view.
     @Environment(\.dismiss) var dismiss
 
-    /// The user's full name.
     @State private var fullName: String = ""
-
-    /// The user's chosen username.
     @State private var username: String = ""
-
-    /// The user's date of birth.
     @State private var dateOfBirth: Date = Date()
-
-    /// A boolean to control the visibility of the date picker.
     @State private var showDatePicker = false
-
-    /// The user's selected profile image.
     @State private var profileImage: UIImage?
-
-    /// A boolean to indicate if a network request is in progress.
     @State private var isLoading = false
-
-    /// The selected item from the photo picker.
     @State private var photoItem: PhotosPickerItem?
-
-    /// A boolean to indicate if the chosen username is confirmed to be available.
     @State private var usernameConfirmed: Bool = false
-
-    /// The status message for the username availability check.
     @State private var usernameStatus: String? = nil
-
-    /// The color of the username status message.
     @State private var usernameStatusColor: Color = .white
-    
-    /// A boolean to track if the user has selected a date of birth.
     @State private var hasSelectedDate = false
 
     // MARK: - Body
@@ -235,27 +202,40 @@ struct FinishSignupView: View {
             Button {
                 Task {
                     isLoading = true
-                    guard let client = SupabaseClientManager.shared.client else { return }
+                    guard let client = SupabaseClientManager.shared.client else {
+                        print("Supabase client not available.")
+                        isLoading = false
+                        return
+                    }
 
                     var finalUserId: String?
+                    var authSuccessful = false
 
-                    // If signing up with email, create the user now
-                    if let email, let password {
+                    // --- Part 1: Authenticate and get User ID ---
+                    if let email, let password { // Email signup flow
                         do {
-                            let result = try await client.auth.signUp(email: email, password: password)
-                            finalUserId = result.user.id.uuidString
+                            // Step 1: Create the user in auth.users
+                            let signUpResult = try await client.auth.signUp(email: email, password: password)
+                            
+                            // Step 2: Immediately sign in to establish a session.
+                            // This is the key to creating a seamless login experience.
+                            try await client.auth.signIn(email: email, password: password)
+                            
+                            // If both succeed, get the user ID and mark as successful
+                            finalUserId = signUpResult.user.id.uuidString
+                            authSuccessful = true
                         } catch {
-                            print("❌ Email signup failed:", error.localizedDescription)
+                            print("❌ Email signup or sign-in failed:", error.localizedDescription)
+                            authSuccessful = false
                         }
-                    }
-
-                    // If signing up with phone, the user already exists
-                    if let uid = userId {
+                    } else if let uid = userId { // Phone signup flow
                         finalUserId = uid
+                        authSuccessful = true // User is already authenticated in this flow
                     }
 
-                    // Save the profile if a user ID is available
-                    if let finalUserId {
+                    // --- Part 2: Save Profile and Transition ---
+                    if authSuccessful, let finalUserId {
+                        // Step 3: Save the profile data (name, username, etc.)
                         await authViewModel.saveProfile(
                             userId: finalUserId,
                             phoneNumber: phoneNumber,
@@ -265,8 +245,13 @@ struct FinishSignupView: View {
                             profileImage: profileImage,
                             email: email
                         )
-
-                        path.append(Screen.signupSuccess)
+                        
+                        // Step 4: Set isAuthenticated to true. This will trigger the
+                        // view switch in your main AppRouter/ContentView.
+                        authViewModel.isAuthenticated = true
+                    } else {
+                        // Handle the signup failure case. You could show an alert here.
+                        print("Authentication process failed. Staying on the current screen.")
                     }
 
                     isLoading = false
@@ -276,7 +261,7 @@ struct FinishSignupView: View {
                     .frame(maxWidth: .infinity)
                     .padding()
                     .background((!usernameConfirmed || fullName.isEmpty) ? Color("Neutral-800") : Color("Green-300"))
-                    .foregroundColor(.black)
+                    .foregroundColor((!usernameConfirmed || fullName.isEmpty) ? .gray : .black)
                     .cornerRadius(12)
                     .padding()
             }
