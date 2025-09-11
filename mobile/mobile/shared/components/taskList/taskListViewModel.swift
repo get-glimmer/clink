@@ -66,6 +66,19 @@ class TaskListViewModel: ObservableObject {
             .store(in: &cancellables)
 
         fetchCategoriesAndTasks()
+        
+        $latestEmojiForCategory
+            .debounce(for: .milliseconds(50), scheduler: RunLoop.main)
+            .sink { [weak self] _ in
+                guard let self = self else { return }
+                Task {
+                    // Recompute date-aware emojis for the currently selected date
+                    let cats = self.categoriesWithTasks.map { $0.category }
+                    await self.prefetchCategoryEmojisForSelectedDate(cats)
+                }
+            }
+            .store(in: &cancellables)
+
     }
     
     // MARK: - pre-fetching (for emoji history)
@@ -632,6 +645,8 @@ class TaskListViewModel: ObservableObject {
                 // safety: if no latest existed, ensure a seed
                 await insertEmojiHistory(categoryId: categoryId, emoji: emoji, effectiveDate: todayDate())
             }
+            await prefetchLatestCategoryEmojis(self.categoriesWithTasks.map { $0.category })
+            await prefetchCategoryEmojisForSelectedDate(self.categoriesWithTasks.map { $0.category })
 
             // 3) reflect locally (type/name 등)
             await MainActor.run {

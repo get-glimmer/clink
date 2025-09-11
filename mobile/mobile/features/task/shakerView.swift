@@ -19,6 +19,9 @@ struct ShakerView: View {
     // Completion cache - add/remove marbles
     @State private var completionCache: [UUID: Bool] = [:]
     
+    // store current emoji per completed task
+    @State private var emojiCache: [UUID: String] = [:]
+    
     // Lid visuals
     @State private var lidColors: [Color] = [.black, .gray]
     @State private var lidOpacity: Double = 0
@@ -79,42 +82,65 @@ struct ShakerView: View {
             }
         }
         .onReceive(viewModel.$categoriesWithTasks) { _ in syncWithTasks() }
-        .onReceive(viewModel.$emojiForDate) { _ in syncWithTasks() }
+        .onReceive(viewModel.$emojiForDate) { _ in syncWithTasks()
+            updateSeal(animated: true)}
         .onReceive(viewModel.$isAllCompleted)      { _ in syncWithTasks()
             updateSeal(animated: true) }
-        .onReceive(viewModel.$taskSelectedDate) { newDate in
-            syncWithTasks()
-            updateSeal(animated: true)
-        }
+//        .onReceive(viewModel.$taskSelectedDate) { newDate in
+//            syncWithTasks()
+//            updateSeal(animated: true)
+//        }
     }
     
     // MARK: - Marble Syncing
     private func syncWithTasks() {
+        // If scene was cleared (ex. size changed), clear caches as well
         if completionCache.isEmpty == false && scene.children.isEmpty {
             completionCache.removeAll()
+            emojiCache.removeAll() // NEW
         }
 
+        // Build current state: (completed?, emoji-for-selected-date)
         var current: [UUID: (Bool, String)] = [:]
         for cat in viewModel.categoriesWithTasks {
             for task in cat.tasks {
-                current[task.id] = (
-                    task.isCompleted,
-                    viewModel.emojiFor(categoryId: cat.category.id, defaultEmoji: cat.category.emoji)
+                let emj = viewModel.emojiFor(
+                    categoryId: cat.category.id,
+                    defaultEmoji: cat.category.emoji
                 )
+                current[task.id] = (task.isCompleted, emj)
             }
         }
-        // add marble
+
+        // 1) Update emoji of marbles that remain completed, if the emoji changed
+        for (id, info) in current where info.0 && completionCache[id] == true {
+            let oldEmoji = emojiCache[id]
+            if oldEmoji != info.1 {
+                scene.updateEmoji(info.1, for: id)
+                emojiCache[id] = info.1
+            }
+        }
+
+        // 2) Add newly completed marbles
         for (id, info) in current where info.0 && completionCache[id] != true {
             scene.addEmoji(info.1, for: id)
+            emojiCache[id] = info.1
         }
-        // remove marble
-        for (id, wasCompleted) in completionCache where wasCompleted {
-            if current[id]?.0 != true {
-                scene.removeEmoji(for: id)
-            }
+
+        // 3) Remove marbles that are no longer completed
+        for (id, wasCompleted) in completionCache where wasCompleted && current[id]?.0 != true {
+            scene.removeEmoji(for: id)
+            emojiCache.removeValue(forKey: id)
         }
+
+        // 4) Refresh caches
         completionCache = current.mapValues { $0.0 }
+
+        // Prune emojiCache to only keep currently completed tasks
+        let valid = Set(current.keys.filter { current[$0]?.0 == true })
+        emojiCache = emojiCache.filter { valid.contains($0.key) }
     }
+
     
     // MARK: - Seal / Unseal
     private func updateSeal(animated: Bool) {
