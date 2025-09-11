@@ -82,6 +82,7 @@ class TaskListViewModel: ObservableObject {
     }
     
     // MARK: - pre-fetching (for emoji history)
+    // find valid category emoji for a selected date
     private func prefetchCategoryEmojisForSelectedDate(_ categories: [CategoryItem]) async {
         guard let client = self.client else { return }
 
@@ -99,7 +100,7 @@ class TaskListViewModel: ObservableObject {
                     .execute()
                     .value
 
-                // 2. 없으면 (카테고리 생성 전 과거 날짜) → 가장 오래된 이모지
+                // 2. 없으면 (카테고리 생성 전 과거 날짜 조회중) → 가장 오래된 이모지
                 if rows.isEmpty {
                     rows = try await client
                         .from("category_emoji_history")
@@ -121,8 +122,7 @@ class TaskListViewModel: ObservableObject {
         await MainActor.run { self.emojiForDate = map }
     }
 
-    // Fetch latest emoji per category (effective_date DESC LIMIT 1)
-    // If no history yet (shouldn't happen after our addCategory fix), fallback to category.emoji
+    // find the latest version of category emoji
     private func prefetchLatestCategoryEmojis(_ categories: [CategoryItem]) async {
         guard let client = self.client else { return }
         var map: [UUID: String] = [:]
@@ -149,15 +149,6 @@ class TaskListViewModel: ObservableObject {
         }
         await MainActor.run { self.latestEmojiForCategory = map }
     }
-
-    // Public helper for sheets to force-refresh
-    func refreshLatestEmojis() {
-        Task {
-            await prefetchLatestCategoryEmojis(self.categoriesWithTasks.map { $0.category })
-        }
-    }
-
-
     
     // MARK: - fetching
     func fetchCategoriesAndTasks() {
@@ -534,24 +525,45 @@ class TaskListViewModel: ObservableObject {
     
     private func insertEmojiHistory(categoryId: UUID, emoji: String, effectiveDate: Date = todayDate()) async {
         guard let client = self.client else { return }
-        struct HistoryInsert: Encodable {
-            let categoryid: String
-            let emoji: String
-            let effective_date: String
-        }
-        let payload = HistoryInsert(
-            categoryid: categoryId.uuidString,
-            emoji: emoji,
-            effective_date: dateToPostgreSQLString(effectiveDate)
-        )
+        let dateStr = dateToPostgreSQLString(effectiveDate)
+
+        // 1) Try to find existing row for (categoryid, effective_date)
         do {
-            try await client.from("category_emoji_history").insert(payload).execute()
+            let existing: [CategoryEmojiHistoryRow] = try await client
+                .from("category_emoji_history")
+                .select("emoji,effective_date")
+                .eq("categoryid", value: categoryId.uuidString)
+                .eq("effective_date", value: dateStr)
+                .limit(1)
+                .execute()
+                .value
+
+            if existing.first != nil {
+                // 2-a) Update emoji only (keep same date row)
+                try await client
+                    .from("category_emoji_history")
+                    .update(["emoji": emoji])
+                    .eq("categoryid", value: categoryId.uuidString)
+                    .eq("effective_date", value: dateStr)
+                    .execute()
+            } else {
+                // 2-b) Insert new row for that date
+                struct HistoryInsert: Encodable {
+                    let categoryid: String
+                    let emoji: String
+                    let effective_date: String
+                }
+                let payload = HistoryInsert(
+                    categoryid: categoryId.uuidString,
+                    emoji: emoji,
+                    effective_date: dateStr
+                )
+                try await client.from("category_emoji_history").insert(payload).execute()
+            }
         } catch {
-            print("[CategoryEmojiHistory] insert failed:", error)
+            print("[CategoryEmojiHistory] upsert failed:", error)
         }
     }
-    
-
     
     // MARK: - create category
     func addCategory(name: String, emoji: String, privacyStatus: String, type: CategoryType) async throws {
