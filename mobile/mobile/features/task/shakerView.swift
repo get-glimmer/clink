@@ -83,13 +83,17 @@ struct ShakerView: View {
         }
         .onReceive(viewModel.$categoriesWithTasks) { _ in syncWithTasks() }
         .onReceive(viewModel.$emojiForDate) { _ in syncWithTasks()
-            updateSeal(animated: true)}
+            // isAllCompleted 였다면 이모지 변경에 따라 기존 뚜껑색 변경 유도.
+            viewModel.lidColorStart = nil
+            viewModel.lidColorEnd = nil
+        }
         .onReceive(viewModel.$isAllCompleted)      { _ in syncWithTasks()
-            updateSeal(animated: true) }
-//        .onReceive(viewModel.$taskSelectedDate) { newDate in
-//            syncWithTasks()
-//            updateSeal(animated: true)
-//        }
+            updateSeal(animated: true)
+        }
+        .onReceive(viewModel.$taskSelectedDate) { newDate in
+            syncWithTasks()
+            UnsealLidAndUpdate()
+        }
     }
     
     // MARK: - Marble Syncing
@@ -189,6 +193,15 @@ struct ShakerView: View {
         if ui.count >= 2 { return ui.prefix(2).map { Color($0) } }
         if ui.count == 1  { let c = Color(first); return [c, c.opacity(0.7)] }
         return [.black, .gray]
+    }
+    
+    private func UnsealLidAndUpdate() {
+        var tx = Transaction()
+        tx.disablesAnimations = true
+        withTransaction(tx) {
+            viewModel.isAllCompleted = false
+        }
+        updateSeal(animated: false)
     }
 }
 // MARK: - Color helpers
