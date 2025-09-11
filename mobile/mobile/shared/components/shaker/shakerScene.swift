@@ -35,7 +35,7 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
     // MARK: - Edge-loop inset
     private let inset: CGFloat = 12
     private let lidHeight: CGFloat = 40
-
+    
     // MARK: - Visual tuning
     // Strong, pleasant glow for emoji reactions
     private let glowBlurRadius: CGFloat = 8.0
@@ -193,20 +193,20 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
         node.setScale(1.0)
         
         marbles[taskId] = node
-=======
+    }
+    
     // Updates the emoji text for an existing marble without resetting physics.
     func updateEmoji(_ symbol: String, for taskId: UUID) {
         guard let node = marbles[taskId] else { return }
         guard node.text != symbol else { return }
         node.text = symbol
-
+        
         // animation
-//        let up = SKAction.scale(to: 1.2, duration: 0.08)
-//        let down = SKAction.scale(to: 1.0, duration: 0.10)
-//        node.run(.sequence([up, down]))
+        //        let up = SKAction.scale(to: 1.2, duration: 0.08)
+        //        let down = SKAction.scale(to: 1.0, duration: 0.10)
+        //        node.run(.sequence([up, down]))
     }
     
-    // Removes the emoji associated with taskId if present.
     // Removes the emoji associated with taskId if present.
     func removeEmoji(for taskId: UUID) {
         guard let node = marbles[taskId] else { return }
@@ -269,18 +269,15 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
         
         lastHapticTime = now
     }
-
     
     private func triggerHaptic() {
         let generator = UIImpactFeedbackGenerator(style: .medium)
         generator.impactOccurred()
     }
     
-    
     // MARK: - Color Extraction (for gradient lid)
     // -- ver1. jar image, background color included --
     func dominantColors(maxCount: Int = 2) -> [UIColor] {
-        
         // 1) Scene → CGImage
         guard let view,
               let texture = view.texture(from: self) else { return [] }
@@ -338,7 +335,6 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
             return UIColor(red: r, green: g, blue: b, alpha: 1.0)
         }
     }
-    
     
     // -- ver 2. consider colors of marbles only --
     func marbleDominantColors(maxCount: Int = 3) -> [UIColor] {
@@ -418,14 +414,14 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
 
 // MARK: - SKTexture → UIImage helper (iOS 16- fallback)
 private extension SKTexture {
-func uiImage() -> UIImage? {
-    let renderer = UIGraphicsImageRenderer(size: CGSize(width: size().width,
-                                                        height: size().height))
-    return renderer.image { _ in
-        UIImage(cgImage: cgImage())
-            .draw(in: CGRect(origin: .zero,
-                             size: CGSize(width: size().width,
-                                          height: size().height)))
+    func uiImage() -> UIImage? {
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: size().width,
+                                                            height: size().height))
+        return renderer.image { _ in
+            UIImage(cgImage: cgImage())
+                .draw(in: CGRect(origin: .zero,
+                                 size: CGSize(width: size().width,
+                                              height: size().height)))
+        }
     }
-}
 }
