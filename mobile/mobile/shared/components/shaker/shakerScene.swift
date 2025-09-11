@@ -35,6 +35,12 @@ final class ShakerScene: SKScene {
     // MARK: - Edge-loop inset
     private let inset: CGFloat = 12
     private let lidHeight: CGFloat = 40
+
+    // MARK: - Visual tuning
+    // Strong, pleasant glow for emoji reactions
+    private let glowBlurRadius: CGFloat = 8.0
+    private let glowAlpha: CGFloat = 0.85
+    private let glowScale: CGFloat = 1.18
     
     override init(size: CGSize) {
         super.init(size: size)
@@ -158,15 +164,16 @@ final class ShakerScene: SKScene {
         // Add glowing effect that FOLLOWS the emoji
         // Build an effect node as a CHILD of the moving label node so it doesn't leave trails
         let glowEffect = SKEffectNode()
-        glowEffect.filter = CIFilter(name: "CIGaussianBlur", parameters: ["inputRadius": 3.0])
+        glowEffect.filter = CIFilter(name: "CIGaussianBlur", parameters: ["inputRadius": glowBlurRadius])
         glowEffect.shouldRasterize = true
         glowEffect.zPosition = -1  // render behind the emoji label
-        glowEffect.alpha = 0.7
+        glowEffect.alpha = glowAlpha
         
         let glowLabel = SKLabelNode(fontNamed: "AppleColorEmoji")
         glowLabel.text = symbol
         glowLabel.fontSize = node.fontSize
         glowLabel.verticalAlignmentMode = .center
+        glowLabel.setScale(glowScale)
         
         glowEffect.addChild(glowLabel)
         node.addChild(glowEffect)
@@ -186,6 +193,14 @@ final class ShakerScene: SKScene {
         guard let node = marbles[taskId] else { return }
         node.removeFromParent()
         marbles.removeValue(forKey: taskId)
+    }
+    
+    // Removes one occurrence of an emoji by its symbol (first match)
+    func removeEmoji(symbol: String) {
+        if let match = marbles.first(where: { $0.value.text == symbol }) {
+            match.value.removeFromParent()
+            marbles.removeValue(forKey: match.key)
+        }
     }
     
     // Clears all emojis (used when the entire task list resets)

@@ -23,6 +23,7 @@ class TaskListViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private let client = SupabaseClientManager.shared.client
     private let userId: String?
+    private let viewerId: String? // current logged-in user (viewer)
     @Published var taskSelectedDate: Date = Date()
     
     @Published var username: String? = nil
@@ -33,6 +34,7 @@ class TaskListViewModel: ObservableObject {
     // MARK: - init
     init(userId: String?, date: Date = todayDate()) {
         self.userId = userId
+        self.viewerId = getUserId()
         
         Task {
             do {
@@ -66,10 +68,12 @@ class TaskListViewModel: ObservableObject {
 
         Task {
             do {
+                let allowedStatuses = await allowedPrivacyStatuses(for: userId)
                 let categories: [CategoryItem] = try await client
                     .from("category")
                     .select()
                     .eq("userid", value: userId)
+                    .in("privacy_status", value: allowedStatuses)
                     .order("createdat", ascending: true)
                     .execute()
                     .value
@@ -82,6 +86,7 @@ class TaskListViewModel: ObservableObject {
                         .eq("userid", value: userId)
                         .eq("categoryid", value: category.id.uuidString)
                         .eq("duedate", value: formattedDate(taskSelectedDate)) // changed so that "duedate" can be changed by users
+                        .in("privacy_status", value: allowedStatuses)
                         .order("createdat", ascending: true)
                         .execute()
                         .value
@@ -122,6 +127,32 @@ class TaskListViewModel: ObservableObject {
             } catch {
                 isSupabaseConnected = false
             }
+        }
+    }
+
+    // MARK: - Privacy helper
+    private func allowedPrivacyStatuses(for targetUserId: String) async -> [String] {
+        // If viewing own data → all
+        if viewerId == targetUserId { return ["public", "friends_only", "user_only"] }
+        // Check if viewer is a friend
+        do {
+            guard let client = self.client, let viewer = viewerId else { return ["public"] }
+            struct FriendshipRow: Decodable { let status: String }
+            // friendship can be stored either direction; check both
+            let a: [FriendshipRow] = try await client
+                .from("friends").select("status")
+                .eq("user_id", value: targetUserId)
+                .eq("friend_id", value: viewer)
+                .execute().value
+            let b: [FriendshipRow] = try await client
+                .from("friends").select("status")
+                .eq("user_id", value: viewer)
+                .eq("friend_id", value: targetUserId)
+                .execute().value
+            let isFriend = (a + b).contains { $0.status == "accepted" }
+            return isFriend ? ["public", "friends_only"] : ["public"]
+        } catch {
+            return ["public"]
         }
     }
 

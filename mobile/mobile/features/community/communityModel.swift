@@ -22,13 +22,3 @@ struct CommunityData {
     let friends: [Friend]
     let selectedCategory: String
 }
-
-// Sample emoji collections for different progress levels
-enum EmojiCollections {
-    static let nature = ["🌸", "🌺", "🌻", "🌷", "🌹", "🌿", "🍀", "🌱"]
-    static let food = ["🍎", "🍊", "🍌", "🍓", "🥕", "🥒", "🍅", "🥑"]
-    static let sports = ["⚽", "🏀", "🏈", "⚾", "🎾", "🏐", "🏓", "🥎"]
-    static let winter = ["❄️", "☃️", "🎿", "⛄", "🧊", "🏔️", "🌨️", "🥶"]
-    static let art = ["🎨", "🖌️", "✏️", "📝", "📚", "🖍️", "🎭", "🎪"]
-    static let music = ["🎵", "🎶", "🎤", "🎧", "🎸", "🥁", "🎹", "🎺"]
-}

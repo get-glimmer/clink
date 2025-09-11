@@ -461,12 +461,15 @@ class CommunityService: ObservableObject {
         let dateString = formatter.string(from: date)
         
         do {
+            // Determine allowed privacy statuses for this viewer/target
+            let allowed = try await allowedPrivacyStatuses(viewerId: currentUserId, targetUserId: friendId)
+            
             // First, fetch friend's categories with privacy filtering
             let categories: [CategoryItem] = try await supabase
                 .from("category")
                 .select("*")
                 .eq("userid", value: friendId)
-                .in("privacy_status", value: ["public", "friends_only"]) // Exclude user_only
+                .in("privacy_status", value: allowed)
                 .execute()
                 .value
             
@@ -479,8 +482,8 @@ class CommunityService: ObservableObject {
                     .select("*")
                     .eq("userid", value: friendId)
                     .eq("categoryid", value: category.id.uuidString)
-                    .gte("createdat", value: dateString)
-                    .lt("createdat", value: dateString + " 23:59:59")
+                    .eq("duedate", value: dateString)
+                    .in("privacy_status", value: allowed)
                     .execute()
                     .value
                 
@@ -500,6 +503,29 @@ class CommunityService: ObservableObject {
         } catch {
             print("Error fetching friend's tasks: \(error)")
             throw error
+        }
+    }
+
+    // Determine what privacy_status values the viewer can see for target user
+    private func allowedPrivacyStatuses(viewerId: String, targetUserId: String) async throws -> [String] {
+        if viewerId == targetUserId { return ["public", "friends_only", "user_only"] }
+        // Check friendship in either direction with status 'accepted'
+        struct Row: Decodable { let status: String }
+        do {
+            let a: [Row] = try await supabase!
+                .from("friends").select("status")
+                .eq("user_id", value: targetUserId)
+                .eq("friend_id", value: viewerId)
+                .execute().value
+            let b: [Row] = try await supabase!
+                .from("friends").select("status")
+                .eq("user_id", value: viewerId)
+                .eq("friend_id", value: targetUserId)
+                .execute().value
+            let isFriend = (a + b).contains { $0.status == "accepted" }
+            return isFriend ? ["public", "friends_only"] : ["public"]
+        } catch {
+            return ["public"]
         }
     }
     
@@ -627,6 +653,7 @@ class CommunityService: ObservableObject {
     }
     
     /// Submit a note to a friend's shaker
+    /// Enforces at most one note per (user, shaker). If a note already exists, it is updated.
     func submitNote(to shakerId: UUID, content: String, fromUserId: UUID) async throws {
         guard let supabase = supabase else {
             throw NSError(domain: "SupabaseError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Supabase client not initialized"])
@@ -636,15 +663,53 @@ class CommunityService: ObservableObject {
         // let hasOffensiveContent = await containsOffensiveLanguage(content)
         // if hasOffensiveContent { throw OffensiveLanguageError() }
         
-        let noteData = [
-            "user_id": fromUserId.uuidString,
-            "shaker_id": shakerId.uuidString,
-            "note_content": content
-        ]
+        // 1) Check if a note from this user already exists for the shaker
+        let existing = try await supabase.database
+            .from("notes")
+            .select("note_id")
+            .eq("user_id", value: fromUserId)
+            .eq("shaker_id", value: shakerId)
+            .limit(1)
+            .execute()
+            .data
         
+        // Try to parse an existing note_id
+        var existingNoteId: String?
+        if let jsonArray = try? JSONSerialization.jsonObject(with: existing) as? [[String: Any]] {
+            existingNoteId = jsonArray.first?["note_id"] as? String
+        }
+        
+        if let noteId = existingNoteId {
+            // 2) Update existing note content (and let DB set updated_at/created_at as needed)
+            let _ = try await supabase.database
+                .from("notes")
+                .update(["note_content": content])
+                .eq("note_id", value: noteId)
+                .execute()
+        } else {
+            // 3) Insert new
+            let _ = try await supabase.database
+                .from("notes")
+                .insert([
+                    "user_id": fromUserId.uuidString,
+                    "shaker_id": shakerId.uuidString,
+                    "note_content": content
+                ])
+                .execute()
+        }
+    }
+
+    /// Delete an emoji-only note for a given shaker and user (used when unliking a category)
+    func deleteEmojiNote(shakerId: UUID, userId: UUID, emoji: String) async throws {
+        guard let supabase = supabase else {
+            throw NSError(domain: "SupabaseError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Supabase client not initialized"])
+        }
         let _ = try await supabase.database
             .from("notes")
-            .insert(noteData)
+            .delete()
+            .eq("shaker_id", value: shakerId)
+            .eq("user_id", value: userId)
+            .eq("note_content", value: emoji)
             .execute()
     }
     
@@ -706,6 +771,42 @@ class CommunityService: ObservableObject {
         }
         
         return try decoder.decode([NoteRecord].self, from: data)
+    }
+
+    /// Check if a specific user already has a TEXT note for the given shaker (excluding emoji-only content)
+    func userHasTextNote(shakerId: UUID, userId: UUID) async throws -> Bool {
+        guard let supabase = supabase else {
+            throw NSError(domain: "SupabaseError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Supabase client not initialized"])
+        }
+        
+        let response = try await supabase.database
+            .from("notes")
+            .select("note_content")
+            .eq("shaker_id", value: shakerId)
+            .eq("user_id", value: userId)
+            .order("created_at", ascending: false)
+            .limit(1)
+            .execute()
+        
+        guard let jsonArray = try? JSONSerialization.jsonObject(with: response.data) as? [[String: Any]],
+              let first = jsonArray.first,
+              let content = first["note_content"] as? String else {
+            return false
+        }
+        
+        return !isEmojiOnly(content)
+    }
+    
+    // Local helper to check if a string is emoji-only (duplicate of UI logic to avoid cross-module deps)
+    private func isEmojiOnly(_ text: String) -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        for scalar in trimmed.unicodeScalars {
+            if !scalar.properties.isEmoji {
+                return false
+            }
+        }
+        return true
     }
     
     // Note: We intentionally do not persist note emoji into category_emojis.

@@ -369,367 +369,6 @@ struct FriendMenuSheet: View {
     }
 }
 
-struct FriendShakerView: View {
-    let friend: Friend
-    @State private var scene: ShakerScene?
-    
-    var body: some View {
-        GeometryReader { geo in
-            let side = min(geo.size.width, geo.size.height)
-            let jarSize = CGSize(width: side, height: side)
-            
-            ZStack {
-                // Background jar image
-                Image("jar")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: jarSize.width, height: jarSize.height)
-                    .allowsHitTesting(false)
-                
-                // SpriteKit scene with friend's emojis
-                if let scene = scene {
-                    SpriteView(scene: scene, options: [.allowsTransparency])
-                        .frame(width: jarSize.width, height: jarSize.height)
-                        .allowsHitTesting(false) // Disable interaction for friend cards
-            }
-        }
-        .onAppear {
-                setupScene(jarSize: jarSize)
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .friendShakerNoteAdded)) { notification in
-            if let friendUserId = notification.userInfo?["friendUserId"] as? String,
-               friendUserId == friend.userId {
-                // Add note emoji to this friend's shaker card
-                addNoteEmojiToCard()
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .friendShakerEmojiReactionAdded)) { notification in
-            if let friendUserId = notification.userInfo?["friendUserId"] as? String,
-               let emoji = notification.userInfo?["emoji"] as? String,
-               friendUserId == friend.userId {
-                // Add glowing emoji reaction to this friend's shaker card
-                addGlowingEmojiToCard(emoji)
-            }
-        }
-    }
-    
-    private func setupScene(jarSize: CGSize) {
-        // Keep scene size smaller to maintain emoji scale
-        let sceneSize = CGSize(width: 400, height: 400)
-        scene = ShakerScene(size: sceneSize)
-        
-        // Use default boundaries - custom boundaries were causing floating emojis
-        // scene?.configureBoundaries(inset: 60, lidHeight: 80)
-        
-        // Add friend's emojis to the scene with a small delay to ensure proper positioning
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            for emoji in friend.emojis {
-                let taskId = UUID() // Generate unique ID for each emoji
-                scene?.addEmoji(emoji, for: taskId)
-            }
-        }
-        
-        // If this shaker has any notes in DB, show a single note emoji
-        Task {
-            do {
-                if let shakerId = try await CommunityService().getCurrentShakerForUser(userId: friend.userId),
-                   !(try await CommunityService().getNotesForShaker(shakerId: shakerId, limit: 1)).isEmpty {
-                    await MainActor.run {
-                        let noteEmoji = "🗒️"
-                        if scene?.hasEmoji(noteEmoji) != true {
-                            let taskId = UUID()
-                            scene?.addEmoji(noteEmoji, for: taskId)
-                        }
-                    }
-                }
-                
-                // Load recent emoji-only reactions and display them as glowing emojis (deduped)
-                if let shakerId = try await CommunityService().getCurrentShakerForUser(userId: friend.userId) {
-                    let recent = try await CommunityService().getNotesForShaker(shakerId: shakerId, limit: 10)
-                    let symbols = Array(Set(recent.compactMap { $0.noteContent.isEmojiOnly ? $0.noteContent.firstEmoji : nil })).prefix(5)
-                    await MainActor.run {
-                        for symbol in symbols {
-                            if scene?.hasEmoji(symbol) != true {
-                                let taskId = UUID()
-                                scene?.addGlowingEmoji(symbol, for: taskId)
-                            }
-                        }
-                    }
-                }
-            } catch {
-                // silently ignore note-check failures
-            }
-        }
-        
-        // Disable motion for friend cards (they should be static displays)
-        scene?.setMotionEnabled(false)
-    }
-    
-    private func addNoteEmojiToCard() {
-        let noteEmoji = "🗒️"
-        // Prevent duplicate note emoji in the card scene
-        if scene?.hasEmoji(noteEmoji) == true { return }
-        let taskId = UUID()
-        scene?.addEmoji(noteEmoji, for: taskId)
-    }
-    
-    private func addGlowingEmojiToCard(_ emoji: String) {
-        let taskId = UUID()
-        scene?.addGlowingEmoji(emoji, for: taskId)
-    }
-}
-
-struct FriendDetailView: View {
-    let friend: Friend
-    @Environment(\.dismiss) private var dismiss
-    @State private var sheetProgress: CGFloat = 0
-    @State private var showingNoteSheet = false
-    @State private var showingNotesPopup = false
-    @State private var isFavorite: Bool
-    @StateObject private var communityViewModel = CommunityViewModel()
-    
-    init(friend: Friend) {
-        self.friend = friend
-        self._isFavorite = State(initialValue: friend.isFavorite)
-    }
-    
-    var body: some View {
-        GeometryReader { geo in
-            let fullWidth = geo.size.width * 0.9
-            let scale = max(0.4, 1 - 0.6 * sheetProgress)
-            let shakerSide = fullWidth * scale
-            
-            ZStack(alignment: .top) {
-                VStack(spacing: 12) {
-                    // Header with friend name and navigation
-                    headerSection
-                    
-                    // Friend's Shaker
-                    FriendShakerDetailView(friend: friend) {
-                        // When notes emoji is tapped, show the notes popup
-                        showNotesPopup()
-                    }
-                        .frame(width: shakerSide, height: shakerSide)
-                        .frame(maxWidth: 275)
-                        .padding(.top, 16)
-                        .overlay(
-                            // Leave a Note button overlaid on the jar
-                            VStack {
-                                Spacer()
-                                    .frame(height: shakerSide * 0.3) // Position button lower on jar
-                                leaveNoteButton
-                                    .scaleEffect(scale * 0.8) // Scale with shaker but smaller
-                                Spacer()
-                            },
-                            alignment: .top
-                        )
-                }
-                
-                // Bottom Sheet with friend's tasks (read-only)
-                BottomSheet(
-                    minHeight: 340,
-                    maxHeight: 560,
-                    progress: $sheetProgress
-                ) {
-                    FriendTasksView(friend: friend)
-                }
-            }
-            .animation(.easeInOut, value: scale)
-        }
-        .ignoresSafeArea(edges: .bottom)
-        .navigationBarHidden(true)
-        .sheet(isPresented: $showingNoteSheet) {
-            LeaveNoteSheet(friend: friend)
-                .presentationBackground(.clear)
-                .presentationDetents([.fraction(1.0)])
-        }
-        .fullScreenCover(isPresented: $showingNotesPopup) {
-            NotesPopupView(friend: friend)
-        }
-    }
-    
-    private var headerSection: some View {
-        HStack {
-            // Back button
-            Button(action: {
-                dismiss()
-            }) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(AppColors.textWhite)
-            }
-            
-            Spacer()
-            
-            // Friend name
-            Text(friend.name)
-                .foregroundColor(AppColors.textWhite)
-                .font(.system(size: 24, weight: .bold))
-            
-            Spacer()
-            
-            // Favorite star
-            Button(action: {
-                // Toggle local state immediately for instant UI feedback
-                isFavorite.toggle()
-                
-                // Update database in background
-                if isFavorite {
-                    communityViewModel.addFriendToFavorites(named: friend.name)
-                } else {
-                    communityViewModel.removeFriendFromFavorites(named: friend.name)
-                }
-            }) {
-                Image(systemName: isFavorite ? "star.fill" : "star")
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(isFavorite ? Color.yellow : AppColors.textWhite)
-            }
-        }
-        .padding(.horizontal, 20)
-        .padding(.top, 10)
-    }
-    
-    private var leaveNoteButton: some View {
-        Button(action: {
-            showingNoteSheet = true
-        }) {
-                Text("Leave a Note")
-                    .foregroundColor(AppColors.neutral800)
-                    .font(.system(size: 16, weight: .medium))
-                .padding(.horizontal, 36)
-                .padding(.vertical, 14)
-            }
-        .frame(width: 180, height: 51)
-            .background(AppColors.textWhite)
-        .cornerRadius(30)
-        }
-    
-    private func showNotesPopup() {
-        // Show popup immediately and load notes inside it
-        showingNotesPopup = true
-    }
-    
-}
-
-// Dedicated shaker view for friend detail (with motion enabled)
-struct FriendShakerDetailView: View {
-    let friend: Friend
-    let onNotesEmojiTapped: () -> Void
-    @State private var scene: ShakerScene?
-    
-    var body: some View {
-        GeometryReader { geo in
-            let side = min(geo.size.width, geo.size.height)
-            let jarSize = CGSize(width: side, height: side)
-            
-            ZStack {
-                // Background jar image
-                Image("jar")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: jarSize.width, height: jarSize.height)
-                    .allowsHitTesting(false)
-                
-                // SpriteKit scene with friend's emojis
-                if let scene = scene {
-                    SpriteView(scene: scene, options: [.allowsTransparency])
-                        .frame(width: jarSize.width, height: jarSize.height)
-            }
-        }
-        .onAppear {
-                setupScene(jarSize: jarSize)
-            }
-        }
-        .onDisappear {
-            scene?.setMotionEnabled(false)
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .friendShakerNoteAdded)) { notification in
-            if let friendUserId = notification.userInfo?["friendUserId"] as? String,
-               friendUserId == friend.userId {
-                // Add note emoji to this friend's shaker
-                addNoteEmoji()
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .friendShakerEmojiReactionAdded)) { notification in
-            if let friendUserId = notification.userInfo?["friendUserId"] as? String,
-               let emoji = notification.userInfo?["emoji"] as? String,
-               friendUserId == friend.userId {
-                // Add glowing emoji reaction to this friend's shaker
-                addGlowingEmoji(emoji)
-            }
-        }
-    }
-    
-    private func setupScene(jarSize: CGSize) {
-        // Keep scene size smaller to maintain emoji scale  
-        let sceneSize = CGSize(width: 275, height: 275)
-        scene = ShakerScene(size: sceneSize)
-        
-        // Use default boundaries - custom boundaries were causing floating emojis  
-        // scene?.configureBoundaries(inset: 25, lidHeight: 50)
-        
-        // Set up the callback for notes emoji taps
-        scene?.onNotesEmojiTapped = onNotesEmojiTapped
-        
-        // Add friend's emojis to the scene
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            for emoji in friend.emojis {
-                let taskId = UUID()
-                scene?.addEmoji(emoji, for: taskId)
-            }
-        }
-        
-        // If this shaker has any notes in DB, show a single note emoji
-        Task {
-            do {
-                if let shakerId = try await CommunityService().getCurrentShakerForUser(userId: friend.userId),
-                   !(try await CommunityService().getNotesForShaker(shakerId: shakerId, limit: 1)).isEmpty {
-                    await MainActor.run {
-                        let noteEmoji = "🗒️"
-                        if scene?.hasEmoji(noteEmoji) != true {
-                            let taskId = UUID()
-                            scene?.addEmoji(noteEmoji, for: taskId)
-                        }
-                    }
-                }
-                
-                // Load recent emoji-only reactions and display them as glowing emojis (deduped)
-                if let shakerId = try await CommunityService().getCurrentShakerForUser(userId: friend.userId) {
-                    let recent = try await CommunityService().getNotesForShaker(shakerId: shakerId, limit: 10)
-                    let symbols = Array(Set(recent.compactMap { $0.noteContent.isEmojiOnly ? $0.noteContent.firstEmoji : nil })).prefix(5)
-                    await MainActor.run {
-                        for symbol in symbols {
-                            if scene?.hasEmoji(symbol) != true {
-                                let taskId = UUID()
-                                scene?.addGlowingEmoji(symbol, for: taskId)
-                            }
-                        }
-                    }
-                }
-            } catch {
-                // silently ignore note-check failures
-            }
-        }
-        
-        // Enable motion for interactive experience
-        scene?.setMotionEnabled(true)
-    }
-    
-    private func addNoteEmoji() {
-        let noteEmoji = "🗒️"
-        // Prevent duplicate note emoji in the detail scene
-        if scene?.hasEmoji(noteEmoji) == true { return }
-        let taskId = UUID()
-        scene?.addEmoji(noteEmoji, for: taskId)
-    }
-    
-    private func addGlowingEmoji(_ emoji: String) {
-        let taskId = UUID()
-        scene?.addGlowingEmoji(emoji, for: taskId)
-    }
-}
-
 // Read-only view of friend's tasks
 struct FriendTasksView: View {
     let friend: Friend
@@ -838,11 +477,44 @@ struct FriendTasksView: View {
                     self.categoriesWithTasks = tasks
                     self.isLoading = false
                 }
+                
+                // After loading tasks, pre-populate shaker with any categories the current user already liked
+                await addLikedCategoryEmojisToShaker()
             } catch {
                 await MainActor.run {
                     self.errorMessage = "Failed to load tasks: \(error.localizedDescription)"
                     self.isLoading = false
                 }
+            }
+        }
+    }
+    
+    /// Checks which of friend's categories are already liked by the current user and posts events to show glowing emojis.
+    private func addLikedCategoryEmojisToShaker() async {
+        guard let currentUserId = getUserId(),
+              let userId = UUID(uuidString: currentUserId) else { return }
+        
+        var addedSymbols: Set<String> = []
+        for categoryWithTasks in categoriesWithTasks {
+            let categoryId = categoryWithTasks.category.id
+            do {
+                let liked = try await communityService.isLiked(categoryId: categoryId, userId: userId)
+                if liked {
+                    let symbol = categoryWithTasks.category.emoji
+                    if !addedSymbols.contains(symbol) {
+                        addedSymbols.insert(symbol)
+                        NotificationCenter.default.post(
+                            name: .friendShakerEmojiReactionAdded,
+                            object: nil,
+                            userInfo: [
+                                "friendUserId": friend.userId,
+                                "emoji": symbol
+                            ]
+                        )
+                    }
+                }
+            } catch {
+                // ignore like check errors here
             }
         }
     }
@@ -863,7 +535,11 @@ struct FriendTasksView: View {
                     Spacer()
                     
                     // Like button for all categories
-                    HeartButton(categoryId: categoryWithTasks.category.id)
+                    HeartButton(
+                        categoryId: categoryWithTasks.category.id,
+                        categoryEmoji: categoryWithTasks.category.emoji,
+                        friendUserId: friend.userId
+                    )
                 }
                 
                 // Tasks (read-only)
@@ -1158,6 +834,8 @@ struct LeaveNoteSheet: View {
 // Interactive heart button component
 struct HeartButton: View {
     let categoryId: UUID
+    let categoryEmoji: String
+    let friendUserId: String
     @State private var isLiked: Bool = false
     @State private var isLoading: Bool = false
     @StateObject private var communityService = CommunityService()
@@ -1217,6 +895,7 @@ struct HeartButton: View {
         
         Task {
             do {
+                let willLike = !isLiked
                 if isLiked {
                     try await communityService.unlikeCategory(categoryId: categoryId, userId: userId)
                 } else {
@@ -1228,6 +907,27 @@ struct HeartButton: View {
                         self.isLiked.toggle()
                     }
                     self.isLoading = false
+                    // On like, drop the category emoji as a glowing reaction in the jar
+                    if willLike {
+                        NotificationCenter.default.post(
+                            name: .friendShakerEmojiReactionAdded,
+                            object: nil,
+                            userInfo: [
+                                "friendUserId": friendUserId,
+                                "emoji": categoryEmoji
+                            ]
+                        )
+                    } else {
+                        // On unlike, remove one occurrence of the emoji from the jar
+                        NotificationCenter.default.post(
+                            name: .friendShakerEmojiReactionRemoved,
+                            object: nil,
+                            userInfo: [
+                                "friendUserId": friendUserId,
+                                "emoji": categoryEmoji
+                            ]
+                        )
+                    }
                 }
             } catch {
                 await MainActor.run {
@@ -1236,174 +936,6 @@ struct HeartButton: View {
                 }
             }
         }
-    }
-}
-
-// MARK: - Notes Popup View
-struct NotesPopupView: View {
-    let friend: Friend
-    @State private var notes: [NoteRecord] = []
-    @State private var isLoading: Bool = true
-    @StateObject private var communityService = CommunityService()
-    @Environment(\.dismiss) private var dismiss
-    
-    var body: some View {
-        ZStack {
-            // Semi-transparent background
-            Color.black.opacity(0.4)
-                .ignoresSafeArea()
-                .onTapGesture {
-            dismiss()
-        }
-            
-            // Main popup content
-            VStack(spacing: 0) {
-                // Header with title and close button
-                HStack {
-                    Text("Notes for \(friend.name)")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundColor(AppColors.neutral800)
-                    
-                    Spacer()
-                    
-                    Button(action: {
-                        dismiss()
-                    }) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(AppColors.neutral600)
-                    }
-                }
-                .padding(.horizontal, 24)
-                .padding(.top, 24)
-                .padding(.bottom, 16)
-                
-                // Notes content
-                if isLoading {
-                    // Loading state
-                    VStack(spacing: 16) {
-                        ProgressView()
-                            .scaleEffect(1.2)
-                        
-                        Text("Loading notes...")
-                            .font(.system(size: 16))
-                            .foregroundColor(AppColors.neutral600)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(.vertical, 40)
-                } else if notes.isEmpty {
-                    // Empty state
-                    VStack(spacing: 16) {
-                        Image(systemName: "note.text")
-                            .font(.system(size: 48))
-                            .foregroundColor(AppColors.neutral400)
-                        
-                        Text("No notes yet")
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundColor(AppColors.neutral600)
-                        
-                        Text("Be the first to leave a note for \(friend.name)!")
-                            .font(.system(size: 14))
-                            .foregroundColor(AppColors.neutral500)
-                            .multilineTextAlignment(.center)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(.vertical, 40)
-                } else {
-                    // Notes list
-                    ScrollView {
-                        LazyVStack(spacing: 12) {
-                            ForEach(notes) { note in
-                                NoteCardView(note: note)
-                            }
-                        }
-                        .padding(.horizontal, 24)
-                        .padding(.bottom, 24)
-                    }
-                }
-            }
-            .frame(width: 350, height: 450)
-            .background(Color.white)
-            .cornerRadius(16)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.clear)
-        .onAppear {
-            loadNotes()
-        }
-    }
-    
-    private func loadNotes() {
-        Task {
-            isLoading = true
-            print("🎬 NotesPopupView loading notes for \(friend.name)")
-            
-            do {
-                // Get the friend's shaker ID for today
-                if let shakerId = try await communityService.getCurrentShakerForUser(
-                    userId: friend.userId,
-                    date: Date()
-                ) {
-                    // Load random notes for this shaker
-                    let loadedNotes = try await communityService.getNotesForShaker(
-                        shakerId: shakerId,
-                        limit: 5 // Show up to 5 random notes
-                    )
-                    await MainActor.run {
-                        // Filter out emoji-only reactions (they appear as glowing emojis in jar)
-                        notes = loadedNotes.filter { !$0.noteContent.isEmojiOnly }
-                        isLoading = false
-                        print("🎬 NotesPopupView loaded \(notes.count) text notes (filtered out emoji reactions)")
-                        print("🎬 Notes: \(notes.map { $0.noteContent })")
-                    }
-                } else {
-                    await MainActor.run {
-                        notes = []
-                        isLoading = false
-                        print("🎬 NotesPopupView: No shaker found")
-                    }
-                }
-            } catch {
-                await MainActor.run {
-                    notes = []
-                    isLoading = false
-                    print("🎬 NotesPopupView error: \(error)")
-                }
-            }
-        }
-    }
-}
-
-// MARK: - Note Card View
-struct NoteCardView: View {
-    let note: NoteRecord
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Note content
-            Text(note.noteContent)
-                .font(.system(size: 15))
-                .foregroundColor(AppColors.neutral800)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
-            
-            // Timestamp
-            HStack {
-                Spacer()
-                Text(timeAgoString(from: note.createdAt))
-                    .font(.system(size: 12))
-                    .foregroundColor(AppColors.neutral500)
-            }
-        }
-        .padding(16)
-        .background(AppColors.neutral100)
-        .cornerRadius(12)
-    }
-    
-    private func timeAgoString(from date: Date) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .short
-        return formatter.localizedString(for: date, relativeTo: Date())
     }
 }
 
@@ -1437,6 +969,7 @@ extension String {
 extension Notification.Name {
     static let friendShakerNoteAdded = Notification.Name("friendShakerNoteAdded")
     static let friendShakerEmojiReactionAdded = Notification.Name("friendShakerEmojiReactionAdded")
+    static let friendShakerEmojiReactionRemoved = Notification.Name("friendShakerEmojiReactionRemoved")
 }
 
 #Preview {
