@@ -146,6 +146,7 @@ struct CategoriesSheet: View {
         }
         .fullScreenCover(item: $editingCategory) { cat in
             EditCategorySheet(
+                viewModel: viewModel,
                 category: cat,
                 onDone: { emoji, name, privacy, type in
                     Task {
@@ -167,13 +168,14 @@ struct CategoriesSheet: View {
                 }
             )
         }
+
     }
     
     // MARK: - Category Row
     private func categoryRow(cat: CategoryItem) -> some View {
         VStack(spacing: 8) {
             HStack {
-                Text(cat.emoji)
+                Text(viewModel.latestEmoji(for: cat.id, defaultEmoji: cat.emoji))
                     .appFont(AppFont.title1)
                 Text(cat.name)
                     .appFont(AppFont.title3)
