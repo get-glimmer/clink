@@ -42,7 +42,6 @@ public struct ChangeDateSheet: View {
             .contentShape(Rectangle())
             .onTapGesture {        // tap outside to close
                 onCancel()
-                dismiss()
             }
 
             // Card
@@ -55,7 +54,6 @@ public struct ChangeDateSheet: View {
                     Spacer()
                     Button {
                         onCancel()
-                        dismiss()
                     } label: {
                         Image(systemName: "xmark")
                             .font(.system(size: 18, weight: .light))
@@ -88,7 +86,6 @@ public struct ChangeDateSheet: View {
                 // --- Confirm button ---
                 Button {
                     onConfirm(pickedDate)
-                    dismiss()
                 } label: {
                     Text("Confirm")
                         .frame(maxWidth: .infinity, minHeight: 50)

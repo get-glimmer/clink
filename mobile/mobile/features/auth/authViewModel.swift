@@ -128,7 +128,8 @@ class AuthViewModel: ObservableObject {
         username: String?,
         dob: Date?,
         profileImage: UIImage?,
-        email: String?
+        email: String?,
+        affectAuthState: Bool = true
     ) async {
         guard let client = client else { return }
 
@@ -304,24 +305,66 @@ class AuthViewModel: ObservableObject {
     /**
      * Deletes the current user's account.
      */
+//    func deleteAccount() async {
+//        guard let client = self.client else { return }
+//        do {
+//            let user = try await client.auth.session.user
+//            
+//            try await client
+//                .from("profiles")
+//                .delete()
+//                .eq("id", value: user.id.uuidString)
+//                .execute()
+//            
+//            try await client.auth.signOut()
+//            isAuthenticated = false
+//            profile = nil
+//            
+//            print("✅ Profile deleted and logged out")
+//        } catch {
+//            print("Delete profile error:", error.localizedDescription)
+//        }
+//    }
+    
+    // In your AuthViewModel
+
+    
+
+    // In your AuthViewModel
+
     func deleteAccount() async {
         guard let client = self.client else { return }
+        
         do {
-            let user = try await client.auth.session.user
+            print("Attempting to call Edge Function...")
+            _ = try await client.functions.invoke("delete-user-rpc")
             
-            try await client
-                .from("profiles")
-                .delete()
-                .eq("id", value: user.id.uuidString)
-                .execute()
-            
-            try await client.auth.signOut()
             isAuthenticated = false
             profile = nil
             
-            print("✅ Profile deleted and logged out")
+            print("✅ Account deletion successfully triggered via Edge Function.")
         } catch {
-            print("Delete profile error:", error.localizedDescription)
+            // ✅ THIS NEW CATCH BLOCK WILL DECODE THE DETAILED ERROR
+            print("❌ Delete account error occurred. Decoding details...")
+
+            // Check if the error is a specific FunctionsError
+            if let functionsError = error as? FunctionsError {
+                switch functionsError {
+                case .httpError(let code, let data):
+                    print("   > HTTP Status Code: \(code)")
+                    // Try to decode the raw data into a readable string (JSON)
+                    if let jsonString = String(data: data, encoding: .utf8) {
+                        print("   > Raw Error Payload: \(jsonString)")
+                    } else {
+                        print("   > Could not decode error data.")
+                    }
+                case .relayError:
+                    print("   > Relay Error: \(error)")
+                }
+            } else {
+                // Print any other type of error
+                print("   > An unexpected error type occurred: \(error.localizedDescription)")
+            }
         }
     }
 
@@ -343,6 +386,42 @@ class AuthViewModel: ObservableObject {
         self.profile = response.value
         print("✅ Name updated in AuthViewModel: \(self.profile?.name ?? "nil")")
     }
+    
+    func updateAvatar(userId: String, profileImage: UIImage) async {
+        guard let client = client else { return }
+        
+        do {
+            // 1. Convert image to Data
+            guard let data = profileImage.jpegData(compressionQuality: 0.8) else { return }
+            let filePath = "\(userId)/profile.jpg"
+            
+            // 2. Upload to Supabase storage
+            try await client.storage
+                .from("avatars")
+                .upload(filePath, data: data, options: FileOptions(upsert: true))
+            
+            // 3. Get public URL
+            guard let url = try? client.storage.from("avatars").getPublicURL(path: filePath) else { return }
+            let avatarUrl = url.absoluteString
+            
+            // 4. Update only avatar_url in profiles
+            try await client
+                .from("profiles")
+                .update(["avatar_url": avatarUrl])
+                .eq("id", value: userId)
+                .execute()
+            
+            // 5. Optimistically update local profile (no redirect)
+            DispatchQueue.main.async {
+                self.profile?.avatar_url = avatarUrl
+            }
+            
+            print("✅ Avatar updated successfully")
+        } catch {
+            print("❌ Error updating avatar:", error.localizedDescription)
+        }
+    }
+
 
     /**
      * Loads the current user's profile.
