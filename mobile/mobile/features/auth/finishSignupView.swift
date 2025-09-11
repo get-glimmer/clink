@@ -22,7 +22,7 @@ struct FinishSignupView: View {
     @State private var fullName: String = ""
     @State private var username: String = ""
     @State private var dateOfBirth: Date = Date()
-    @State private var showDatePicker = false
+    @State private var showChangeDateSheet = false
     @State private var profileImage: UIImage?
     @State private var isLoading = false
     @State private var photoItem: PhotosPickerItem?
@@ -141,7 +141,7 @@ struct FinishSignupView: View {
                             .foregroundColor(Color("Neutral-300"))
 
                         Button {
-                            showDatePicker = true
+                            showChangeDateSheet = true
                         } label: {
                             HStack {
                                 if hasSelectedDate {
@@ -160,34 +160,50 @@ struct FinishSignupView: View {
                             .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color("Neutral-600")))
                             .cornerRadius(12)
                         }
-                        .sheet(isPresented: $showDatePicker) {
-                            VStack {
-                                Text("Select your birthdate")
-                                    .font(.headline)
-                                    .padding()
-
-                                DatePicker(
-                                    "",
-                                    selection: $dateOfBirth,
-                                    displayedComponents: .date
+                        .overlay(alignment: .bottomLeading) {
+                            if showChangeDateSheet {
+                                ChangeDateSheet(
+                                    initialDate: todayDate(),
+                                    onConfirm: { picked in
+                                        dateOfBirth = picked
+                                        hasSelectedDate = true
+                                        showChangeDateSheet = false
+                                    },
+                                    onCancel: { showChangeDateSheet = false }
                                 )
-                                .datePickerStyle(.graphical)
-                                .labelsHidden()
-                                .padding()
-
-                                Button("Done") {
-                                    hasSelectedDate = true
-                                    showDatePicker = false
-                                }
-                                .padding()
-                                .frame(maxWidth: .infinity)
-                                .background(Color.green)
-                                .foregroundColor(.black)
-                                .cornerRadius(12)
-                                .padding()
+                                .transition(.opacity)
+                                .ignoresSafeArea()
                             }
-                            .presentationDetents([.medium])
                         }
+                        .animation(.easeInOut(duration: 0.25), value: showChangeDateSheet)
+//                        .sheet(isPresented: $showChangeDateSheet) {
+//                            VStack {
+//                                Text("Select your birthdate")
+//                                    .font(.headline)
+//                                    .padding()
+//
+//                                DatePicker(
+//                                    "",
+//                                    selection: $dateOfBirth,
+//                                    displayedComponents: .date
+//                                )
+//                                .datePickerStyle(.graphical)
+//                                .labelsHidden()
+//                                .padding()
+//
+//                                Button("Done") {
+//                                    hasSelectedDate = true
+//                                    showChangeDateSheet = false
+//                                }
+//                                .padding()
+//                                .frame(maxWidth: .infinity)
+//                                .background(Color.green)
+//                                .foregroundColor(.black)
+//                                .cornerRadius(12)
+//                                .padding()
+//                            }
+//                            .presentationDetents([.medium])
+//                        }
 
                         Text("Your birthday won't be shared with other people.")
                             .font(.caption2)
@@ -269,5 +285,45 @@ struct FinishSignupView: View {
         }
         .navigationTitle("")
         .navigationBarBackButtonHidden(true)
+    }
+}
+
+struct FinishSignupView_Previews: PreviewProvider {
+    static var previews: some View {
+        
+        // MARK: - Preview for Email Signup Flow
+        
+        // This preview simulates the state where a user has entered
+        // an email and password on the previous screen.
+        NavigationStack {
+            FinishSignupView(
+                phoneNumber: nil,
+                email: "test@example.com",
+                password: "password123",
+                userId: nil,
+                path: .constant(NavigationPath()) // Provides a constant binding for the preview
+            )
+            .environmentObject(AuthViewModel()) // Injects a mock AuthViewModel
+            .preferredColorScheme(.dark)
+        }
+        .previewDisplayName("Email Signup Flow")
+        
+        
+        // MARK: - Preview for Phone Signup Flow
+        
+        // This preview simulates the state where a user has already
+        // authenticated with their phone number and received a user ID.
+        NavigationStack {
+            FinishSignupView(
+                phoneNumber: "123-456-7890",
+                email: nil,
+                password: nil,
+                userId: "a1b2c3d4-e5f6-7890-1234-567890abcdef", // Example mock user ID
+                path: .constant(NavigationPath())
+            )
+            .environmentObject(AuthViewModel())
+            .preferredColorScheme(.dark)
+        }
+        .previewDisplayName("Phone Signup Flow")
     }
 }

@@ -269,14 +269,14 @@ final class ShakerScene: SKScene {
 
 // MARK: - SKTexture → UIImage helper (iOS 16- fallback)
 private extension SKTexture {
-func uiImage() -> UIImage? {
-    let renderer = UIGraphicsImageRenderer(size: CGSize(width: size().width,
-                                                        height: size().height))
-    return renderer.image { _ in
-        UIImage(cgImage: cgImage())
-            .draw(in: CGRect(origin: .zero,
-                             size: CGSize(width: size().width,
-                                          height: size().height)))
+    func uiImage() -> UIImage? {
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: size().width,
+                                                            height: size().height))
+        return renderer.image { _ in
+            UIImage(cgImage: cgImage())
+                .draw(in: CGRect(origin: .zero,
+                                 size: CGSize(width: size().width,
+                                              height: size().height)))
+        }
     }
-}
 }
