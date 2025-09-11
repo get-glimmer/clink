@@ -176,34 +176,6 @@ struct FinishSignupView: View {
                             }
                         }
                         .animation(.easeInOut(duration: 0.25), value: showChangeDateSheet)
-//                        .sheet(isPresented: $showChangeDateSheet) {
-//                            VStack {
-//                                Text("Select your birthdate")
-//                                    .font(.headline)
-//                                    .padding()
-//
-//                                DatePicker(
-//                                    "",
-//                                    selection: $dateOfBirth,
-//                                    displayedComponents: .date
-//                                )
-//                                .datePickerStyle(.graphical)
-//                                .labelsHidden()
-//                                .padding()
-//
-//                                Button("Done") {
-//                                    hasSelectedDate = true
-//                                    showChangeDateSheet = false
-//                                }
-//                                .padding()
-//                                .frame(maxWidth: .infinity)
-//                                .background(Color.green)
-//                                .foregroundColor(.black)
-//                                .cornerRadius(12)
-//                                .padding()
-//                            }
-//                            .presentationDetents([.medium])
-//                        }
 
                         Text("Your birthday won't be shared with other people.")
                             .font(.caption2)

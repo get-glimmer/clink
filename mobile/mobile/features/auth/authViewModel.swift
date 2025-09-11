@@ -305,33 +305,6 @@ class AuthViewModel: ObservableObject {
     /**
      * Deletes the current user's account.
      */
-//    func deleteAccount() async {
-//        guard let client = self.client else { return }
-//        do {
-//            let user = try await client.auth.session.user
-//            
-//            try await client
-//                .from("profiles")
-//                .delete()
-//                .eq("id", value: user.id.uuidString)
-//                .execute()
-//            
-//            try await client.auth.signOut()
-//            isAuthenticated = false
-//            profile = nil
-//            
-//            print("✅ Profile deleted and logged out")
-//        } catch {
-//            print("Delete profile error:", error.localizedDescription)
-//        }
-//    }
-    
-    // In your AuthViewModel
-
-    
-
-    // In your AuthViewModel
-
     func deleteAccount() async {
         guard let client = self.client else { return }
         
