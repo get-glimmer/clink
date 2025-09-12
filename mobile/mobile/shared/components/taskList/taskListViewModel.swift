@@ -25,6 +25,9 @@ class TaskListViewModel: ObservableObject {
     private let userId: String?
     private let viewerId: String? // current logged-in user (viewer)
     @Published var taskSelectedDate: Date = Date()
+
+    // Public accessor for the owner (whose tasks are being shown)
+    var ownerUserId: String? { userId }
     
     @Published var username: String? = nil
     

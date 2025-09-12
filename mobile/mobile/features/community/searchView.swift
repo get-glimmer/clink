@@ -51,6 +51,7 @@ struct SearchView: View {
     @State private var isLoading: Bool = false
     @State private var errorMessage: String?
     @StateObject private var searchService = UserSearchService()
+    @State private var incomingRequests: [UserProfile] = []
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
@@ -64,6 +65,23 @@ struct SearchView: View {
                 // Search Results
                 ScrollView {
                     LazyVStack(spacing: 0) {
+                        // Incoming friend requests (above suggestions)
+                        if !incomingRequests.isEmpty && searchText.isEmpty {
+                            VStack(alignment: .leading, spacing: 0) {
+                                Text("Friend Requests")
+                                    .foregroundColor(AppColors.textWhite)
+                                    .font(.system(size: 18, weight: .bold))
+                                    .padding(.horizontal, 20)
+                                    .padding(.top, 24)
+                                    .padding(.bottom, 14)
+
+                                ForEach(incomingRequests, id: \.id) { profile in
+                                    FriendRequestRow(profile: profile, searchService: searchService, onResponded: {
+                                        Task { await loadIncomingRequests() }
+                                    })
+                                }
+                            }
+                        }
                         // Loading indicator
                         if isLoading {
                             HStack {
@@ -138,6 +156,7 @@ struct SearchView: View {
             // Wait a bit for authentication to complete
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 loadSuggestions()
+                Task { await loadIncomingRequests() }
             }
         }
     }
@@ -202,6 +221,15 @@ struct SearchView: View {
                     self.isLoading = false
                 }
             }
+        }
+    }
+
+    private func loadIncomingRequests() async {
+        do {
+            let requests = try await searchService.getIncomingFriendRequests()
+            await MainActor.run { self.incomingRequests = requests }
+        } catch {
+            await MainActor.run { self.incomingRequests = [] }
         }
     }
     
@@ -328,6 +356,84 @@ struct UserRowView: View {
             isActionLoading = false
         }
     }
+}
+
+// MARK: - Friend Request Row
+struct FriendRequestRow: View {
+    let profile: UserProfile
+    let searchService: UserSearchService
+    var onResponded: () -> Void
+    @State private var isWorking = false
+
+    var body: some View {
+        HStack(spacing: 15) {
+            Image(profile.avatar_url ?? "nav-profile1x")
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(width: 50, height: 50)
+                .clipShape(Circle())
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(profile.name ?? profile.username ?? "Unknown")
+                    .foregroundColor(AppColors.textWhite)
+                    .font(.system(size: 16, weight: .medium))
+            }
+            Spacer()
+
+            Button(action: { Task { await accept() } }) {
+                Text("Accept")
+                    .foregroundColor(.black)
+                    .font(.system(size: 14, weight: .semibold))
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(AppColors.green500)
+                    .cornerRadius(10)
+            }
+            .disabled(isWorking)
+
+            Button(action: { Task { await decline() } }) {
+                Text("Decline")
+                    .foregroundColor(AppColors.textWhite)
+                    .font(.system(size: 14, weight: .medium))
+            }
+            .disabled(isWorking)
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+    }
+
+    private func accept() async {
+        isWorking = true
+        do {
+            try await searchService.acceptFriendRequest(from: profile.id)
+            await MainActor.run {
+                isWorking = false
+                onResponded()
+                NotificationCenter.default.post(name: .friendRequestsChanged, object: nil)
+            }
+        } catch {
+            await MainActor.run { isWorking = false }
+        }
+    }
+
+    private func decline() async {
+        isWorking = true
+        do {
+            try await searchService.declineFriendRequest(from: profile.id)
+            await MainActor.run {
+                isWorking = false
+                onResponded()
+                NotificationCenter.default.post(name: .friendRequestsChanged, object: nil)
+            }
+        } catch {
+            await MainActor.run { isWorking = false }
+        }
+    }
+}
+
+// MARK: - Notifications
+extension Notification.Name {
+    static let friendRequestsChanged = Notification.Name("friendRequestsChanged")
 }
 
 #Preview {

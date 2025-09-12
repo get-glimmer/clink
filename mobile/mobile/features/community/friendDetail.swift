@@ -26,9 +26,11 @@ struct FriendDetailView: View {
             ZStack(alignment: .top) {
                 VStack(spacing: 12) {
                     headerSection
-                    FriendShakerDetailView(friend: friend) {
-                        showNotesPopup()
-                    }
+                    // Friend shaker - ShakerView with notes integration
+                    ShakerView(
+                        viewModel: TaskListViewModel(userId: friend.userId),
+                        onNoteEmojiTapped: { showNotesPopup() }
+                    )
                         .frame(width: shakerSide, height: shakerSide)
                         .frame(maxWidth: 275)
                         .padding(.top, 16)
@@ -77,33 +79,43 @@ struct FriendDetailView: View {
     }
     
     private var headerSection: some View {
-        HStack {
-            Button(action: { dismiss() }) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(AppColors.textWhite)
-            }
-            Spacer()
+        ZStack {
+            // Centered title
             Text(friend.name)
                 .foregroundColor(AppColors.textWhite)
                 .font(.system(size: 24, weight: .bold))
-            Spacer()
-            Button(action: { showingFriendCalendar = true }) {
-                Image(systemName: "calendar")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(AppColors.textWhite)
-            }
-            Button(action: {
-                isFavorite.toggle()
-                if isFavorite {
-                    communityViewModel.addFriendToFavorites(named: friend.name)
-                } else {
-                    communityViewModel.removeFriendFromFavorites(named: friend.name)
+                .frame(maxWidth: .infinity, alignment: .center)
+
+            // Leading/trailing controls
+            HStack {
+                // Back
+                Button(action: { dismiss() }) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundColor(AppColors.textWhite)
                 }
-            }) {
-                Image(systemName: isFavorite ? "star.fill" : "star")
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(isFavorite ? Color.yellow : AppColors.textWhite)
+                Spacer()
+                HStack(spacing: 12) {
+                    // Calendar
+                    Button(action: { showingFriendCalendar = true }) {
+                        Image(systemName: "calendar")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(AppColors.textWhite)
+                    }
+                    // Favorite
+                    Button(action: {
+                        isFavorite.toggle()
+                        if isFavorite {
+                            communityViewModel.addFriendToFavorites(named: friend.name)
+                        } else {
+                            communityViewModel.removeFriendFromFavorites(named: friend.name)
+                        }
+                    }) {
+                        Image(systemName: isFavorite ? "star.fill" : "star")
+                            .font(.system(size: 20, weight: .medium))
+                            .foregroundColor(isFavorite ? Color.yellow : AppColors.textWhite)
+                    }
+                }
             }
         }
         .padding(.horizontal, 20)
@@ -139,83 +151,6 @@ struct FriendDetailView: View {
             }
         } catch { }
     }
-}
-
-// Dedicated shaker view for friend detail (with motion enabled)
-struct FriendShakerDetailView: View {
-    let friend: Friend
-    let onNotesEmojiTapped: () -> Void
-    @State private var scene: ShakerScene?
-    
-    var body: some View {
-        GeometryReader { geo in
-            let side = min(geo.size.width, geo.size.height)
-            let jarSize = CGSize(width: side, height: side)
-            ZStack {
-                Image("jar")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: jarSize.width, height: jarSize.height)
-                    .allowsHitTesting(false)
-                if let scene = scene {
-                    SpriteView(scene: scene, options: [.allowsTransparency])
-                        .frame(width: jarSize.width, height: jarSize.height)
-                }
-            }
-            .onAppear { setupScene(jarSize: jarSize) }
-        }
-        .onDisappear { scene?.setMotionEnabled(false) }
-        .onReceive(NotificationCenter.default.publisher(for: .friendShakerNoteAdded)) { notification in
-            if let friendUserId = notification.userInfo?["friendUserId"] as? String,
-               friendUserId == friend.userId { addNoteEmoji() }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .friendShakerEmojiReactionAdded)) { notification in
-            if let friendUserId = notification.userInfo?["friendUserId"] as? String,
-               let emoji = notification.userInfo?["emoji"] as? String,
-               friendUserId == friend.userId { addGlowingEmoji(emoji) }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .friendShakerEmojiReactionRemoved)) { notification in
-            if let friendUserId = notification.userInfo?["friendUserId"] as? String,
-               let emoji = notification.userInfo?["emoji"] as? String,
-               friendUserId == friend.userId { removeEmoji(emoji) }
-        }
-    }
-    
-    private func setupScene(jarSize: CGSize) {
-        let sceneSize = CGSize(width: 275, height: 275)
-        scene = ShakerScene(size: sceneSize)
-        scene?.onNotesEmojiTapped = onNotesEmojiTapped
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            for emoji in friend.emojis { scene?.addEmoji(emoji, for: UUID()) }
-        }
-        Task {
-            do {
-                if let shakerId = try await CommunityService().getCurrentShakerForUser(userId: friend.userId),
-                   !(try await CommunityService().getNotesForShaker(shakerId: shakerId, limit: 1)).isEmpty {
-                    await MainActor.run {
-                        let noteEmoji = "🗒️"
-                        if scene?.hasEmoji(noteEmoji) != true { scene?.addEmoji(noteEmoji, for: UUID()) }
-                    }
-                }
-                if let shakerId = try await CommunityService().getCurrentShakerForUser(userId: friend.userId) {
-                    let recent = try await CommunityService().getNotesForShaker(shakerId: shakerId, limit: 10)
-                    let symbols = Array(Set(recent.compactMap { $0.noteContent.isEmojiOnly ? $0.noteContent.firstEmoji : nil })).prefix(5)
-                    await MainActor.run {
-                        for symbol in symbols { if scene?.hasEmoji(symbol) != true { scene?.addGlowingEmoji(symbol, for: UUID()) } }
-                    }
-                }
-            } catch { }
-        }
-        scene?.setMotionEnabled(true)
-    }
-    
-    private func addNoteEmoji() {
-        let noteEmoji = "🗒️"
-        if scene?.hasEmoji(noteEmoji) == true { return }
-        scene?.addEmoji(noteEmoji, for: UUID())
-    }
-    private func addGlowingEmoji(_ emoji: String) { scene?.addGlowingEmoji(emoji, for: UUID()) }
-    private func removeEmoji(_ emoji: String) { scene?.removeEmoji(symbol: emoji) }
 }
 
 

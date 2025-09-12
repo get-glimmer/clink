@@ -8,10 +8,13 @@
 import SwiftUI
 import SpriteKit
 import UIKit
+import Supabase
 
 struct ShakerView: View {
     // External state
     @ObservedObject var viewModel: TaskListViewModel
+    // Optional callbacks
+    var onNoteEmojiTapped: (() -> Void)? = nil
     
     // SpriteKit scene
     @State private var scene = ShakerScene(size: .zero)
@@ -21,6 +24,10 @@ struct ShakerView: View {
     
     // store current emoji per completed task
     @State private var emojiCache: [UUID: String] = [:]
+    // Note emoji presence
+    @State private var hasNoteEmoji: Bool = false
+    // Preview mode (small tile) flag
+    @State private var isPreviewMode: Bool = false
     
     // Lid visuals
     @State private var lidColors: [Color] = [.black, .gray]
@@ -68,17 +75,40 @@ struct ShakerView: View {
                 SpriteView(scene: scene, options: [.allowsTransparency])
                     .frame(width: jarSize.width, height: jarSize.height)
             }
+            // Center the jar inside available space (preview tiles especially)
+            .frame(width: geo.size.width, height: geo.size.height, alignment: .center)
             .onAppear {
                 if scene.size == .zero { // create a new scene only once
                         scene = ShakerScene(size: jarSize)
                     }
-                scene.setMotionEnabled(true)
+                // Wire note tap callback (if provided)
+                scene.onNotesEmojiTapped = onNoteEmojiTapped
+                // If height is small (preview), scale emoji down and use constant gravity (no device motion)
+                let isPreview = jarSize.height <= 150
+                isPreviewMode = isPreview
+                scene.setEmojiScale(isPreview ? 0.75 : 1.0)
+                scene.setMotionEnabled(!isPreview)
+                if isPreview {
+                    // Stronger constant gravity so marbles settle firmly at the bottom
+                    scene.useConstantGravity(18)
+                }
+                // Clear any previous contents to avoid duplicates across re-entries
+                scene.resetScene()
+                hasNoteEmoji = false
                 completionCache.removeAll()
                 syncWithTasks()
                 updateSeal(animated: false)
+                Task { await syncNoteEmoji() }
             }
             .onDisappear {
                 scene.setMotionEnabled(false) // for performance
+            }
+            .onChange(of: geo.size) { _ in
+                // On size changes (preview tiles) ensure marbles snap to floor
+                let isPreview = min(geo.size.width, geo.size.height) <= 150
+                if isPreview {
+                    scene.settleAllToBottom()
+                }
             }
         }
         .onReceive(viewModel.$categoriesWithTasks) { _ in syncWithTasks() }
@@ -93,6 +123,28 @@ struct ShakerView: View {
         .onChange(of: viewModel.taskSelectedDate) { newDate in
             syncWithTasks()
             UnsealLidAndUpdate()
+            Task { await syncNoteEmoji() }
+        }
+        // Listen for like/unlike reactions and reflect in this shaker if the userId matches
+        .onReceive(NotificationCenter.default.publisher(for: .friendShakerEmojiReactionAdded)) { output in
+            guard let owner = viewModel.ownerUserId,
+                  let info = output.userInfo,
+                  let target = info["friendUserId"] as? String,
+                  let emoji  = info["emoji"] as? String,
+                  target == owner else { return }
+            if !scene.hasEmoji(emoji) {
+                scene.addGlowingEmoji(emoji, for: UUID())
+                if isPreviewMode { scene.settleAllToBottom() }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .friendShakerEmojiReactionRemoved)) { output in
+            guard let owner = viewModel.ownerUserId,
+                  let info = output.userInfo,
+                  let target = info["friendUserId"] as? String,
+                  let emoji  = info["emoji"] as? String,
+                  target == owner else { return }
+            scene.removeEmoji(symbol: emoji)
+            if isPreviewMode { scene.settleAllToBottom() }
         }
     }
     
@@ -143,6 +195,7 @@ struct ShakerView: View {
         // Prune emojiCache to only keep currently completed tasks
         let valid = Set(current.keys.filter { current[$0]?.0 == true })
         emojiCache = emojiCache.filter { valid.contains($0.key) }
+        if isPreviewMode { scene.settleAllToBottom() }
     }
 
     
@@ -173,6 +226,58 @@ struct ShakerView: View {
                 lidOpacity = 0
             }
         }
+    }
+
+    // MARK: - Notes sync (drop a note emoji if a note exists for this shaker/date)
+    private func syncNoteEmoji() async {
+        guard let owner = viewModel.ownerUserId else { return }
+        guard let client = SupabaseClientManager.shared.client else { return }
+        let dateStr = formattedDate(viewModel.taskSelectedDate)
+        // Query shaker id for (owner, date)
+        do {
+            struct Row: Decodable { let id: String }
+            let rows: [Row] = try await client
+                .from("shaker").select("id")
+                .eq("userid", value: owner)
+                .eq("date", value: dateStr)
+                .limit(1)
+                .execute().value
+            guard let shakerId = rows.first?.id else {
+                await MainActor.run { removeNoteEmoji() }
+                return
+            }
+            // Check if any notes exist for this shaker
+            struct NoteRow: Decodable { let note_id: String }
+            let notes: [NoteRow] = try await client
+                .from("notes").select("note_id")
+                .eq("shaker_id", value: shakerId)
+                .limit(1)
+                .execute().value
+            if notes.isEmpty {
+                await MainActor.run {
+                    removeNoteEmoji()
+                    if isPreviewMode { scene.settleAllToBottom() }
+                }
+            } else {
+                await MainActor.run {
+                    addNoteEmoji()
+                    if isPreviewMode { scene.settleAllToBottom() }
+                }
+            }
+        } catch {
+            // fail silently
+        }
+    }
+
+    private func addNoteEmoji() {
+        guard !hasNoteEmoji else { return }
+        hasNoteEmoji = true
+        scene.addEmoji("🗒️", for: UUID())
+    }
+    private func removeNoteEmoji() {
+        guard hasNoteEmoji else { return }
+        hasNoteEmoji = false
+        scene.removeEmoji(symbol: "🗒️")
     }
     private func gradientFromScene() -> [Color] {
         // Grab up to 6 candidate colors
