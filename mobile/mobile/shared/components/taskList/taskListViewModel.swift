@@ -46,6 +46,16 @@ class TaskListViewModel: ObservableObject {
     func latestEmoji(for categoryId: UUID, defaultEmoji: String) -> String {
         latestEmojiForCategory[categoryId] ?? defaultEmoji
     }
+    
+    // For routines sheet
+    @Published var routinesByCategory: [UUID : [RoutineItem]] = [:]
+    
+    var dailyCategoriesOnly: [CategoryItem] {
+        categoriesWithTasks
+            .map { $0.category }
+            .filter { $0.type == .daily }
+    }
+
 
     // MARK: - init
     init(userId: String?, date: Date = todayDate()) {
@@ -157,7 +167,48 @@ class TaskListViewModel: ObservableObject {
         await MainActor.run { self.latestEmojiForCategory = map }
     }
     
-    // MARK: - fetching
+    func refreshLatestEmojis() {
+        Task {
+            await prefetchLatestCategoryEmojis(self.categoriesWithTasks.map { $0.category })
+        }
+    }
+    
+    // MARK: - routine fetching
+    func fetchRoutinesForDailyCategories() async {
+        guard let client = self.client, let userId = self.userId else { return }
+
+        do {
+            // 1) fetch all routines for this user (simple & robust)
+            let routines: [RoutineItem] = try await client
+                .from("routine")
+                .select()
+                .eq("userid", value: userId)
+                .order("createdat", ascending: true)
+                .execute()
+                .value
+
+            // 2) keep only routines whose category is daily
+            let dailyIds = Set(dailyCategoriesOnly.map { $0.id })
+            let filtered = routines.filter { dailyIds.contains($0.categoryId) }
+
+            // 3) group by category
+            var grouped: [UUID : [RoutineItem]] = [:]
+            for r in filtered {
+                grouped[r.categoryId, default: []].append(r)
+            }
+            await MainActor.run { self.routinesByCategory = grouped }
+        } catch {
+            print("[Routine] fetch failed:", error)
+        }
+    }
+
+    // Public helper for sheets
+    func refreshRoutines() {
+        Task { await fetchRoutinesForDailyCategories() }
+    }
+
+    
+    // MARK: - category & task fetching
     func fetchCategoriesAndTasks() {
         guard let client = self.client else {
             self.isSupabaseConnected = false
@@ -183,18 +234,34 @@ class TaskListViewModel: ObservableObject {
                 // 1) date-aware & latest emojis
                 await prefetchCategoryEmojisForSelectedDate(categories)
                 await prefetchLatestCategoryEmojis(categories)
+                
+                // routine
+                await fetchRoutinesForDailyCategories()
 
                 // 2) materialize routines for the selected date
                 do {
-                    struct RPCResult: Decodable { let ensure_routine_tasks: Int? }
-                    let row: RPCResult = try await client
-                        .rpc("ensure_routine_tasks", params: [
-                            "p_userid": userId,
-                            "p_date": formattedDate(taskSelectedDate) // "YYYY-MM-DD"
-                        ])
-                        .execute()
-                        .value
-                    print("[Routine] generated:", row.ensure_routine_tasks ?? -1)
+                    // Most servers return integer
+                    do {
+                        let count: Int = try await client
+                            .rpc("ensure_routine_tasks", params: [
+                                "p_userid": userId,
+                                "p_date": formattedDate(taskSelectedDate) // "YYYY-MM-DD"
+                            ])
+                            .execute()
+                            .value
+                        print("[Routine] generated (scalar):", count)
+                    } catch {
+                        // Fallback: some deployments wrap in an object { ensure_routine_tasks: N }
+                        struct RPCObj: Decodable { let ensure_routine_tasks: Int? }
+                        let row: RPCObj = try await client
+                            .rpc("ensure_routine_tasks", params: [
+                                "p_userid": userId,
+                                "p_date": formattedDate(taskSelectedDate)
+                            ])
+                            .execute()
+                            .value
+                        print("[Routine] generated (object):", row.ensure_routine_tasks ?? -1)
+                    }
                 } catch {
                     print("[Routine] ensure_routine_tasks failed:", error)
                 }

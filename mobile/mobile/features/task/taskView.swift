@@ -29,6 +29,9 @@ struct TaskView: View {
     
     // 2. Categories
     @State private var showCategoriesSheet: Bool = false
+    
+    // 3. Routines
+    @State private var showRoutinesSheet: Bool = false
 
     init() {
         let userId = getUserId()
@@ -144,7 +147,10 @@ struct TaskView: View {
                     OptionsSheet(
                         onTapOutside: { showOptionsSheet = false },
 
-                        onTapRoutines: { /* disabled; no-op */ },
+                        onTapRoutines: {
+                            showOptionsSheet = false
+                            showRoutinesSheet = true
+                        },
 
                         onTapCategories: {
                             showOptionsSheet = false
@@ -173,7 +179,7 @@ struct TaskView: View {
         }
         .onChange(of: selectedDate) { newValue in
             viewModel.taskSelectedDate = newValue
-            viewModel.fetchCategoriesAndTasks()
+            // viewModel.fetchCategoriesAndTasks()
         }
         // -- "Add category" sheet --
         .fullScreenCover(isPresented: $showAddCategorySheet) {
@@ -202,6 +208,10 @@ struct TaskView: View {
         // -- "Categories" sheet --
         .fullScreenCover(isPresented: $showCategoriesSheet) {
             CategoriesSheet(viewModel: viewModel)
+        }
+        // -- "Routines" sheet --
+        .fullScreenCover(isPresented: $showRoutinesSheet) {
+            RoutinesSheet(viewModel: viewModel)
         }
         // -- "Change Date" sheet --
         .overlay(alignment: .bottomLeading) {
