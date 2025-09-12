@@ -102,3 +102,27 @@ struct CategoryEmojiHistoryRow: Decodable {
         effectiveDate = dateFromPostgreSQL(d)
     }
 }
+
+// MARK: - Routine (optional)
+struct RoutineItem: Decodable, Identifiable {
+    let id: UUID            // routineid
+    let categoryId: UUID
+    let title: String
+    let repeatType: String  // "everyday" | "weekly" | "monthly"
+    let startDate: Date
+    let endDate: Date?
+    let weeklyDays: [Int]?     // 0..6
+    let monthlyDays: [Int]?    // 1..31
+
+    enum CodingKeys: String, CodingKey {
+        case id = "routineid"
+        case categoryId = "categoryid"
+        case title
+        case repeatType = "repeat_type"
+        case startDate = "start_date"
+        case endDate   = "end_date"
+        case weeklyDays = "weekly_days"
+        case monthlyDays = "monthly_days"
+    }
+}
+

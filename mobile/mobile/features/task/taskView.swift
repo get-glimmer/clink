@@ -173,7 +173,7 @@ struct TaskView: View {
         }
         .onChange(of: selectedDate) { newValue in
             viewModel.taskSelectedDate = newValue
-            // viewModel.fetchCategoriesAndTasks()
+            viewModel.fetchCategoriesAndTasks()
         }
         // -- "Add category" sheet --
         .fullScreenCover(isPresented: $showAddCategorySheet) {

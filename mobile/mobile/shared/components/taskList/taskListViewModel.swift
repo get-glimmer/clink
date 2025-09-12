@@ -51,6 +51,7 @@ class TaskListViewModel: ObservableObject {
     init(userId: String?, date: Date = todayDate()) {
         self.userId = userId
         self.viewerId = getUserId()
+        self.taskSelectedDate = date
         
         Task {
             do {
@@ -60,13 +61,17 @@ class TaskListViewModel: ObservableObject {
             }
         }
 
-        // calls fetchCategoriesAndTasks() whenever taskSelectedDate changes
+        // Re-fetch whenever the selected date (day) changes
         $taskSelectedDate
+            // treat "same calendar day" as the same value to avoid duplicate fetches
+            .removeDuplicates(by: { lhs, rhs in
+                Calendar.current.isDate(lhs, inSameDayAs: rhs)
+            })
+            .debounce(for: .milliseconds(80), scheduler: RunLoop.main) // coalesce rapid changes
             .sink { [weak self] _ in
-                self?.fetchCategoriesAndTasks()
+                self?.fetchCategoriesAndTasks()  // will call RPC ensure_routine_tasks
             }
             .store(in: &cancellables)
-
         fetchCategoriesAndTasks()
         
         $latestEmojiForCategory
@@ -171,21 +176,33 @@ class TaskListViewModel: ObservableObject {
                     .from("category")
                     .select()
                     .eq("userid", value: userId)
-                    .in("privacy_status", value: allowedStatuses)
                     .order("createdat", ascending: true)
                     .execute()
                     .value
-                
-                // 1) selected date → date-aware map
+
+                // 1) date-aware & latest emojis
                 await prefetchCategoryEmojisForSelectedDate(categories)
-                // 2) always → latest map for CategoriesSheet
                 await prefetchLatestCategoryEmojis(categories)
 
+                // 2) materialize routines for the selected date
+                do {
+                    struct RPCResult: Decodable { let ensure_routine_tasks: Int? }
+                    let row: RPCResult = try await client
+                        .rpc("ensure_routine_tasks", params: [
+                            "p_userid": userId,
+                            "p_date": formattedDate(taskSelectedDate) // "YYYY-MM-DD"
+                        ])
+                        .execute()
+                        .value
+                    print("[Routine] generated:", row.ensure_routine_tasks ?? -1)
+                } catch {
+                    print("[Routine] ensure_routine_tasks failed:", error)
+                }
+
+                // 3) task fetch
                 var result: [CategoryWithTasks] = []
                 for category in categories {
-                  
                     let tasks: [TaskListItem]
-
                     switch category.type {
                     case .daily:
                         tasks = try await client
@@ -197,9 +214,7 @@ class TaskListViewModel: ObservableObject {
                             .order("createdat", ascending: true)
                             .execute()
                             .value
-
                     case .archived:
-                        // No date filter: fetch all tasks
                         tasks = try await client
                             .from("task")
                             .select()
@@ -209,7 +224,6 @@ class TaskListViewModel: ObservableObject {
                             .execute()
                             .value
                     }
-
                     result.append(CategoryWithTasks(id: category.id, category: category, tasks: tasks))
                 }
 
