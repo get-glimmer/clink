@@ -4,6 +4,7 @@ import SwiftUI
 struct TaskView: View {
     @StateObject private var viewModel: TaskListViewModel
     @State private var sheetProgress: CGFloat = 0
+    @State private var showingNotesPopup: Bool = false
     
     // --- date selection ---
     //@State private var today: Date = Date()
@@ -118,7 +119,10 @@ struct TaskView: View {
                     }
 
                     // ---- Shaker (scaled) ----
-                    ShakerView(viewModel: viewModel)
+                    ShakerView(
+                        viewModel: viewModel,
+                        onNoteEmojiTapped: { showingNotesPopup = true }
+                    )
                         .frame(width: shakerSide, height: shakerSide)
                         .frame(maxWidth: 275)
                         .padding(.top, 16)
@@ -230,6 +234,102 @@ struct TaskView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: showChangeDateSheet)
+        // Notes popup for my own jar
+        .fullScreenCover(isPresented: $showingNotesPopup) {
+            SelfNotesPopupView()
+        }
     }
 }
 //#Preview {TaskView()}
+
+// MARK: - Self Notes Popup View (for my own jar)
+private struct SelfNotesPopupView: View {
+    @State private var notes: [NoteRecord] = []
+    @State private var isLoading: Bool = true
+    @Environment(\.dismiss) private var dismiss
+    @StateObject private var communityService = CommunityService()
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.4)
+                .ignoresSafeArea()
+                .onTapGesture { dismiss() }
+
+            VStack(spacing: 0) {
+                HStack {
+                    Text("Notes for Today")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundColor(AppColors.neutral800)
+                    Spacer()
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(AppColors.neutral600)
+                    }
+                }
+                .padding(.horizontal, 24)
+                .padding(.top, 24)
+                .padding(.bottom, 16)
+
+                if isLoading {
+                    VStack(spacing: 16) {
+                        ProgressView().scaleEffect(1.2)
+                        Text("Loading notes...")
+                            .font(.system(size: 16))
+                            .foregroundColor(AppColors.neutral600)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(.vertical, 40)
+                } else if notes.isEmpty {
+                    VStack(spacing: 16) {
+                        Image(systemName: "note.text")
+                            .font(.system(size: 48))
+                            .foregroundColor(AppColors.neutral400)
+                        Text("No notes yet")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(AppColors.neutral600)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(.vertical, 40)
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: 12) {
+                            ForEach(notes) { note in
+                                NoteCardView(note: note)
+                            }
+                        }
+                        .padding(.horizontal, 24)
+                        .padding(.bottom, 24)
+                    }
+                }
+            }
+            .frame(width: 350, height: 450)
+            .background(Color.white)
+            .cornerRadius(16)
+        }
+        .onAppear { loadNotes() }
+    }
+
+    private func loadNotes() {
+        Task {
+            isLoading = true
+            do {
+                guard let me = getUserId() else {
+                    isLoading = false; notes = []; return
+                }
+                if let shakerId = try await communityService.getCurrentShakerForUser(userId: me, date: Date()) {
+                    let loaded = try await communityService.getNotesForShaker(shakerId: shakerId, limit: 20)
+                    await MainActor.run {
+                        let textNotes = loaded.filter { !$0.noteContent.isEmojiOnly }
+                        notes = textNotes.randomElement().map { [$0] } ?? []
+                        isLoading = false
+                    }
+                } else {
+                    await MainActor.run { notes = []; isLoading = false }
+                }
+            } catch {
+                await MainActor.run { notes = []; isLoading = false }
+            }
+        }
+    }
+}

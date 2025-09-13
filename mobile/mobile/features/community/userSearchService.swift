@@ -185,6 +185,37 @@ class UserSearchService: ObservableObject {
         }
     }
     
+    // MARK: - Incoming Friend Requests (users who requested to follow me)
+    func getIncomingFriendRequests() async throws -> [UserProfile] {
+        guard let supabase = supabase,
+              let currentUserId = currentUserId else {
+            return []
+        }
+        do {
+            // Find pending requests where I am the target (friend_id == me)
+            struct RequestRow: Decodable { let user_id: String }
+            let rows: [RequestRow] = try await supabase
+                .from("friends")
+                .select("user_id")
+                .eq("friend_id", value: currentUserId)
+                .eq("status", value: "requested")
+                .execute()
+                .value
+
+            let requesterIds = rows.map { $0.user_id }
+            guard !requesterIds.isEmpty else { return [] }
+
+            // Fetch their profiles
+            let profiles: [UserProfile] = try await supabase
+                .from("profiles")
+                .select("*")
+                .in("id", values: requesterIds)
+                .execute()
+                .value
+            return profiles
+        } catch { return [] }
+    }
+
     // MARK: - Friendship Status
     private func getFriendshipStatus(with userId: String) async -> FriendshipStatus {
         guard let supabase = supabase,
@@ -323,6 +354,11 @@ class UserSearchService: ObservableObject {
             .execute()
     }
     
+    // MARK: - Decline Friend Request (delete pending relation)
+    func declineFriendRequest(from userId: String) async throws {
+        try await removeFriend(userId: userId)
+    }
+
     // MARK: - Remove Friend
     func removeFriend(userId: String) async throws {
         guard let supabase = supabase,

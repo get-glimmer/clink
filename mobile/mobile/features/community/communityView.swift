@@ -10,8 +10,12 @@ import SpriteKit
 
 struct CommunityView: View {
     @StateObject private var viewModel = CommunityViewModel()
+    @StateObject private var searchService = UserSearchService()
     @State private var showingSearch = false
     @State private var selectedFriend: Friend? = nil
+    @State private var pendingRequestCount: Int = 0
+    @State private var dropdownAnchorX: CGFloat = 0
+    @State private var dropdownAnchorY: CGFloat = 0
     
     var body: some View {
         ZStack {
@@ -56,7 +60,7 @@ struct CommunityView: View {
                             Button("Try Again") {
                                 viewModel.refreshFriends()
                             }
-                            .foregroundColor(Color.blue)
+                            .foregroundColor(AppColors.textWhite)
                             .font(.system(size: 16, weight: .medium))
                         }
                         .frame(maxWidth: .infinity, maxHeight: 200)
@@ -102,8 +106,71 @@ struct CommunityView: View {
                 }
             }
         }
+        .coordinateSpace(name: "rootOverlay")
+        // Global overlay for dropdown positioned under the button
+        .overlay(alignment: .topLeading) {
+            if viewModel.showingDropdown {
+                ZStack(alignment: .topLeading) {
+                    Color.black.opacity(0.0001)
+                        .ignoresSafeArea()
+                        .onTapGesture { viewModel.showingDropdown = false }
+
+                    VStack(alignment: .leading, spacing: 0) {
+                        let rowHeight: CGFloat = 44
+                        let dividerThickness: CGFloat = 1
+                        let totalRows = CGFloat(viewModel.categories.count) * rowHeight
+                        let totalDividers = CGFloat(max(0, viewModel.categories.count - 1)) * dividerThickness
+                        let contentHeight = totalRows + totalDividers
+                        let containerHeight: CGFloat = 152
+                        let verticalPad = max(0, (containerHeight - contentHeight) / 2)
+                        Spacer(minLength: verticalPad)
+                        ForEach(viewModel.categories, id: \.self) { category in
+                            Button(action: { viewModel.selectCategory(category) }) {
+                                HStack(spacing: 0) {
+                                    Text(labelFor(category))
+                                        .foregroundColor(AppColors.textWhite)
+                                        .font(.system(size: 18, weight: .medium))
+                                    Spacer(minLength: 0)
+                                    if categoriesEqual(category, viewModel.selectedCategory) {
+                                        Image(systemName: "checkmark")
+                                            .foregroundColor(AppColors.textWhite)
+                                            .font(.system(size: 16, weight: .medium))
+                                    }
+                                }
+                                .padding(.horizontal, 20)
+                                .frame(height: rowHeight, alignment: .center)
+                            }
+                            if category != viewModel.categories.last {
+                                Divider()
+                                    .frame(height: dividerThickness)
+                                    .background(AppColors.neutral700)
+                                    .padding(.horizontal, 20)
+                            }
+                        }
+                        Spacer(minLength: verticalPad)
+                    }
+                    .frame(width: 178, height: 152, alignment: .topLeading)
+                    .background(AppColors.neutral800)
+                    .cornerRadius(20)
+                    .overlay(RoundedRectangle(cornerRadius: 20).stroke(AppColors.neutral600, lineWidth: 1))
+                    .shadow(color: Color.black.opacity(0.3), radius: 10, x: 0, y: 5)
+                    .offset(x: dropdownAnchorX, y: dropdownAnchorY + 52)
+                }
+                .animation(.easeInOut(duration: 0.2), value: viewModel.showingDropdown)
+            }
+        }
         .fullScreenCover(isPresented: $showingSearch) {
             SearchView()
+        }
+        .onAppear {
+            Task {
+                await refreshPendingRequests()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .friendRequestsChanged)) { _ in
+            Task { await refreshPendingRequests() }
+            // Also refresh friends list to show the new accepted friend preview
+            viewModel.refreshFriends()
         }
         .fullScreenCover(item: $selectedFriend) { friend in
             FriendDetailView(friend: friend)
@@ -129,77 +196,82 @@ struct CommunityView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.blue, lineWidth: 2)
-                )
+                .background(Color.clear)
+                // capture position of chip in global space
+                .background(GeometryReader { proxy in
+                    let frame = proxy.frame(in: .named("rootOverlay"))
+                    Color.clear
+                        .preference(key: DropdownXPreferenceKey.self, value: frame.minX)
+                        .preference(key: DropdownYPreferenceKey.self, value: frame.maxY)
+                })
             }
             
             Spacer()
             
-            // Search Button
+            // Search Button with badge
             Button(action: {
                 showingSearch = true
             }) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(AppColors.textWhite)
-                    .font(.system(size: 20, weight: .medium))
+                ZStack(alignment: .topTrailing) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(AppColors.textWhite)
+                        .font(.system(size: 20, weight: .medium))
+                    if pendingRequestCount > 0 {
+                        Text("\(min(pendingRequestCount, 99))")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(Color.white)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(Color.red)
+                            .clipShape(Capsule())
+                            .offset(x: 8, y: -8)
+                    }
+                }
             }
         }
         .padding(.horizontal, 20)
         .padding(.top, 10)
+        // capture header height
+        .onPreferenceChange(DropdownXPreferenceKey.self) { dropdownAnchorX = $0 }
+        .onPreferenceChange(DropdownYPreferenceKey.self) { dropdownAnchorY = $0 }
         .zIndex(99) // Keep header above scroll content but below dropdown
-        .overlay(
-            // Dropdown Menu
-            VStack {
-                if viewModel.showingDropdown {
-                    VStack(alignment: .leading, spacing: 0) {
-                        ForEach(viewModel.categories, id: \.self) { category in
-                            Button(action: {
-                                viewModel.selectCategory(category)
-                            }) {
-                                HStack {
-                                    Text(category)
-                                        .foregroundColor(AppColors.textWhite)
-                                        .font(.system(size: 18, weight: .medium))
-                                    
-                                    Spacer()
-                                    
-                                    if category == viewModel.selectedCategory {
-                                        Image(systemName: "checkmark")
-                                            .foregroundColor(AppColors.textWhite)
-                                            .font(.system(size: 16, weight: .medium))
-                                    }
-                                }
-                                .padding(.horizontal, 20)
-                                .padding(.vertical, 16)
-                                .background(Color.clear)
-                            }
-                            
-                            // Divider between items (except for last item)
-                            if category != viewModel.categories.last {
-                                Divider()
-                                    .background(AppColors.neutral700)
-                                    .padding(.horizontal, 20)
-                            }
-                        }
-                    }
-                    .background(AppColors.neutral800)
-                    .cornerRadius(12)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(AppColors.neutral600, lineWidth: 1)
-                    )
-                    .offset(y: 50)
-                    .shadow(color: Color.black.opacity(0.3), radius: 10, x: 0, y: 5)
-                    .animation(.easeInOut(duration: 0.2), value: viewModel.showingDropdown)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.leading, 20)
-            .padding(.trailing, 60) // Leave space so dropdown doesn't go too wide
-            .zIndex(100) // Ensure dropdown appears above other content
-        )
+    }
+
+    private func labelFor(_ category: String) -> String {
+        switch category {
+        case "Friends": return "Friend"
+        case "Favorites": return "Favorite"
+        default: return category
+        }
+    }
+    private func categoriesEqual(_ a: String, _ b: String) -> Bool {
+        func norm(_ s: String) -> String {
+            if s == "Friends" { return "Friend" }
+            if s == "Favorites" { return "Favorite" }
+            return s
+        }
+        return norm(a) == norm(b)
+    }
+}
+
+// MARK: - Preference Keys for dropdown positioning
+private struct DropdownXPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+}
+private struct DropdownYPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+}
+
+private extension CommunityView {
+    func refreshPendingRequests() async {
+        do {
+            let incoming = try await searchService.getIncomingFriendRequests()
+            await MainActor.run { self.pendingRequestCount = incoming.count }
+        } catch {
+            await MainActor.run { self.pendingRequestCount = 0 }
+        }
     }
 }
 
@@ -244,7 +316,7 @@ struct FriendCardView: View {
             .padding(.bottom, 12)
             
             // Friend's Shaker (emoji garden)
-            FriendShakerView(friend: friend)
+            ShakerView(viewModel: TaskListViewModel(userId: friend.userId))
                 .frame(height: 120)
                 .cornerRadius(12)
                 .padding(.horizontal, 16)
@@ -252,10 +324,7 @@ struct FriendCardView: View {
         }
         .background(AppColors.neutral900)
         .cornerRadius(16)
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(isSelected ? Color.blue : Color.clear, lineWidth: 2)
-        )
+        // Removed selection border
         .onTapGesture {
             onTap()
         }

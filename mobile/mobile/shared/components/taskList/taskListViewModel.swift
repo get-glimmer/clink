@@ -25,6 +25,9 @@ class TaskListViewModel: ObservableObject {
     private let userId: String?
     private let viewerId: String? // current logged-in user (viewer)
     @Published var taskSelectedDate: Date = Date()
+
+    // Public accessor for the owner (whose tasks are being shown)
+    var ownerUserId: String? { userId }
     
     @Published var username: String? = nil
     
@@ -47,6 +50,11 @@ class TaskListViewModel: ObservableObject {
         latestEmojiForCategory[categoryId] ?? defaultEmoji
     }
     
+    // Check if there are any tasks for the current user/date
+    var hasAnyTasks: Bool {
+        return categoriesWithTasks.contains { !$0.tasks.isEmpty }
+    }
+  
     // For routines sheet
     @Published var routinesByCategory: [UUID : [RoutineItem]] = [:]
     
@@ -55,7 +63,6 @@ class TaskListViewModel: ObservableObject {
             .map { $0.category }
             .filter { $0.type == .daily }
     }
-
 
     // MARK: - init
     init(userId: String?, date: Date = todayDate()) {

@@ -76,17 +76,19 @@ class CommunityService: ObservableObject {
         }
         
         do {
-            // Get accepted friends (exclude blocked)
+            // Get accepted friendships in BOTH directions (me → them OR them → me)
             let friendships: [FriendshipData] = try await supabase
                 .from("friends")
                 .select("*")
-                .eq("user_id", value: currentUserId)
-                .eq("status", value: "accepted")
+                .or("and(user_id.eq.\(currentUserId),status.eq.accepted),and(friend_id.eq.\(currentUserId),status.eq.accepted)")
                 .neq("status", value: "blocked")  // Exclude blocked friends
                 .execute()
                 .value
             
-            let friendIds = friendships.map { $0.friend_id }
+            // Resolve the "other" user id for each row
+            let friendIds: [String] = friendships.map { row in
+                row.user_id == currentUserId ? row.friend_id : row.user_id
+            }
             
             guard !friendIds.isEmpty else {
                 return []
@@ -101,7 +103,9 @@ class CommunityService: ObservableObject {
                 .value
             
             // Create a mapping of friend IDs to favorite status
-            let favoriteMapping = Dictionary(uniqueKeysWithValues: friendships.map { ($0.friend_id, $0.favorite ?? false) })
+            // Only rows where I am the owner (user_id == me) carry my "favorite" preference
+            let myOwned = friendships.filter { $0.user_id == currentUserId }
+            let favoriteMapping = Dictionary(uniqueKeysWithValues: myOwned.map { ($0.friend_id, $0.favorite ?? false) })
             
             // Get task progress for each friend
             var friends: [Friend] = []
@@ -531,18 +535,27 @@ class CommunityService: ObservableObject {
     
     // MARK: - Likes Functions
     
-    /// Check if user has liked a specific category
+    /// Check if user has liked a specific category TODAY (one like per day)
     func isLiked(categoryId: UUID, userId: UUID) async throws -> Bool {
         guard let supabase = supabase else {
             throw NSError(domain: "SupabaseError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Supabase client not initialized"])
         }
         
         do {
+            // Build date window for today (local time)
+            let cal = Calendar.current
+            let startOfDay = cal.startOfDay(for: Date())
+            let nextDay = cal.date(byAdding: .day, value: 1, to: startOfDay)!
+            let iso = ISO8601DateFormatter()
+            iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+
             let response = try await supabase.database
                 .from("likes")
                 .select("like_id")
                 .eq("user_id", value: userId)
                 .eq("category_id", value: categoryId)
+                .gte("created_at", value: iso.string(from: startOfDay))
+                .lt("created_at", value: iso.string(from: nextDay))
                 .execute()
             
             let data = response.data
@@ -565,7 +578,7 @@ class CommunityService: ObservableObject {
         }
     }
     
-    /// Like a category
+    /// Like a category (once per day)
     func likeCategory(categoryId: UUID, userId: UUID) async throws {
         guard let supabase = supabase else {
             throw NSError(domain: "SupabaseError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Supabase client not initialized"])
@@ -588,17 +601,26 @@ class CommunityService: ObservableObject {
             .execute()
     }
     
-    /// Unlike a category
+    /// Unlike a category (remove today's like only)
     func unlikeCategory(categoryId: UUID, userId: UUID) async throws {
         guard let supabase = supabase else {
             throw NSError(domain: "SupabaseError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Supabase client not initialized"])
         }
         
+        // today's window
+        let cal = Calendar.current
+        let startOfDay = cal.startOfDay(for: Date())
+        let nextDay = cal.date(byAdding: .day, value: 1, to: startOfDay)!
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+
         let _ = try await supabase.database
             .from("likes")
             .delete()
             .eq("user_id", value: userId)
             .eq("category_id", value: categoryId)
+            .gte("created_at", value: iso.string(from: startOfDay))
+            .lt("created_at", value: iso.string(from: nextDay))
             .execute()
     }
     

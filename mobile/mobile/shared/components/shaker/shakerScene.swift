@@ -31,10 +31,14 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
     // Custom boundary configuration for friend shakers
     private var customInset: CGFloat?
     private var customLidHeight: CGFloat?
+    // Emoji size scaling (1.0 = default)
+    private var emojiScaleFactor: CGFloat = 1.0
     
     // MARK: - Edge-loop inset
     private let inset: CGFloat = 12
     private let lidHeight: CGFloat = 40
+    // Cached floor Y (inside edge loop)
+    private var computedFloorY: CGFloat = 0
     
     // MARK: - Visual tuning
     // Strong, pleasant glow for emoji reactions
@@ -68,6 +72,11 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
         customLidHeight = lidHeight
         setupPhysicsBoundaries()
     }
+
+    // Adjust emoji scale for preview tiles vs detail
+    func setEmojiScale(_ factor: CGFloat) {
+        emojiScaleFactor = max(0.5, min(factor, 1.5))
+    }
     
     private func setupPhysicsBoundaries() {
         let usedInset = customInset ?? inset
@@ -84,17 +93,30 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
         wall.categoryBitMask = 0x1 << 1       // jar wall
         wall.contactTestBitMask = 0x1 << 0    // detect marble-wall contact
         physicsBody   = wall
+
+        // Cache floor Y for settling helpers (add radius when used)
+        computedFloorY = rect.minY
     }
     
     // MARK: - Motion handlers
     func setMotionEnabled(_ enabled: Bool) {
         guard enabled != motionEnabled else { return }
         motionEnabled = enabled
-        if enabled { startMotion() } else { stopMotion() }
+        if enabled {
+            startMotion()
+        } else {
+            stopMotion()
+            // Fallback: ensure a constant downward gravity so marbles fall
+            physicsWorld.gravity = CGVector(dx: 0, dy: -gravityScale)
+        }
     }
     
     private func startMotion() {
-        guard motion.isDeviceMotionAvailable else { return }
+        guard motion.isDeviceMotionAvailable else {
+            // Device motion unavailable (e.g., Simulator/preview) → use constant gravity
+            physicsWorld.gravity = CGVector(dx: 0, dy: -gravityScale)
+            return
+        }
         motion.deviceMotionUpdateInterval = 1.0 / 60.0   // 60 Hz
         
         motion.startDeviceMotionUpdates(to: .main) { [weak self] data, _ in
@@ -126,6 +148,24 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
             }
         }
     }
+
+    // Explicit constant downward gravity (used for previews)
+    func useConstantGravity(_ strength: CGFloat) {
+        physicsWorld.gravity = CGVector(dx: 0, dy: -abs(strength))
+    }
+
+    // Force-settle all marbles to the bottom (useful for small preview tiles)
+    func settleAllToBottom() {
+        let radius: CGFloat = 25.6
+        let floor = computedFloorY + radius + 1
+        for (_, node) in marbles {
+            if node.position.y > floor {
+                node.position.y = floor
+                node.physicsBody?.velocity = .zero
+                node.physicsBody?.angularVelocity = 0
+            }
+        }
+    }
     
     private func stopMotion() {
         motion.stopDeviceMotionUpdates()
@@ -135,7 +175,7 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
     // Drops an emoji into the scene identified by taskId. If already exists it will be ignored.
     func addEmoji(_ symbol: String, for taskId: UUID) {
         guard marbles[taskId] == nil else { return }
-        let margin: CGFloat = 14
+        let margin: CGFloat = 14 * emojiScaleFactor
         let minX = -size.width/2 + margin*2
         let maxX =  size.width/2 - margin*2
         let spawnX = CGFloat.random(in: minX...maxX)
@@ -143,7 +183,7 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
         
         let node = SKLabelNode(fontNamed: "AppleColorEmoji")
         node.text = symbol
-        node.fontSize = 54
+        node.fontSize = 54 * emojiScaleFactor
         node.verticalAlignmentMode = .center
         node.position = CGPoint(x: spawnX, y: spawnY)
         node.zPosition = 50
@@ -155,7 +195,7 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
     // Drops a glowing emoji reaction into the scene with special effects
     func addGlowingEmoji(_ symbol: String, for taskId: UUID) {
         guard marbles[taskId] == nil else { return }
-        let margin: CGFloat = 14
+        let margin: CGFloat = 14 * emojiScaleFactor
         let minX = -size.width/2 + margin*2
         let maxX =  size.width/2 - margin*2
         let spawnX = CGFloat.random(in: minX...maxX)
@@ -163,7 +203,7 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
         
         let node = SKLabelNode(fontNamed: "AppleColorEmoji")
         node.text = symbol
-        node.fontSize = 64 // Slightly larger for reactions
+        node.fontSize = 64 * emojiScaleFactor // Slightly larger for reactions
         node.verticalAlignmentMode = .center
         node.position = CGPoint(x: spawnX, y: spawnY)
         node.zPosition = 55 // Higher than regular emojis
