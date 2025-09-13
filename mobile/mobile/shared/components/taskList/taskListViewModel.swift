@@ -49,6 +49,11 @@ class TaskListViewModel: ObservableObject {
     func latestEmoji(for categoryId: UUID, defaultEmoji: String) -> String {
         latestEmojiForCategory[categoryId] ?? defaultEmoji
     }
+    
+    // Check if there are any tasks for the current user/date
+    var hasAnyTasks: Bool {
+        return categoriesWithTasks.contains { !$0.tasks.isEmpty }
+    }
 
     // MARK: - init
     init(userId: String?, date: Date = todayDate()) {

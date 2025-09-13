@@ -11,10 +11,12 @@ struct FriendDetailView: View {
     @State private var isFavorite: Bool
     @StateObject private var communityViewModel = CommunityViewModel()
     @State private var hasLeftTextNote: Bool = false
+    @StateObject private var friendTaskViewModel: TaskListViewModel
     
     init(friend: Friend) {
         self.friend = friend
         self._isFavorite = State(initialValue: friend.isFavorite)
+        self._friendTaskViewModel = StateObject(wrappedValue: TaskListViewModel(userId: friend.userId))
     }
     
     var body: some View {
@@ -28,7 +30,7 @@ struct FriendDetailView: View {
                     headerSection
                     // Friend shaker - ShakerView with notes integration
                     ShakerView(
-                        viewModel: TaskListViewModel(userId: friend.userId),
+                        viewModel: friendTaskViewModel,
                         onNoteEmojiTapped: { showNotesPopup() }
                     )
                         .frame(width: shakerSide, height: shakerSide)
@@ -36,7 +38,7 @@ struct FriendDetailView: View {
                         .padding(.top, 16)
                         .overlay(
                             Group {
-                                if !hasLeftTextNote {
+                                if !hasLeftTextNote && friendTaskViewModel.hasAnyTasks {
                                     VStack {
                                         Spacer().frame(height: shakerSide * 0.3)
                                         leaveNoteButton
