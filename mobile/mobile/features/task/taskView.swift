@@ -30,6 +30,9 @@ struct TaskView: View {
     
     // 2. Categories
     @State private var showCategoriesSheet: Bool = false
+    
+    // 3. Routines
+    @State private var showRoutinesSheet: Bool = false
 
     init() {
         let userId = getUserId()
@@ -60,7 +63,7 @@ struct TaskView: View {
                                 }
                             } label: {
                                 Image(systemName: "chevron.left")
-                                    .font(.system(size: 14))
+                                    .font(.system(size: 15))
                                     .foregroundColor(Color("Neutral-400"))
                             }
                             .buttonStyle(.plain)
@@ -86,7 +89,7 @@ struct TaskView: View {
                                 }
                             } label: {
                                 Image(systemName: "chevron.right")
-                                    .font(.system(size: 14))
+                                    .font(.system(size: 15))
                                     .foregroundColor(Color("Neutral-400"))
                             }
                             .buttonStyle(.plain)
@@ -105,7 +108,7 @@ struct TaskView: View {
                                         .frame(width: 44, height: 44)
                                     Image(systemName: "ellipsis")
                                         .font(.system(size: 14))
-                                        .foregroundColor(Color("White"))
+                                        .foregroundColor(Color("Neutral-400"))
                                 }
                                 .contentShape(Circle())
                             }
@@ -148,7 +151,10 @@ struct TaskView: View {
                     OptionsSheet(
                         onTapOutside: { showOptionsSheet = false },
 
-                        onTapRoutines: { /* disabled; no-op */ },
+                        onTapRoutines: {
+                            showOptionsSheet = false
+                            showRoutinesSheet = true
+                        },
 
                         onTapCategories: {
                             showOptionsSheet = false
@@ -206,6 +212,10 @@ struct TaskView: View {
         // -- "Categories" sheet --
         .fullScreenCover(isPresented: $showCategoriesSheet) {
             CategoriesSheet(viewModel: viewModel)
+        }
+        // -- "Routines" sheet --
+        .fullScreenCover(isPresented: $showRoutinesSheet) {
+            RoutinesSheet(viewModel: viewModel)
         }
         // -- "Change Date" sheet --
         .overlay(alignment: .bottomLeading) {

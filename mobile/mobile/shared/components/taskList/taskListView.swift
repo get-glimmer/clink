@@ -143,7 +143,7 @@ struct TaskListView: View {
     private func categoryCard(for categoryWithTasks: CategoryWithTasks) -> some View {
         ZStack {
             RoundedRectangle(cornerRadius: 16)
-                .foregroundColor(Color("Neutral-900"))
+                .foregroundColor(Color("Neutral-1000"))
             VStack(alignment: .leading, spacing: 25) {
                 categoryHeader(for: categoryWithTasks)
                 tasksSection(for: categoryWithTasks)
@@ -162,10 +162,11 @@ struct TaskListView: View {
                     defaultEmoji: categoryWithTasks.category.emoji
                 )
             )
-            .appFont(AppFont.title1)
+            .font(.system(size: 27))
 
             Text(categoryWithTasks.category.name)
                 .appFont(AppFont.title3)
+                .padding(.leading, 2)
 
             Spacer()
             addTaskButton(for: categoryWithTasks.category.id)
@@ -187,6 +188,7 @@ struct TaskListView: View {
     private func tasksSection(for categoryWithTasks: CategoryWithTasks) -> some View {
         ForEach(categoryWithTasks.tasks) { task in
             taskRow(for: task)
+                .padding(.leading, 2.84)
         }
     }
     
@@ -194,8 +196,8 @@ struct TaskListView: View {
         HStack(spacing: 12) {
             taskCheckbox(for: task)
             taskContent(for: task)
+                .padding(.leading, 1.42)
             Spacer()
-            //taskMenu(for: task)
             taskMenuButton(for: task)
         }
     }

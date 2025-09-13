@@ -38,7 +38,7 @@ struct CategoriesSheet: View {
                             .fill(Color("Neutral-900"))
                             .frame(width: 44, height: 44)
                         Image(systemName: "chevron.left")
-                            .font(.system(size: 12))
+                            .font(.system(size: 14))
                             .foregroundColor(Color("Neutral-400"))
                     }
                 }
@@ -60,7 +60,7 @@ struct CategoriesSheet: View {
             }
             .padding(.horizontal, 20)
             .padding(.top, 12)
-            .padding(.bottom, 20)
+            .padding(.bottom, 14)
             
             // --- Category List ---
             List {
@@ -176,10 +176,11 @@ struct CategoriesSheet: View {
         VStack(spacing: 8) {
             HStack {
                 Text(viewModel.latestEmoji(for: cat.id, defaultEmoji: cat.emoji))
-                    .appFont(AppFont.title1)
+                    .font(.system(size: 27))
                 Text(cat.name)
                     .appFont(AppFont.title3)
                     .foregroundColor(.white)
+                    .padding(.leading, 1.42)
                 Spacer()
                 Button {
                     editingCategory = cat

@@ -54,11 +54,21 @@ class TaskListViewModel: ObservableObject {
     var hasAnyTasks: Bool {
         return categoriesWithTasks.contains { !$0.tasks.isEmpty }
     }
+  
+    // For routines sheet
+    @Published var routinesByCategory: [UUID : [RoutineItem]] = [:]
+    
+    var dailyCategoriesOnly: [CategoryItem] {
+        categoriesWithTasks
+            .map { $0.category }
+            .filter { $0.type == .daily }
+    }
 
     // MARK: - init
     init(userId: String?, date: Date = todayDate()) {
         self.userId = userId
         self.viewerId = getUserId()
+        self.taskSelectedDate = date
         
         Task {
             do {
@@ -68,13 +78,17 @@ class TaskListViewModel: ObservableObject {
             }
         }
 
-        // calls fetchCategoriesAndTasks() whenever taskSelectedDate changes
+        // Re-fetch whenever the selected date (day) changes
         $taskSelectedDate
+            // treat "same calendar day" as the same value to avoid duplicate fetches
+            .removeDuplicates(by: { lhs, rhs in
+                Calendar.current.isDate(lhs, inSameDayAs: rhs)
+            })
+            .debounce(for: .milliseconds(80), scheduler: RunLoop.main) // coalesce rapid changes
             .sink { [weak self] _ in
-                self?.fetchCategoriesAndTasks()
+                self?.fetchCategoriesAndTasks()  // will call RPC ensure_routine_tasks
             }
             .store(in: &cancellables)
-
         fetchCategoriesAndTasks()
         
         $latestEmojiForCategory
@@ -160,7 +174,48 @@ class TaskListViewModel: ObservableObject {
         await MainActor.run { self.latestEmojiForCategory = map }
     }
     
-    // MARK: - fetching
+    func refreshLatestEmojis() {
+        Task {
+            await prefetchLatestCategoryEmojis(self.categoriesWithTasks.map { $0.category })
+        }
+    }
+    
+    // MARK: - routine fetching
+    func fetchRoutinesForDailyCategories() async {
+        guard let client = self.client, let userId = self.userId else { return }
+
+        do {
+            // 1) fetch all routines for this user (simple & robust)
+            let routines: [RoutineItem] = try await client
+                .from("routine")
+                .select()
+                .eq("userid", value: userId)
+                .order("createdat", ascending: true)
+                .execute()
+                .value
+
+            // 2) keep only routines whose category is daily
+            let dailyIds = Set(dailyCategoriesOnly.map { $0.id })
+            let filtered = routines.filter { dailyIds.contains($0.categoryId) }
+
+            // 3) group by category
+            var grouped: [UUID : [RoutineItem]] = [:]
+            for r in filtered {
+                grouped[r.categoryId, default: []].append(r)
+            }
+            await MainActor.run { self.routinesByCategory = grouped }
+        } catch {
+            print("[Routine] fetch failed:", error)
+        }
+    }
+
+    // Public helper for sheets
+    func refreshRoutines() {
+        Task { await fetchRoutinesForDailyCategories() }
+    }
+
+    
+    // MARK: - category & task fetching
     func fetchCategoriesAndTasks() {
         guard let client = self.client else {
             self.isSupabaseConnected = false
@@ -179,21 +234,47 @@ class TaskListViewModel: ObservableObject {
                     .from("category")
                     .select()
                     .eq("userid", value: userId)
-                    .in("privacy_status", value: allowedStatuses)
                     .order("createdat", ascending: true)
                     .execute()
                     .value
-                
-                // 1) selected date → date-aware map
-                await prefetchCategoryEmojisForSelectedDate(categories)
-                // 2) always → latest map for CategoriesSheet
-                await prefetchLatestCategoryEmojis(categories)
 
+                // 1) date-aware & latest emojis
+                await prefetchCategoryEmojisForSelectedDate(categories)
+                await prefetchLatestCategoryEmojis(categories)
+                
+                // routine
+                await fetchRoutinesForDailyCategories()
+
+                // 2) materialize routines for the selected date
+                do {
+                    // Most servers return integer
+                    do {
+                        let count: Int = try await client
+                            .rpc("ensure_routine_tasks", params: [
+                                "p_userid": userId,
+                                "p_date": formattedDate(taskSelectedDate) // "YYYY-MM-DD"
+                            ])
+                            .execute()
+                            .value
+                    } catch {
+                        // Fallback: some deployments wrap in an object { ensure_routine_tasks: N }
+                        struct RPCObj: Decodable { let ensure_routine_tasks: Int? }
+                        let row: RPCObj = try await client
+                            .rpc("ensure_routine_tasks", params: [
+                                "p_userid": userId,
+                                "p_date": formattedDate(taskSelectedDate)
+                            ])
+                            .execute()
+                            .value
+                    }
+                } catch {
+                    print("[Routine] ensure_routine_tasks failed:", error)
+                }
+
+                // 3) task fetch
                 var result: [CategoryWithTasks] = []
                 for category in categories {
-                  
                     let tasks: [TaskListItem]
-
                     switch category.type {
                     case .daily:
                         tasks = try await client
@@ -205,9 +286,7 @@ class TaskListViewModel: ObservableObject {
                             .order("createdat", ascending: true)
                             .execute()
                             .value
-
                     case .archived:
-                        // No date filter: fetch all tasks
                         tasks = try await client
                             .from("task")
                             .select()
@@ -217,7 +296,6 @@ class TaskListViewModel: ObservableObject {
                             .execute()
                             .value
                     }
-
                     result.append(CategoryWithTasks(id: category.id, category: category, tasks: tasks))
                 }
 

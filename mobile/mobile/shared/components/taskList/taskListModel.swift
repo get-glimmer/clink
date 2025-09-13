@@ -102,3 +102,46 @@ struct CategoryEmojiHistoryRow: Decodable {
         effectiveDate = dateFromPostgreSQL(d)
     }
 }
+
+// MARK: - Routine (list screen)
+struct RoutineItem: Decodable, Identifiable {
+    let id: UUID                 // routineid
+    let userId: UUID             // userid
+    let categoryId: UUID         // categoryid
+    let title: String            // title
+    let repeatType: String       // "everyday"|"weekly"|"monthly"
+    let startDate: Date
+    let endDate: Date?
+    let weeklyDays: [Int]?
+    let monthlyDays: [Int]?
+
+    enum CodingKeys: String, CodingKey {
+        case id          = "routineid"
+        case userId      = "userid"
+        case categoryId  = "categoryid"
+        case title
+        case repeatType  = "repeat_type"
+        case startDate   = "start_date"
+        case endDate     = "end_date"
+        case weeklyDays  = "weekly_days"
+        case monthlyDays = "monthly_days"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id         = try c.decode(UUID.self, forKey: .id)
+        userId     = try c.decode(UUID.self, forKey: .userId)
+        categoryId = try c.decode(UUID.self, forKey: .categoryId)
+        title      = try c.decode(String.self, forKey: .title)
+        repeatType = try c.decode(String.self, forKey: .repeatType)
+
+        // Postgres date -> "YYYY-MM-DD" string
+        let s1 = try? c.decodeIfPresent(String.self, forKey: .startDate)
+        let s2 = try? c.decodeIfPresent(String.self, forKey: .endDate)
+        startDate = dateFromPostgreSQL(s1) ?? todayDate()
+        endDate   = dateFromPostgreSQL(s2)
+
+        weeklyDays  = try? c.decodeIfPresent([Int].self, forKey: .weeklyDays)
+        monthlyDays = try? c.decodeIfPresent([Int].self, forKey: .monthlyDays)
+    }
+}

@@ -77,7 +77,7 @@ struct EditCategorySheet: View {
                                     .fill(Color("Neutral-900"))
                                     .frame(width: 44, height: 44)
                                 Image(systemName: "chevron.left")
-                                    .font(.system(size: 12))
+                                    .font(.system(size: 14))
                                     .foregroundColor(Color("Neutral-400"))
                             }
                             .contentShape(Circle())
