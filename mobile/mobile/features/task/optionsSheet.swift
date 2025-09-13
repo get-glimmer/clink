@@ -34,7 +34,7 @@ struct OptionsSheet: View {
             VStack(alignment: .leading, spacing: 30) {
                 OptionRow(systemImage: "clock.arrow.circlepath",
                           title: "Routines",
-                          isEnabled: false,
+                          isEnabled: true,
                           action: onTapRoutines)
                 
                 OptionRow(systemImage: "rectangle.grid.1x2",
