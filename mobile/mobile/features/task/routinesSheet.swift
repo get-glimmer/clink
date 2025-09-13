@@ -23,7 +23,7 @@ struct RoutinesSheet: View {
                     ZStack {
                         Circle().fill(Color("Neutral-900")).frame(width: 44, height: 44)
                         Image(systemName: "chevron.left")
-                            .font(.system(size: 12))
+                            .font(.system(size: 14))
                             .foregroundColor(Color("Neutral-400"))
                     }
                 }
@@ -37,16 +37,14 @@ struct RoutinesSheet: View {
             }
             .padding(.horizontal, 20)
             .padding(.top, 12)
-            .padding(.bottom, 20)
+            .padding(.bottom, 4) //14 - 10
 
             // --- List grouped by daily categories ---
             List {
                 ForEach(viewModel.dailyCategoriesOnly, id: \.id) { cat in
                     Section {
                         let routines = viewModel.routinesByCategory[cat.id] ?? []
-                        if routines.isEmpty {
-                            emptyRow
-                        } else {
+                        if !(routines.isEmpty) {
                             ForEach(routines, id: \.id) { routine in
                                 routineRow(routine, category: cat)
                                     .listRowSeparator(.hidden)
@@ -65,7 +63,6 @@ struct RoutinesSheet: View {
             .listStyle(.plain)
         }
         .onAppear {
-            // make sure emoji/routines are fresh
             viewModel.refreshLatestEmojis()
             viewModel.refreshRoutines()
         }
@@ -74,64 +71,63 @@ struct RoutinesSheet: View {
 
     // MARK: - Header per Category
     private func categoryHeader(_ cat: CategoryItem) -> some View {
-        HStack(spacing: 10) {
-            Text(viewModel.latestEmoji(for: cat.id, defaultEmoji: cat.emoji))
-                .appFont(AppFont.title1)
-            Text(cat.name)
-                .appFont(AppFont.title3)
-                .foregroundColor(.white)
-            Spacer()
-            Button {
-                // TODO: show add routine sheet for this category
-                targetCategoryForAdd = cat
-            } label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(Color("Neutral-400"))
-                    .frame(width: 44, height: 44)
-                    .background(Circle().fill(Color("Neutral-900")))
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.leading, -8)
-    }
-
-    // MARK: - Routine Row
-    private func routineRow(_ r: RoutineItem, category: CategoryItem) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .center) {
-                Text(r.title)
+        VStack(spacing: 10) {
+            HStack(spacing: 10) {
+                Text(viewModel.latestEmoji(for: cat.id, defaultEmoji: cat.emoji))
+                    .font(.system(size: 27))
+                Text(cat.name)
                     .appFont(AppFont.title3)
-                    .foregroundStyle(.white)
+                    .foregroundColor(.white)
+                    .padding(.leading, 1.42)
                 Spacer()
-                statusBadge(for: r)
+                Button {
+                    targetCategoryForAdd = cat // TODO: present add routine
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 24, weight: .light))
+                        .foregroundColor(Color("Neutral-400"))
+                }
+                .buttonStyle(.plain)
             }
-
-            // period
-            Text("\(formatDate(r.startDate)) ~ \(formatDate(r.endDate))")
-                .appFont(AppFont.captionXS_M)
-                .foregroundStyle(Color("Neutral-300"))
-
-            // repeat summary
-            Text(repeatSummary(for: r))
-                .appFont(AppFont.captionXS_M)
-                .foregroundStyle(Color("Neutral-300"))
 
             Divider()
                 .frame(width: 361)
                 .background(Color("Neutral-800"))
                 .opacity(0.5)
-                .padding(.top, 4)
         }
-        .padding(.vertical, 4)
+        .padding(.top, 10)
     }
 
-    // MARK: - Empty
-    private var emptyRow: some View {
-        Text("No routines yet")
-            .appFont(AppFont.captionXS_M)
-            .foregroundStyle(Color("Neutral-500"))
-            .padding(.vertical, 8)
+    // MARK: - Routine Row
+    private func routineRow(_ r: RoutineItem, category: CategoryItem) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            // task title
+            Text(r.title)
+                .appFont(AppFont.title3)
+                .foregroundStyle(.white)
+            
+            // period + status badge
+            HStack(alignment: .center) {
+                Text("\(formatDate(r.startDate)) - \(formatDate(r.endDate))")
+                    .appFont(AppFont.captionXS_M)
+                    .foregroundStyle(Color("Neutral-400"))
+                Spacer()
+                statusBadge(for: r)
+            }
+
+            // repeat summary
+            Text(repeatSummary(for: r))
+                .appFont(AppFont.captionXS_M)
+                .foregroundStyle(Color("Neutral-400"))
+
+            Divider()
+                .frame(width: 361)
+                .background(Color("Neutral-800"))
+                .opacity(0.5)
+                .padding(.top, 12)
+                .padding(.bottom, -12)
+        }
+        .padding(.vertical, 4)
     }
 }
 
@@ -211,7 +207,7 @@ private func statusBadge(for r: RoutineItem) -> some View {
     return Text(label)
         .appFont(AppFont.labelS)
         .foregroundStyle(.white)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 4)
         .background(Capsule().fill(color))
 }

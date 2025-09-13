@@ -15,7 +15,7 @@ struct TopNavBar: View {
                             .frame(width: 40, height: 40)
                         Image(systemName: "chevron.left")
                             .foregroundColor(Color("Neutral-400"))
-                            .frame(width: 12, height: 12)
+                            .frame(width: 14, height: 14)
                     }
                 }
             } else {

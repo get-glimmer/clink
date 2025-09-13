@@ -62,7 +62,7 @@ struct TaskView: View {
                                 }
                             } label: {
                                 Image(systemName: "chevron.left")
-                                    .font(.system(size: 14))
+                                    .font(.system(size: 15))
                                     .foregroundColor(Color("Neutral-400"))
                             }
                             .buttonStyle(.plain)
@@ -88,7 +88,7 @@ struct TaskView: View {
                                 }
                             } label: {
                                 Image(systemName: "chevron.right")
-                                    .font(.system(size: 14))
+                                    .font(.system(size: 15))
                                     .foregroundColor(Color("Neutral-400"))
                             }
                             .buttonStyle(.plain)
@@ -107,7 +107,7 @@ struct TaskView: View {
                                         .frame(width: 44, height: 44)
                                     Image(systemName: "ellipsis")
                                         .font(.system(size: 14))
-                                        .foregroundColor(Color("White"))
+                                        .foregroundColor(Color("Neutral-400"))
                                 }
                                 .contentShape(Circle())
                             }

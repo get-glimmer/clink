@@ -249,7 +249,6 @@ class TaskListViewModel: ObservableObject {
                             ])
                             .execute()
                             .value
-                        print("[Routine] generated (scalar):", count)
                     } catch {
                         // Fallback: some deployments wrap in an object { ensure_routine_tasks: N }
                         struct RPCObj: Decodable { let ensure_routine_tasks: Int? }
@@ -260,7 +259,6 @@ class TaskListViewModel: ObservableObject {
                             ])
                             .execute()
                             .value
-                        print("[Routine] generated (object):", row.ensure_routine_tasks ?? -1)
                     }
                 } catch {
                     print("[Routine] ensure_routine_tasks failed:", error)
