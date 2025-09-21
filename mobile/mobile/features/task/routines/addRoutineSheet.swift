@@ -23,6 +23,11 @@ struct AddRoutineSheet: View {
     @State private var showToPicker   = false
     
     @State private var multiDates = Set<DateComponents>()
+    
+    // Calendar tuning
+    private let kMonthPadH: CGFloat = 10   // gap to outer stroke (horizontal)
+    private let kMonthPadV: CGFloat = 10   // gap to outer stroke (vertical)
+    private let kMonthScale: CGFloat = 0.92 // visual scale of the calendar
 
     // Repeat
     enum RepeatType: String, CaseIterable, Identifiable {
@@ -91,6 +96,7 @@ struct AddRoutineSheet: View {
                         .foregroundColor(Color("White"))
                 }
             }
+            
             .safeAreaInset(edge: .bottom) {
                 Button(action: saveRoutine) {
                     Text(isSaving ? "Saving..." : "Done")
@@ -215,8 +221,8 @@ struct AddRoutineSheet: View {
                     } label: {
                         HStack(spacing: 6) {
                             Text(repeatType.display)
-                                .appFont(AppFont.labelM)
-                                .foregroundColor(Color("Neutral-300"))
+                                .appFont(AppFont.body1)
+                                .foregroundColor(.white)
                             Image(systemName: "chevron.up.chevron.down")
                                 .font(.footnote)
                                 .foregroundColor(Color("Neutral-300"))
@@ -258,8 +264,8 @@ struct AddRoutineSheet: View {
             }
             Spacer()
             Text(value)
-                .appFont(AppFont.labelM)
-                .foregroundColor(Color("Neutral-300"))
+                .appFont(AppFont.body1)
+                .foregroundColor(.white)
             Image(systemName: "chevron.right")
                 .font(.system(size: 14))
                 .foregroundColor(Color("Neutral-300"))
@@ -283,8 +289,10 @@ struct AddRoutineSheet: View {
             .datePickerStyle(.graphical)
             .tint(Color("Green-300"))
             .labelsHidden()
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .scaleEffect(kMonthScale, anchor: .top)
+            .padding(.horizontal, kMonthPadH)
+            .padding(.vertical, kMonthPadV)
+            .padding(.bottom, -10)
     }
 
     // MARK: - calendar
@@ -327,23 +335,27 @@ struct AddRoutineSheet: View {
     @ViewBuilder
     private var monthlyPickerInsideBox: some View {
         if #available(iOS 16.0, *) {
-            MultiDatePicker("", selection: $multiDates)
-                .tint(Color("Green-300"))
-                .labelsHidden()
-                .onChange(of: multiDates) { newVal in
-                    monthlyDays = Set(newVal.compactMap { $0.day })
-                }
-                .onAppear {
-                    if multiDates.isEmpty {
-                        let base = monthCursor
-                        let cal = Calendar.current
-                        let y = cal.component(.year, from: base)
-                        let m = cal.component(.month, from: base)
-                        multiDates = Set(monthlyDays.map { DateComponents(year: y, month: m, day: $0) })
+            VStack(spacing: 0) {
+                MultiDatePicker("", selection: $multiDates)
+                    .tint(Color("Green-300"))
+                    .labelsHidden()
+                    .onChange(of: multiDates) { newVal in
+                        monthlyDays = Set(newVal.compactMap { $0.day })
                     }
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
+                    .onAppear {
+                        if multiDates.isEmpty {
+                            let base = monthCursor
+                            let cal = Calendar.current
+                            let y = cal.component(.year, from: base)
+                            let m = cal.component(.month, from: base)
+                            multiDates = Set(monthlyDays.map { DateComponents(year: y, month: m, day: $0) })
+                        }
+                    }
+                    .scaleEffect(kMonthScale, anchor: .top)
+                    .padding(.horizontal, kMonthPadH)        // gap from outer stroke
+                    .padding(.vertical, kMonthPadV)
+            }
+            .padding(.bottom, -10)
         }
     }
 
