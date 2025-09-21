@@ -907,4 +907,51 @@ class TaskListViewModel: ObservableObject {
             self.updateAllCompleted()
         }
     }
+    // MARK: - Create routine
+    func addRoutine(
+        categoryId: UUID,
+        title: String,
+        repeatType: String?,          // nil / "everyday" / "weekly" / "monthly"
+        startDate: Date,
+        endDate: Date?,
+        weeklyDays: [Int]?,
+        monthlyDays: [Int]?
+    ) async -> Bool {
+        guard let client = self.client, let userId = self.userId else { return false }
+
+        struct NewRoutine: Encodable {
+            let userid: String
+            let categoryid: String
+            let title: String
+            let repeat_type: String?
+            let start_date: String
+            let end_date: String?
+            let weekly_days: [Int]?
+            let monthly_days: [Int]?
+            let createdat: String
+        }
+
+        let payload = NewRoutine(
+            userid: userId,
+            categoryid: categoryId.uuidString,
+            title: title,
+            repeat_type: repeatType,
+            start_date: dateToPostgreSQLString(startDate),  // "yyyy-MM-dd"
+            end_date: endDate.map { dateToPostgreSQLString($0) },
+            weekly_days: weeklyDays,
+            monthly_days: monthlyDays,
+            createdat: ISO8601DateFormatter().string(from: Date())
+        )
+
+        do {
+            try await client.from("routine")
+                .insert(payload, returning: .minimal)
+                .execute()
+            return true
+        } catch {
+            print("[Routine] insert failed:", error)
+            return false
+        }
+    }
+
 }

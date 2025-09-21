@@ -81,13 +81,17 @@ struct RoutinesSheet: View {
                     .padding(.leading, 1.42)
                 Spacer()
                 Button {
-                    targetCategoryForAdd = cat // TODO: present add routine
+                    targetCategoryForAdd = cat
                 } label: {
                     Image(systemName: "plus")
                         .font(.system(size: 24, weight: .light))
                         .foregroundColor(Color("Neutral-400"))
                 }
                 .buttonStyle(.plain)
+                // add routine
+                .fullScreenCover(item: $targetCategoryForAdd) { cat in
+                    AddRoutineSheet(category: cat, viewModel: viewModel)
+                }
             }
 
             Divider()
