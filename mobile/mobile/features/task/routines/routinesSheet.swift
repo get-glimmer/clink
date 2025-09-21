@@ -69,6 +69,9 @@ struct RoutinesSheet: View {
         .fullScreenCover(item: $targetCategoryForAdd) { cat in
             AddRoutineSheet(category: cat, viewModel: viewModel)
         }
+        .fullScreenCover(item: $editingRoutine) { r in
+            EditRoutineSheet(routine: r, viewModel: viewModel)
+        }
     }
 
     // MARK: - Header per Category

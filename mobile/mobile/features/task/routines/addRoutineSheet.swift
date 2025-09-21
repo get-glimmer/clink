@@ -315,14 +315,14 @@ struct AddRoutineSheet: View {
 
     private var weeklyChips: some View {
         let labels = ["SUN","MON","TUE","WED","THU","FRI","SAT"]
-        return HStack(spacing: 8) {
+        return HStack(spacing: 7) {
             ForEach(0..<7, id: \.self) { i in
                 let selected = weeklyDays.contains(i)
                 Text(labels[i])
                     .appFont(AppFont.captionXS)
-                    .foregroundStyle(selected ? Color.black : Color("Neutral-300"))
+                    .foregroundStyle(selected ? Color.black : Color("Neutral-50"))
                     .padding(.horizontal, 10).padding(.vertical, 8)
-                    .background(Capsule().fill(selected ? Color("Green-300") : Color("Neutral-800")))
+                    .background(Capsule().fill(selected ? Color("Green-300") : Color("Neutral-900")))
                     .onTapGesture {
                         if selected { weeklyDays.remove(i) } else { weeklyDays.insert(i) }
                     }

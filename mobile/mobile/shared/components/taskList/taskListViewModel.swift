@@ -953,5 +953,65 @@ class TaskListViewModel: ObservableObject {
             return false
         }
     }
+    // MARK: - update routine
+    func updateRoutine(
+        routineId: UUID,
+        title: String,
+        repeatType: String?,
+        startDate: Date,
+        endDate: Date?,
+        weeklyDays: [Int]?,
+        monthlyDays: [Int]?
+    ) async -> Bool {
+        guard let client = self.client, let userId = self.userId else { return false }
 
+        struct UpdatePayload: Encodable {
+            let title: String
+            let repeat_type: String?
+            let start_date: String
+            let end_date: String?
+            let weekly_days: [Int]?
+            let monthly_days: [Int]?
+            let updatedat: String
+        }
+
+        let payload = UpdatePayload(
+            title: title,
+            repeat_type: repeatType,
+            start_date: dateToPostgreSQLString(startDate),
+            end_date: endDate.map { dateToPostgreSQLString($0) },
+            weekly_days: weeklyDays,
+            monthly_days: monthlyDays,
+            updatedat: ISO8601DateFormatter().string(from: Date())
+        )
+        do {
+            try await client
+                .from("routine")
+                .update(payload)
+                .eq("routineid", value: routineId.uuidString)
+                .eq("userid", value: userId)
+                .execute()
+            return true
+        } catch {
+            print("[Routine] update failed:", error)
+            return false
+        }
+    }
+
+    // MARK: - delete routine
+    func deleteRoutine(routineId: UUID) async -> Bool {
+        guard let client = self.client, let userId = self.userId else { return false }
+        do {
+            try await client
+                .from("routine")
+                .delete()
+                .eq("routineid", value: routineId.uuidString)
+                .eq("userid", value: userId)
+                .execute()
+            return true
+        } catch {
+            print("[Routine] delete failed:", error)
+            return false
+        }
+    }
 }
