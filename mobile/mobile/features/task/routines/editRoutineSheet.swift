@@ -122,6 +122,7 @@ struct EditRoutineSheet: View {
                 .padding(.top, 8)
             }
         }
+        .padding(.top, 12)
     }
 
     // MARK: - Sections
