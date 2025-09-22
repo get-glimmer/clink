@@ -565,7 +565,6 @@ class TaskListViewModel: ObservableObject {
                 .from("task")
                 .update([
                     "duedate": dateToPostgreSQLString(newDate), //"yyyy-MM-dd" string
-                    "updatedat": ISO8601DateFormatter().string(from: Date())
                 ])
                 .eq("taskid", value: taskId)
                 .eq("userid", value: userId)
@@ -972,7 +971,6 @@ class TaskListViewModel: ObservableObject {
             let end_date: String?
             let weekly_days: [Int]?
             let monthly_days: [Int]?
-            let updatedat: String
         }
 
         let payload = UpdatePayload(
@@ -981,8 +979,7 @@ class TaskListViewModel: ObservableObject {
             start_date: dateToPostgreSQLString(startDate),
             end_date: endDate.map { dateToPostgreSQLString($0) },
             weekly_days: weeklyDays,
-            monthly_days: monthlyDays,
-            updatedat: ISO8601DateFormatter().string(from: Date())
+            monthly_days: monthlyDays
         )
         do {
             try await client
