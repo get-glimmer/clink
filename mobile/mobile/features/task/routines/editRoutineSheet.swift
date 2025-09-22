@@ -30,11 +30,10 @@ struct EditRoutineSheet: View {
     private let kMonthScale: CGFloat = 0.92
 
     enum RepeatType: String, CaseIterable, Identifiable {
-        case none, everyday, weekly, monthly
+        case everyday, weekly, monthly
         var id: String { rawValue }
         var display: String {
             switch self {
-            case .none: return "None"
             case .everyday: return "Everyday"
             case .weekly: return "Weekly"
             case .monthly: return "Monthly"
@@ -42,12 +41,11 @@ struct EditRoutineSheet: View {
         }
         var dbValue: String? {
             switch self {
-            case .none: return nil
             default: return rawValue
             }
         }
     }
-    @State private var repeatType: RepeatType = .none
+    @State private var repeatType: RepeatType = .everyday
     @State private var weeklyDays: Set<Int> = []     // 0..6
     @State private var monthCursor: Date = Date()
     @State private var monthlyDays: Set<Int> = []    // 1..31
@@ -365,10 +363,9 @@ struct EditRoutineSheet: View {
         endDate   = routine.endDate
 
         switch routine.repeatType {
-        case "everyday": repeatType = .everyday
         case "weekly":   repeatType = .weekly
         case "monthly":  repeatType = .monthly
-        default:         repeatType = .none
+        default:         repeatType = .everyday
         }
         weeklyDays  = Set(routine.weeklyDays ?? [])
         monthlyDays = Set(routine.monthlyDays ?? [])

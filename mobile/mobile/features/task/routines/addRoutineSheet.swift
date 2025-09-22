@@ -31,11 +31,10 @@ struct AddRoutineSheet: View {
 
     // Repeat
     enum RepeatType: String, CaseIterable, Identifiable {
-        case none, everyday, weekly, monthly
+        case everyday, weekly, monthly
         var id: String { rawValue }
         var display: String {
             switch self {
-            case .none: return "None"
             case .everyday: return "Everyday"
             case .weekly: return "Weekly"
             case .monthly: return "Monthly"
@@ -43,12 +42,11 @@ struct AddRoutineSheet: View {
         }
         var dbValue: String? {
             switch self {
-            case .none: return nil
             default: return rawValue
             }
         }
     }
-    @State private var repeatType: RepeatType = .none
+    @State private var repeatType: RepeatType = .everyday
     @State private var weeklyDays: Set<Int> = []          // 0..6 (Sun..Sat)
 
     // monthly picker
