@@ -15,6 +15,13 @@ struct AddRoutineSheet: View {
     // UI States
     @Environment(\.dismiss) private var dismiss
     @State private var titleText: String = ""
+    
+    // MARK: - init
+    init(category: CategoryItem, viewModel: TaskListViewModel, initialTitle: String? = nil) {
+        self.category = category
+        self._viewModel = ObservedObject(initialValue: viewModel)
+        _titleText = State(initialValue: initialTitle ?? "")
+    }
 
     @State private var startDate: Date? = nil
     @State private var endDate: Date? = nil
