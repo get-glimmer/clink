@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Supabase
 
 class CommunityViewModel: ObservableObject {
     @Published var friends: [Friend] = []
@@ -19,13 +20,13 @@ class CommunityViewModel: ObservableObject {
     private let communityService = CommunityService()
     
     init() {
-        loadFriendsData()
+        loadFriendsData(refresh: false)
     }
     
-    private func loadFriendsData() {
+    private func loadFriendsData(refresh: Bool) {
         Task {
             await MainActor.run {
-                self.isLoading = true
+                if !refresh { self.isLoading = true }
                 self.errorMessage = nil
             }
             
@@ -118,7 +119,7 @@ class CommunityViewModel: ObservableObject {
         selectedCategory = category
         showingDropdown = false
         // Reload friends data for the new category
-        loadFriendsData()
+        loadFriendsData(refresh: false)
     }
     
     func toggleDropdown() {
@@ -133,7 +134,7 @@ class CommunityViewModel: ObservableObject {
                 
                 // Reload friends data to reflect the change
                 await MainActor.run {
-                    self.loadFriendsData()
+                    self.loadFriendsData(refresh: false)
                 }
             } catch {
                 await MainActor.run {
@@ -150,7 +151,7 @@ class CommunityViewModel: ObservableObject {
                 
                 // Reload friends data to reflect the change
                 await MainActor.run {
-                    self.loadFriendsData()
+                    self.loadFriendsData(refresh: false)
                 }
             } catch {
                 await MainActor.run {
@@ -167,7 +168,7 @@ class CommunityViewModel: ObservableObject {
                 
                 // Reload friends data to reflect the change
                 await MainActor.run {
-                    self.loadFriendsData()
+                    self.loadFriendsData(refresh: false)
                 }
             } catch {
                 await MainActor.run {
@@ -178,6 +179,8 @@ class CommunityViewModel: ObservableObject {
     }
     
     func refreshFriends() {
-        loadFriendsData()
+        loadFriendsData(refresh: true)
     }
+
+    // Realtime V2 pending: placeholder removed to avoid build errors
 }

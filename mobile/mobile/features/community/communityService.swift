@@ -76,17 +76,27 @@ class CommunityService: ObservableObject {
         }
         
         do {
-            // Get accepted friendships where I am the user (unidirectional table)
-            let friendships: [FriendshipData] = try await supabase
+            // Get accepted friendships owned by me (outgoing) AND those where I am the target (incoming)
+            let outgoing: [FriendshipData] = try await supabase
                 .from("friends")
                 .select("*")
                 .eq("user_id", value: currentUserId)
                 .eq("status", value: "accepted")
                 .execute()
                 .value
-            
-            // Extract friend IDs directly (no need to resolve "other" user)
-            let friendIds: [String] = friendships.map { $0.friend_id }
+
+            let incoming: [FriendshipData] = try await supabase
+                .from("friends")
+                .select("*")
+                .eq("friend_id", value: currentUserId)
+                .eq("status", value: "accepted")
+                .execute()
+                .value
+
+            // The "other" user ID is friend_id for outgoing rows, and user_id for incoming rows
+            let outgoingIds = outgoing.map { $0.friend_id }
+            let incomingIds = incoming.map { $0.user_id }
+            let friendIds: [String] = Array(Set(outgoingIds + incomingIds))
             
             guard !friendIds.isEmpty else {
                 return []
@@ -100,9 +110,8 @@ class CommunityService: ObservableObject {
                 .execute()
                 .value
             
-            // Create a mapping of friend IDs to favorite status
-            // All friendships returned are owned by the current user
-            let favoriteMapping = Dictionary(uniqueKeysWithValues: friendships.map { ($0.friend_id, $0.favorite ?? false) })
+            // Favorites only exist on rows I own (outgoing). Default false for incoming-only links
+            let favoriteMapping = Dictionary(uniqueKeysWithValues: outgoing.map { ($0.friend_id, $0.favorite ?? false) })
             
             // Get task progress for each friend
             var friends: [Friend] = []

@@ -16,6 +16,9 @@ struct CommunityView: View {
     @State private var pendingRequestCount: Int = 0
     @State private var dropdownAnchorX: CGFloat = 0
     @State private var dropdownAnchorY: CGFloat = 0
+    @State private var enableBadgeTick: Bool = false
+    private let badgeTimer = Timer.publish(every: 5, on: .main, in: .common).autoconnect()
+    @State private var isBadgePolling: Bool = false
     
     var body: some View {
         ZStack {
@@ -104,6 +107,10 @@ struct CommunityView: View {
                         .padding(.top, 20)
                     }
                 }
+                // Pull-to-refresh (native). Requires an extra pull beyond top.
+                .refreshable {
+                    await MainActor.run { viewModel.refreshFriends() }
+                }
             }
         }
         .coordinateSpace(name: "rootOverlay")
@@ -163,15 +170,19 @@ struct CommunityView: View {
             SearchView()
         }
         .onAppear {
-            Task {
-                await refreshPendingRequests()
-            }
+            Task { await refreshPendingRequests() }
+            enableBadgeTick = true
         }
         .onReceive(NotificationCenter.default.publisher(for: .friendRequestsChanged)) { _ in
             Task { await refreshPendingRequests() }
             // Also refresh friends list to show the new accepted friend preview
             viewModel.refreshFriends()
         }
+        .onReceive(badgeTimer) { _ in
+            guard enableBadgeTick else { return }
+            Task { await refreshPendingRequests() }
+        }
+        .onDisappear { enableBadgeTick = false }
         .fullScreenCover(item: $selectedFriend) { friend in
             FriendDetailView(friend: friend)
         }
