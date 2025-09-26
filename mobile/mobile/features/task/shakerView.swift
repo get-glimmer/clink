@@ -132,7 +132,7 @@ struct ShakerView: View {
                   let target = info["friendUserId"] as? String,
                   let emoji  = info["emoji"] as? String,
                   target == owner else { return }
-            if !scene.hasEmoji(emoji) {
+            if !scene.hasReactionEmoji(emoji) {
                 scene.addGlowingEmoji(emoji, for: UUID())
                 if isPreviewMode { scene.settleAllToBottom() }
             }
@@ -143,7 +143,7 @@ struct ShakerView: View {
                   let target = info["friendUserId"] as? String,
                   let emoji  = info["emoji"] as? String,
                   target == owner else { return }
-            scene.removeEmoji(symbol: emoji)
+            scene.removeReactionEmoji(symbol: emoji)
             if isPreviewMode { scene.settleAllToBottom() }
         }
     }

@@ -929,21 +929,14 @@ struct HeartButton: View {
             }
         }
         .disabled(isLoading)
-        .onAppear {
-            loadLikeStatus()
-        }
-        .task(id: categoryId) {
-            loadLikeStatus()
-        }
+        .onAppear { loadLikeStatus() }
+        .task(id: categoryId) { loadLikeStatus() }
         .id("heart-\(categoryId.uuidString)")
     }
     
     private func loadLikeStatus() {
         guard let currentUserId = getUserId(),
-              let userId = UUID(uuidString: currentUserId) else { 
-            return 
-        }
-        
+              let userId = UUID(uuidString: currentUserId) else { return }
         Task {
             do {
                 let liked = try await communityService.isLiked(categoryId: categoryId, userId: userId)

@@ -208,6 +208,8 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
         node.position = CGPoint(x: spawnX, y: spawnY)
         node.zPosition = 55 // Higher than regular emojis
         node.physicsBody = makeBody()
+        // Mark as reaction so we can identify later
+        node.name = "reaction"
         
         // Add glowing effect that FOLLOWS the emoji
         // Build an effect node as a CHILD of the moving label node so it doesn't leave trails
@@ -257,6 +259,19 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
     // Removes one occurrence of an emoji by its symbol (first match)
     func removeEmoji(symbol: String) {
         if let match = marbles.first(where: { $0.value.text == symbol }) {
+            match.value.removeFromParent()
+            marbles.removeValue(forKey: match.key)
+        }
+    }
+
+    // Checks whether a REACTION emoji with the given symbol exists
+    func hasReactionEmoji(_ symbol: String) -> Bool {
+        return marbles.values.contains { $0.name == "reaction" && $0.text == symbol }
+    }
+
+    // Removes one REACTION emoji by its symbol (first match among reaction nodes only)
+    func removeReactionEmoji(symbol: String) {
+        if let match = marbles.first(where: { $0.value.name == "reaction" && $0.value.text == symbol }) {
             match.value.removeFromParent()
             marbles.removeValue(forKey: match.key)
         }
