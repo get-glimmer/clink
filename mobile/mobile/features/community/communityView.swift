@@ -9,10 +9,15 @@ import SwiftUI
 import SpriteKit
 
 struct CommunityView: View {
+    @Binding var isMenuPresented: Bool
+    init(isMenuPresented: Binding<Bool> = .constant(false)) {
+        _isMenuPresented = isMenuPresented
+    }
     @StateObject private var viewModel = CommunityViewModel()
     @StateObject private var searchService = UserSearchService()
     @State private var showingSearch = false
     @State private var selectedFriend: Friend? = nil
+    @State private var activeMenuFriend: Friend? = nil
     @State private var pendingRequestCount: Int = 0
     @State private var dropdownAnchorX: CGFloat = 0
     @State private var dropdownAnchorY: CGFloat = 0
@@ -39,7 +44,7 @@ struct CommunityView: View {
                             
                             Text("Loading friends...")
                                 .foregroundColor(AppColors.textWhite)
-                                .font(.system(size: 16))
+                                .appText(AppFont.body1)
                         }
                         .frame(maxWidth: .infinity, maxHeight: 200)
                         .padding(.top, 40)
@@ -52,11 +57,11 @@ struct CommunityView: View {
                             
                             Text("Something went wrong")
                                 .foregroundColor(AppColors.textWhite)
-                                .font(.system(size: 18, weight: .medium))
+                                .appText(AppFont.title2)
                             
                             Text(errorMessage)
                                 .foregroundColor(AppColors.neutral400)
-                                .font(.system(size: 14))
+                                .appText(AppFont.body2)
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal, 20)
                             
@@ -64,7 +69,7 @@ struct CommunityView: View {
                                 viewModel.refreshFriends()
                             }
                             .foregroundColor(AppColors.textWhite)
-                            .font(.system(size: 16, weight: .medium))
+                            .appText(AppFont.labelL)
                         }
                         .frame(maxWidth: .infinity, maxHeight: 200)
                         .padding(.top, 40)
@@ -77,11 +82,11 @@ struct CommunityView: View {
                             
                             Text("No friends yet")
                                 .foregroundColor(AppColors.textWhite)
-                                .font(.system(size: 18, weight: .medium))
+                                .appText(AppFont.title2)
                             
                             Text("Add friends through the search to see them here")
                                 .foregroundColor(AppColors.neutral400)
-                                .font(.system(size: 14))
+                                .appText(AppFont.body2)
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal, 20)
                         }
@@ -97,14 +102,21 @@ struct CommunityView: View {
                                 FriendCardView(
                                     friend: friend, 
                                     isSelected: friend.id == viewModel.selectedFriendId,
-                                    viewModel: viewModel
-                                ) {
-                                    selectedFriend = friend
-                                }
+                                    viewModel: viewModel,
+                                    onTap: {
+                                        selectedFriend = friend
+                                    },
+                                    onMenu: {
+                                        withAnimation(.easeInOut(duration: 0.2)) {
+                                            activeMenuFriend = friend
+                                            isMenuPresented = true
+                                        }
+                                    }
+                                )
                             }
                         }
                         .padding(.horizontal, 20)
-                        .padding(.top, 20)
+                        .padding(.top, 12)
                     }
                 }
                 // Pull-to-refresh (native). Requires an extra pull beyond top.
@@ -114,56 +126,95 @@ struct CommunityView: View {
             }
         }
         .coordinateSpace(name: "rootOverlay")
-        // Global overlay for dropdown positioned under the button
-        .overlay(alignment: .topLeading) {
-            if viewModel.showingDropdown {
-                ZStack(alignment: .topLeading) {
-                    Color.black.opacity(0.0001)
-                        .ignoresSafeArea()
-                        .onTapGesture { viewModel.showingDropdown = false }
+        // Dropdown positioned via header anchor (left-aligned, 16pt below header)
+        .overlayPreferenceValue(DropdownBoundsPreferenceKey.self) { anchor in
+            GeometryReader { proxy in
+                if viewModel.showingDropdown, let a = anchor {
+                    let rect = proxy[a]
+                    ZStack(alignment: .topLeading) {
+                        Color.black.opacity(0.0001)
+                            .ignoresSafeArea()
+                            .onTapGesture { viewModel.showingDropdown = false }
 
-                    VStack(alignment: .leading, spacing: 0) {
-                        let rowHeight: CGFloat = 44
-                        let dividerThickness: CGFloat = 1
-                        let totalRows = CGFloat(viewModel.categories.count) * rowHeight
-                        let totalDividers = CGFloat(max(0, viewModel.categories.count - 1)) * dividerThickness
-                        let contentHeight = totalRows + totalDividers
-                        let containerHeight: CGFloat = 152
-                        let verticalPad = max(0, (containerHeight - contentHeight) / 2)
-                        Spacer(minLength: verticalPad)
-                        ForEach(viewModel.categories, id: \.self) { category in
-                            Button(action: { viewModel.selectCategory(category) }) {
-                                HStack(spacing: 0) {
-                                    Text(labelFor(category))
-                                        .foregroundColor(AppColors.textWhite)
-                                        .font(.system(size: 18, weight: .medium))
-                                    Spacer(minLength: 0)
-                                    if categoriesEqual(category, viewModel.selectedCategory) {
-                                        Image(systemName: "checkmark")
+                        VStack(alignment: .leading, spacing: 0) {
+                            let rowHeight: CGFloat = 44
+                            let dividerThickness: CGFloat = 1
+                            let totalRows = CGFloat(viewModel.categories.count) * rowHeight
+                            let totalDividers = CGFloat(max(0, viewModel.categories.count - 1)) * dividerThickness
+                            let contentHeight = totalRows + totalDividers
+                            let containerHeight: CGFloat = 152
+                            let verticalPad = max(0, (containerHeight - contentHeight) / 2)
+                            Spacer(minLength: verticalPad)
+                            ForEach(viewModel.categories, id: \.self) { category in
+                                Button(action: { viewModel.selectCategory(category) }) {
+                                    HStack(spacing: 0) {
+                                        Text(labelFor(category))
                                             .foregroundColor(AppColors.textWhite)
-                                            .font(.system(size: 16, weight: .medium))
+                                            .appText(AppFont.labelL)
+                                        Spacer(minLength: 0)
+                                        if categoriesEqual(category, viewModel.selectedCategory) {
+                                            Image("checkMark")
+                                                .renderingMode(.template)
+                                                .foregroundColor(AppColors.textWhite)
+                                        }
                                     }
-                                }
-                                .padding(.horizontal, 20)
-                                .frame(height: rowHeight, alignment: .center)
-                            }
-                            if category != viewModel.categories.last {
-                                Divider()
-                                    .frame(height: dividerThickness)
-                                    .background(AppColors.neutral700)
                                     .padding(.horizontal, 20)
+                                    .frame(height: rowHeight, alignment: .center)
+                                }
+                                if category != viewModel.categories.last {
+                                    Divider()
+                                        .frame(height: dividerThickness)
+                                        .background(AppColors.neutral800)
+                                        .padding(.horizontal, 20)
+                                }
+                            }
+                            Spacer(minLength: verticalPad)
+                        }
+                        .frame(width: 178, height: 152, alignment: .topLeading)
+                        .background(AppColors.neutral900)
+                        .cornerRadius(16)
+                        .overlay(RoundedRectangle(cornerRadius: 20).stroke(AppColors.neutral600, lineWidth: 1))
+                        .shadow(color: Color.black.opacity(0.3), radius: 10, x: 0, y: 5)
+                        .offset(x: rect.minX, y: rect.maxY)
+                        .animation(.easeInOut(duration: 0.2), value: viewModel.showingDropdown)
+                    }
+                }
+            }
+        }
+        // Global blur + bottom sheet overlay for friend menu (above everything including nav)
+        .overlay {
+            if let menuFriend = activeMenuFriend {
+                ZStack(alignment: .bottom) {
+                    // Blur overlay covering everything including nav bar
+                    Color.black.opacity(0.15)
+                        .background(.ultraThinMaterial)
+                        .ignoresSafeArea(.all)
+                        .transition(.opacity)
+                        .onTapGesture {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                activeMenuFriend = nil
+                                isMenuPresented = false
                             }
                         }
-                        Spacer(minLength: verticalPad)
-                    }
-                    .frame(width: 178, height: 152, alignment: .topLeading)
-                    .background(AppColors.neutral800)
-                    .cornerRadius(20)
-                    .overlay(RoundedRectangle(cornerRadius: 20).stroke(AppColors.neutral600, lineWidth: 1))
-                    .shadow(color: Color.black.opacity(0.3), radius: 10, x: 0, y: 5)
-                    .offset(x: dropdownAnchorX, y: dropdownAnchorY + 52)
+
+                    // Bottom sheet menu
+                    FriendMenuSheet(
+                        friend: menuFriend,
+                        viewModel: viewModel,
+                        onClose: {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                activeMenuFriend = nil
+                                isMenuPresented = false
+                            }
+                        },
+                        handleContent: nil
+                    )
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .ignoresSafeArea(edges: .bottom)
                 }
-                .animation(.easeInOut(duration: 0.2), value: viewModel.showingDropdown)
+                .ignoresSafeArea(.all) // ensure container uses full screen bounds
+                .zIndex(1000)
+                .animation(.easeInOut(duration: 0.2), value: activeMenuFriend != nil)
             }
         }
         .fullScreenCover(isPresented: $showingSearch) {
@@ -197,16 +248,15 @@ struct CommunityView: View {
                 HStack(spacing: 8) {
                     Text(viewModel.selectedCategory)
                         .foregroundColor(AppColors.textWhite)
-                        .font(.system(size: 20, weight: .medium))
+                        .appText(AppFont.title3)
                     
                     Image(systemName: "chevron.down")
                         .foregroundColor(AppColors.textWhite)
-                        .font(.system(size: 14, weight: .medium))
+                        .font(.system(size: 7))
                         .rotationEffect(.degrees(viewModel.showingDropdown ? 180 : 0))
                         .animation(.easeInOut(duration: 0.2), value: viewModel.showingDropdown)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
+                .padding(.vertical, 8) // remove extra horizontal padding so header aligns with grid
                 .background(Color.clear)
                 // capture position of chip in global space
                 .background(GeometryReader { proxy in
@@ -215,6 +265,7 @@ struct CommunityView: View {
                         .preference(key: DropdownXPreferenceKey.self, value: frame.minX)
                         .preference(key: DropdownYPreferenceKey.self, value: frame.maxY)
                 })
+                .anchorPreference(key: DropdownBoundsPreferenceKey.self, value: .bounds) { $0 }
             }
             
             Spacer()
@@ -223,13 +274,17 @@ struct CommunityView: View {
             Button(action: {
                 showingSearch = true
             }) {
-                ZStack(alignment: .topTrailing) {
+                ZStack { // center contents
+                    Circle()
+                        .fill(AppColors.neutral900)
                     Image(systemName: "magnifyingglass")
                         .foregroundColor(AppColors.textWhite)
-                        .font(.system(size: 20, weight: .medium))
+                        .font(.system(size: 20))
+                }
+                .overlay(alignment: .topTrailing) {
                     if pendingRequestCount > 0 {
                         Text("\(min(pendingRequestCount, 99))")
-                            .font(.system(size: 12, weight: .bold))
+                            .appText(AppFont.captionXS_M)
                             .foregroundColor(Color.white)
                             .padding(.horizontal, 5)
                             .padding(.vertical, 2)
@@ -238,10 +293,12 @@ struct CommunityView: View {
                             .offset(x: 8, y: -8)
                     }
                 }
+                .frame(width: 44, height: 44)
+                .contentShape(Circle())
             }
         }
         .padding(.horizontal, 20)
-        .padding(.top, 10)
+        .padding(.top, 6)
         // capture header height
         .onPreferenceChange(DropdownXPreferenceKey.self) { dropdownAnchorX = $0 }
         .onPreferenceChange(DropdownYPreferenceKey.self) { dropdownAnchorY = $0 }
@@ -275,6 +332,13 @@ private struct DropdownYPreferenceKey: PreferenceKey {
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }
 
+private struct DropdownBoundsPreferenceKey: PreferenceKey {
+    static var defaultValue: Anchor<CGRect>? = nil
+    static func reduce(value: inout Anchor<CGRect>?, nextValue: () -> Anchor<CGRect>?) {
+        value = nextValue() ?? value
+    }
+}
+
 private extension CommunityView {
     func refreshPendingRequests() async {
         do {
@@ -286,61 +350,123 @@ private extension CommunityView {
     }
 }
 
+// Helper to read bottom safe area inset for padding adjustments
+private func bottomSafeAreaInset() -> CGFloat {
+    guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+          let window = windowScene.windows.first else { return 0 }
+    return window.safeAreaInsets.bottom
+}
+
 struct FriendCardView: View {
     let friend: Friend
     let isSelected: Bool
     let viewModel: CommunityViewModel
     let onTap: () -> Void
-    @State private var showingMenu = false
+    let onMenu: () -> Void
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Header with profile and menu
-            HStack {
-                HStack(spacing: 8) {
-                    // Profile Image
-                    Image(friend.profileImageName)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: 24, height: 24)
-                        .clipShape(Circle())
-                    
-                    // Name
-                    Text(friend.name)
-                        .foregroundColor(AppColors.textWhite)
-                        .font(.system(size: 16, weight: .medium))
+        GeometryReader { geo in
+            let cardWidth = geo.size.width
+            let cardHeight = geo.size.height
+            // Horizontal paddings scale off the design width (177)
+            let headerPadX = cardWidth * (12.0 / 177.0)
+            let sidePadding = cardWidth * (21.0 / 177.0)
+            // Vertical paddings scale off the design height (213)
+            let headerPadTop = cardHeight * (12.0 / 213.0)
+            let headerPadBottom = cardHeight * (18.0 / 213.0)
+            let bottomPadding = cardHeight * (19.0 / 213.0)
+            VStack(spacing: 0) {
+                // Header with profile and menu
+                HStack {
+                    HStack(spacing: 8) {
+                        // Profile Image with fallback (URL or local asset)
+                        avatarView(for: friend)
+                        // Name
+                        Text(friend.name)
+                            .foregroundColor(AppColors.textWhite)
+                            .appText(AppFont.labelL)
+                            .lineLimit(1)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .mask(
+                                LinearGradient(stops: [
+                                    .init(color: .white, location: 0.0),
+                                    .init(color: .white, location: 0.85),
+                                    .init(color: .clear, location: 1.0)
+                                ], startPoint: .leading, endPoint: .trailing)
+                            )
+                    }
+                    Spacer()
+                    // Menu Button
+                    Button(action: { onMenu() }) {
+                        Image(systemName: "ellipsis")
+                            .foregroundColor(AppColors.textWhite)
+                            .font(.system(size: 16, weight: .medium))
+                    }
                 }
-                
-                Spacer()
-                
-                // Menu Button
-                Button(action: {
-                    showingMenu = true
-                }) {
-                    Image(systemName: "ellipsis")
-                        .foregroundColor(AppColors.textWhite)
-                        .font(.system(size: 16, weight: .medium))
-                }
+                .padding(.horizontal, headerPadX)
+                .padding(.top, headerPadTop)
+                .padding(.bottom, headerPadBottom)
+
+                // Friend's Shaker (emoji garden) — square, with 21px side padding and 19px bottom
+                ShakerView(viewModel: TaskListViewModel(userId: friend.userId))
+                    .aspectRatio(1, contentMode: .fit)
+                    .cornerRadius(12)
+                    .padding(.horizontal, sidePadding)
+                    .padding(.bottom, bottomPadding)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 16)
-            .padding(.bottom, 12)
-            
-            // Friend's Shaker (emoji garden)
-            ShakerView(viewModel: TaskListViewModel(userId: friend.userId))
-                .frame(height: 120)
-                .cornerRadius(12)
-                .padding(.horizontal, 16)
-                .padding(.bottom, 16)
+            .frame(width: cardWidth, height: geo.size.height, alignment: .top)
+            .background(AppColors.neutral900)
+            .cornerRadius(16)
         }
-        .background(AppColors.neutral900)
-        .cornerRadius(16)
+        .aspectRatio(177.0/213.0, contentMode: .fit)
         // Removed selection border
         .onTapGesture {
             onTap()
         }
-        .sheet(isPresented: $showingMenu) {
-            FriendMenuSheet(friend: friend, viewModel: viewModel)
+    }
+
+    // MARK: - Avatar Helper
+    @ViewBuilder
+    private func avatarView(for friend: Friend) -> some View {
+        let size: CGFloat = 24
+        let glyphSize: CGFloat = size * 0.62 // better visual balance inside the circle
+        // Helper producing an Instagram-like default avatar: gray circle + profile asset
+        let fallbackAvatar = AnyView(
+            ZStack {
+                Circle()
+                    .fill(AppColors.neutral800)
+                Image("profile") // asset under Assets.xcassets/Nav/profile.imageset
+                    .renderingMode(.template)
+                    .resizable()
+                    .foregroundColor(AppColors.textWhite)
+                    .frame(width: glyphSize, height: glyphSize)
+                Circle()
+                    .stroke(AppColors.neutral700, lineWidth: 1)
+            }
+            .frame(width: size, height: size)
+        )
+
+        if let url = URL(string: friend.profileImageName), friend.profileImageName.lowercased().hasPrefix("http") {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .empty:
+                    fallbackAvatar
+                case .success(let image):
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                case .failure:
+                    fallbackAvatar
+                @unknown default:
+                    fallbackAvatar
+                }
+            }
+            .frame(width: size, height: size)
+            .clipShape(Circle())
+        } else {
+            // Non-URL value → show default avatar consistently
+            fallbackAvatar
+                .clipShape(Circle())
         }
     }
 }
@@ -348,27 +474,36 @@ struct FriendCardView: View {
 struct FriendMenuSheet: View {
     let friend: Friend
     let viewModel: CommunityViewModel
-    @Environment(\.dismiss) private var dismiss
+    let onClose: () -> Void
+    let handleContent: AnyView?
     
     var body: some View {
         VStack(spacing: 0) {
-            // Handle bar
-            RoundedRectangle(cornerRadius: 2.5)
-                .fill(AppColors.neutral600)
-                .frame(width: 40, height: 5)
-                .padding(.top, 12)
-                .padding(.bottom, 32)
+            // Handle (customizable)
+            Group {
+                if let handleContent = handleContent {
+                    handleContent
+                } else {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(AppColors.neutral600)
+                        .frame(width: 44, height: 3)
+                }
+            }
+            .padding(.top, 12)
+            .padding(.bottom, 32)
         
         // Friend name
         Text(friend.name)
             .foregroundColor(AppColors.textWhite)
-            .font(.system(size: 28, weight: .bold))
+            .appText(AppFont.title3)
             .padding(.bottom, 24)
         
         // Divider line
         Rectangle()
             .fill(AppColors.neutral800)
-            .frame(width: 361, height: 1)
+            .frame(maxWidth: .infinity)
+            .frame(height: 1)
+            .padding(.horizontal, 16)
             .padding(.bottom, 24)
         
                     // Menu options
@@ -382,16 +517,18 @@ struct FriendMenuSheet: View {
                         ZStack {
                             Circle()
                                 .fill(AppColors.neutral800)
-                                .frame(width: 56, height: 56)
+                                .frame(width: 44, height: 44)
                             
-                            Image(systemName: "person.badge.minus")
-                                .foregroundColor(AppColors.textWhite)
-                                .font(.system(size: 24, weight: .medium))
+                            Image("unfollow")
+                                .renderingMode(.original)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 24, height: 24)
                         }
                         
                         Text("Unfollow")
                             .foregroundColor(AppColors.textWhite)
-                            .font(.system(size: 20, weight: .medium))
+                            .appText(AppFont.labelM)
                         
                         Spacer()
                     }
@@ -407,36 +544,77 @@ struct FriendMenuSheet: View {
                         ZStack {
                             Circle()
                                 .fill(AppColors.neutral800)
-                                .frame(width: 56, height: 56)
+                                .frame(width: 44, height: 44)
                             
-                            Image(systemName: friend.isFavorite ? "star.fill" : "star")
-                                .foregroundColor(friend.isFavorite ? Color.yellow : AppColors.textWhite)
-                                .font(.system(size: 24, weight: .medium))
+                            Image(friend.isFavorite ? "star_on" : "star")
+                                .renderingMode(.original)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 24, height: 24)
                         }
                         
                         Text(friend.isFavorite ? "Remove from Favorites" : "Add to Favorites")
                             .foregroundColor(AppColors.textWhite)
-                            .font(.system(size: 20, weight: .medium))
+                            .appText(AppFont.labelM)
                         
                         Spacer()
                     }
                                                 .padding(.horizontal, 28)
                 }
             }
-        
-        Spacer()
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(AppColors.neutral1000)
-        .presentationDetents([.height(254)])
-        .presentationDragIndicator(.visible)
-        .presentationCornerRadius(20)
-        .presentationBackground(.regularMaterial)
+        // Add safe-area aware internal padding so content is not clipped by the home indicator
+        .padding(.bottom, max(16, bottomSafeAreaInset()))
+        .padding(.bottom, 0)
+        .frame(maxWidth: .infinity, alignment: .top)
+        .background(AppColors.neutral1000.opacity(0.5))
+        .clipShape(
+            UnevenRoundedRectangle(
+                topLeadingRadius: 16,
+                bottomLeadingRadius: 0,
+                bottomTrailingRadius: 0,
+                topTrailingRadius: 16,
+                style: .circular
+            )
+        )
+        .overlay(alignment: .top) {
+            // Exact top edge + corner arcs to the very edges (no padding)
+            GeometryReader { geo in
+                let w = geo.size.width
+                let r: CGFloat = 16
+                Path { p in
+                    // Start at left vertical tangent
+                    p.move(to: CGPoint(x: 0, y: r))
+                    // Left corner arc up to the top edge
+                    p.addArc(
+                        center: CGPoint(x: r, y: r),
+                        radius: r,
+                        startAngle: .degrees(180),
+                        endAngle: .degrees(270),
+                        clockwise: false
+                    )
+                    // Top straight segment
+                    p.addLine(to: CGPoint(x: w - r, y: 0))
+                    // Right corner arc down to the right vertical tangent
+                    p.addArc(
+                        center: CGPoint(x: w - r, y: r),
+                        radius: r,
+                        startAngle: .degrees(270),
+                        endAngle: .degrees(360),
+                        clockwise: false
+                    )
+                }
+                .stroke(AppColors.neutral400, style: StrokeStyle(lineWidth: 1, lineCap: .butt, lineJoin: .miter))
+            }
+            .frame(height: 16)
+        }
+        .ignoresSafeArea(edges: .bottom)
+        
     }
     
     private func handleUnfollow() {
         viewModel.unfollowFriend(named: friend.name)
-        dismiss()
+        onClose()
     }
     
     private func handleFavoriteToggle() {
@@ -445,7 +623,7 @@ struct FriendMenuSheet: View {
         } else {
             viewModel.addFriendToFavorites(named: friend.name)
         }
-        dismiss()
+        onClose()
     }
 }
 
@@ -1046,5 +1224,5 @@ extension Notification.Name {
 }
 
 #Preview {
-    CommunityView()
+    CommunityView(isMenuPresented: .constant(false))
 }
