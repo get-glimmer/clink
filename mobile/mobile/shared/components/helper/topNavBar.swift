@@ -27,7 +27,7 @@ struct TopNavBar: View {
 
             // Title
             Text(title)
-                .font(.title2).bold()
+                .appFont(AppFont.title2)
                 .foregroundColor(.white)
 
             Spacer()
@@ -39,5 +39,23 @@ struct TopNavBar: View {
         .padding(.horizontal)
         .padding(.top, 10)
         .background(Color.black.ignoresSafeArea(edges: .top))
+    }
+}
+
+struct TopNavBar_Previews: PreviewProvider {
+    static var previews: some View {
+        Group {
+            // With back button
+            TopNavBar(title: "Finish Signing Up") {
+                print("Back tapped")
+            }
+            .preferredColorScheme(.dark)
+            .previewDisplayName("With Back Button")
+            
+            // Without back button
+            TopNavBar(title: "Profile")
+                .preferredColorScheme(.dark)
+                .previewDisplayName("Without Back Button")
+        }
     }
 }

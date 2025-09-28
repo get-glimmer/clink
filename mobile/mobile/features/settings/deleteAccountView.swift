@@ -8,29 +8,11 @@ struct DeleteAccountView: View {
 
     var body: some View {
         ScrollView {
+            TopNavBar(title: "Delete Account") {
+                dismiss()
+            }
+            
             VStack(alignment: .leading, spacing: 16) {
-                HStack {
-                    Button { dismiss() } label: {
-                        ZStack {
-                            Circle()
-                                .fill(Color("Neutral-900"))
-                                .frame(width: 40, height: 40)
-                            Image(systemName: "chevron.left")
-                                .foregroundColor(Color("Neutral-400"))
-                                .frame(width: 12, height: 12)
-                        }
-                    }
-                    Spacer()
-                    Text("Delete Account")
-                        .appFont(AppFont.title2)
-                        .foregroundColor(.white)
-                    Spacer()
-                    Circle()
-                        .frame(width: 40, height: 40)
-                        .opacity(0)
-                }
-                .padding(.top, 8)
-                
                 VStack(alignment: .leading) {
                     (
                         Text("Are you sure you want to") +
@@ -77,9 +59,11 @@ struct DeleteAccountView: View {
         }
         .background(Color("Red-400"))
         .cornerRadius(10)
-        .padding(.horizontal, 10) // ⬅ smaller than full width
+        .padding(.horizontal, 10)
         .padding(.bottom, 20)
+        .navigationBarBackButtonHidden(true)
     }
+    
 }
 
 struct DeleteAccountView_Previews: PreviewProvider {

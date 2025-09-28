@@ -44,7 +44,7 @@ struct EmailLoginView: View {
                 Text("Email")
                     .font(.headline)
                     .foregroundColor(.white)
-                    .padding(.leading, 5)
+                    .padding(.leading, 10)
                     .padding(.top, 10)
                 
                 TextField("Email address", text: $email)
@@ -62,7 +62,7 @@ struct EmailLoginView: View {
                 Text("Password")
                     .font(.headline)
                     .foregroundColor(.white)
-                    .padding(.leading, 5)
+                    .padding(.leading, 10)
                 
                 SecureField("Password", text: $password)
                     .padding()

@@ -38,12 +38,12 @@ struct FinishSignupView: View {
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
+                // Custom top navigation bar
+                TopNavBar(title: "Finish signing up") {
+                    dismiss()
+                }
+                
                 VStack(spacing: 24) {
-                    // Custom top navigation bar
-                    TopNavBar(title: "Finish signing up") {
-                        dismiss()
-                    }
-
                     // Profile avatar picker
                     PhotosPicker(selection: $photoItem, matching: .images) {
                         if let profileImage {
@@ -70,23 +70,15 @@ struct FinishSignupView: View {
                             if let data = try? await newItem?.loadTransferable(type: Data.self),
                                let uiImage = UIImage(data: data) {
                                 profileImage = uiImage
-                                showCropper = true   // ⬅️ show cropper immediately after selection
+                                showCropper = true
                             }
                         }
                     }
 
-                    .sheet(isPresented: $showCropper) {
-                        if let image = profileImage {
-                            CircleCropView(image: $profileImage)
-                                .ignoresSafeArea()
-                        }
-                    }
-
-
-
                     // Full name input field
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Your name")
+                            .padding(.leading, 10)
                             .font(.subheadline)
                             .foregroundColor(Color("Neutral-300"))
 
@@ -100,6 +92,7 @@ struct FinishSignupView: View {
                     // Username input field and confirmation
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Username")
+                            .padding(.leading, 10)
                             .font(.subheadline)
                             .foregroundColor(Color("Neutral-300"))
 
@@ -149,6 +142,7 @@ struct FinishSignupView: View {
                     // Date of birth picker
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Date of Birth (Optional)")
+                            .padding(.leading, 10)
                             .font(.subheadline)
                             .foregroundColor(Color("Neutral-300"))
 

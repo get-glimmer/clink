@@ -1,12 +1,14 @@
-import UIKit
 import SwiftUI
+import UIKit
 
 struct CircleCropView: View {
     @Binding var image: UIImage?
+    var onCrop: ((UIImage) -> Void)? = nil  // optional closure
+    
     @State private var scale: CGFloat = 1.0
     @State private var offset: CGSize = .zero
     @Environment(\.dismiss) var dismiss
-    
+
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
@@ -23,16 +25,10 @@ struct CircleCropView: View {
                         .frame(width: size.width, height: size.width)
                         .clipped()
                         .gesture(
-                            DragGesture()
-                                .onChanged { value in
-                                    offset = value.translation
-                                }
+                            DragGesture().onChanged { value in offset = value.translation }
                         )
                         .gesture(
-                            MagnificationGesture()
-                                .onChanged { value in
-                                    scale = max(1.0, value)
-                                }
+                            MagnificationGesture().onChanged { value in scale = max(1.0, value) }
                         )
                         .clipShape(Circle())
                         .overlay(Circle().stroke(Color.white, lineWidth: 2))
@@ -44,10 +40,10 @@ struct CircleCropView: View {
             VStack {
                 Spacer()
                 Button("Use Photo") {
-                    if let image = image {
-                        let cropped = cropToCircle(image: image, scale: scale, offset: offset)
-                        self.image = cropped
-                    }
+                    guard let currentImage = image else { return }
+                    let cropped = cropToCircle(image: currentImage)
+                    image = cropped
+                    onCrop?(cropped)  // call the closure if provided
                     dismiss()
                 }
                 .padding()
@@ -60,7 +56,7 @@ struct CircleCropView: View {
         )
     }
     
-    func cropToCircle(image: UIImage, scale: CGFloat, offset: CGSize) -> UIImage? {
+    func cropToCircle(image: UIImage) -> UIImage {
         let minEdge = min(image.size.width, image.size.height)
         let size = CGSize(width: minEdge, height: minEdge)
         
@@ -68,12 +64,6 @@ struct CircleCropView: View {
         return renderer.image { context in
             let rect = CGRect(origin: .zero, size: size)
             UIBezierPath(ovalIn: rect).addClip()
-            
-            let transform = CGAffineTransform.identity
-                .translatedBy(x: offset.width, y: offset.height)
-                .scaledBy(x: scale, y: scale)
-            context.cgContext.concatenate(transform)
-            
             image.draw(in: rect)
         }
     }

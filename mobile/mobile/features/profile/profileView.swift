@@ -22,8 +22,6 @@ struct ProfileView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 20) {
-                Spacer().frame(height: 20)
-                
                 // MARK: - Avatar (tap to change)
                 Button {
                     showImagePicker = true
@@ -91,6 +89,8 @@ struct ProfileView: View {
                     Text("\(count) friends")
                         .appFont(AppFont.body2)
                 }
+                
+                Spacer().frame(height: 5)
                 
                 // Share App button
                 Button {

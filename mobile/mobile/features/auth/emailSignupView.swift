@@ -44,12 +44,12 @@ struct EmailSignupView: View {
                     // Email input field
                     VStack(alignment: .leading, spacing: 5) {
                         Text("Email")
-                            .font(.headline)
+                            .appFont(AppFont.labelL)
                             .foregroundColor(.white)
-                            .padding(.leading, 5)
+                            .padding(.leading, 10)
                             .padding(.top, 10)
                         
-                        TextField("Email", text: $email)
+                        TextField("Email Address", text: $email)
                             .keyboardType(.emailAddress)
                             .textInputAutocapitalization(.never)
                             .padding()
@@ -70,9 +70,9 @@ struct EmailSignupView: View {
                     // Password input field
                     VStack(alignment: .leading, spacing: 5) {
                         Text("Password")
-                            .font(.headline)
+                            .appFont(AppFont.labelL)
                             .foregroundColor(.white)
-                            .padding(.leading, 5)
+                            .padding(.leading, 10)
                         
                         ZStack(alignment: .trailing) {
                             Group {
@@ -96,9 +96,10 @@ struct EmailSignupView: View {
                         let reqs = authViewModel.passwordRequirements(password)
                         VStack(alignment: .leading, spacing: 10) {
                             Text("Your password must include the following")
-                                .font(.subheadline)
+                                .appFont(AppFont.captionXS)
                                 .foregroundColor(Color("Neutral-100"))
-                                .padding(.bottom)
+                                .padding(.top, 5)
+                                .padding(.bottom, 5)
                                 .padding(.leading, 5)
                             
                             passwordRequirementRow("Minimum 8 characters", check: reqs.min8)
@@ -118,6 +119,12 @@ struct EmailSignupView: View {
 
                 Task {
                     isLoading = true
+
+                    if !authViewModel.validateEmail(email) {
+                        emailError = "Please enter a valid email address"
+                        isLoading = false
+                        return
+                    }
 
                     let inUse = await authViewModel.checkEmailInUse(email)
 
@@ -166,7 +173,7 @@ struct EmailSignupView: View {
             Text(check ? Image("checkboxFilled") : Image("checkboxEmpty"))
             Text(text)
                 .foregroundColor(.white)
-                .font(.subheadline)
+                .appFont(AppFont.captionXS)
         }
     }
 }

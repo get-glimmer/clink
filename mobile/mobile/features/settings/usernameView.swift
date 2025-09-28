@@ -5,6 +5,8 @@ struct UsernameView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @StateObject private var viewModel = UsernameViewModel()
 
+    @State private var username: String = ""
+    @State private var usernameConfirmed: Bool = false
     @State private var usernameStatus: String?
     @State private var usernameStatusColor: Color = .white
     @State private var isSaving = false
@@ -32,7 +34,6 @@ struct UsernameView: View {
                     .frame(width: 40, height: 40)
                     .opacity(0)
             }
-            .padding(.horizontal)
             .padding(.top, 8)
 
             // Email
@@ -40,7 +41,6 @@ struct UsernameView: View {
                 Text(email)
                     .font(.headline)
                     .foregroundColor(.white)
-                    .padding(.horizontal)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 
                 Divider()
@@ -48,37 +48,60 @@ struct UsernameView: View {
             }
             
 
-            // Username field
-            VStack(alignment: .leading, spacing: 8) {
+            // Username input field and confirmation
+            VStack(alignment: .leading, spacing: 4) {
                 Text("Username")
-                    .foregroundColor(Color("Neutral-300"))
+                    .padding(.leading, 10)
                     .font(.subheadline)
+                    .foregroundColor(Color("Neutral-300"))
 
                 HStack(spacing: 8) {
-                    TextField("Enter username", text: $viewModel.name)
+                    TextField("Username", text: $username)
                         .padding()
                         .background(Color.clear)
-                        .cornerRadius(10)
-                        .frame(height: 44)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10)
-                                .stroke(Color("Neutral-600"), lineWidth: 1)
-                        )
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color("Neutral-600")))
+                        .cornerRadius(12)
+                        .onChange(of: username) {
+                            usernameConfirmed = false
+                            usernameStatus = nil
+                        }
 
                     Button {
                         Task {
-                            await confirmAndSaveUsername()
+                            if await authViewModel.checkUsername(username) {
+                                do {
+                                    try await authViewModel.updateUsername(username)
+                                    usernameConfirmed = true
+                                    usernameStatus = "Username updated successfully."
+                                    usernameStatusColor = .green
+
+                                    // ✅ Auto-dismiss after short delay
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                                        dismiss()
+                                    }
+
+                                } catch {
+                                    usernameStatus = "Failed to update username."
+                                    usernameStatusColor = .red
+                                    print("❌ Error updating username:", error.localizedDescription)
+                                }
+                            } else {
+                                usernameStatus = "The username is already in use."
+                                usernameStatusColor = .red
+                                usernameConfirmed = false
+                            }
                         }
                     } label: {
-                        Text(isSaving ? "Saving..." : "Confirm")
-                            .foregroundColor(.white)
+                        Text("Confirm")
                             .frame(width: 100, height: 55)
-                            .frame(height: 44)
-                            .background(Color("Neutral-800"))
-                            .cornerRadius(10)
+                            .foregroundColor(username.isEmpty ? .white : Color("Neutral-900"))
+                            .padding(.horizontal, 16)
+                            .background(username.isEmpty ? Color("Neutral-800") : Color("Green-300"))
+                            .cornerRadius(12)
                     }
-                    .disabled(isSaving || viewModel.name.isEmpty)
+                    .disabled(username.isEmpty)
                 }
+                .frame(height: 55)
 
                 if let status = usernameStatus {
                     Text(status)
@@ -87,8 +110,6 @@ struct UsernameView: View {
                         .padding(.leading, 4)
                 }
             }
-            .padding(.horizontal)
-
             Spacer()
         }
         .background(Color.black.ignoresSafeArea())
@@ -99,27 +120,7 @@ struct UsernameView: View {
             }
             viewModel.name = authViewModel.profile?.name ?? ""
         }
-    }
-
-    private func confirmAndSaveUsername() async {
-        guard !viewModel.name.isEmpty else { return }
-        isSaving = true
-
-        let available = await authViewModel.checkUsername(viewModel.name)
-        if available {
-            // ✅ Save
-            await viewModel.updateName(authViewModel: authViewModel)
-            await MainActor.run {
-                dismiss()
-            }
-        } else {
-            // ❌ Not valid
-            await MainActor.run {
-                usernameStatus = "This username is already in use."
-                usernameStatusColor = .red
-            }
-        }
-        isSaving = false
+        .padding(.horizontal)
     }
 }
 

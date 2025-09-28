@@ -27,6 +27,8 @@ struct Profile: Codable, Identifiable, Equatable {
 
     /// A local-only property to store the number of friends, not stored in the database.
     var friendsCount: Int?
+    
+    var username: String?
 
     // MARK: - CodingKeys
 
