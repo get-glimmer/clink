@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SpriteKit
+import UIKit
 
 struct CommunityView: View {
     @Binding var isMenuPresented: Bool
@@ -870,8 +871,10 @@ struct LeaveNoteSheet: View {
     var onClose: () -> Void = {}
     @State private var noteText = ""
     @State private var isSending = false
+    @State private var customEmoji: String = ""
+    @State private var isEmojiFieldFocused: Bool = false
     
-    private let emojiReactions = ["👍", "💗", "👏", "🔥", "🙏", "🌈"]
+    private let emojiReactions = ["👍", "💗", "👏", "🔥", "🙏"]
     
     var body: some View {
         ZStack {
@@ -963,8 +966,37 @@ struct LeaveNoteSheet: View {
                                     }
                                     .disabled(isSending)
                                 }
+
+                                // Plus button to choose custom emoji via keyboard picker
+                                Button(action: {
+                                    customEmoji = ""
+                                    isEmojiFieldFocused = true
+                                }) {
+                                    ZStack {
+                                        Circle()
+                                            .fill(AppColors.green300)
+                                            .frame(width: 40, height: 40)
+                                        Image(systemName: "plus")
+                                            .foregroundColor(.white)
+                                            .font(.system(size: 16, weight: .light))
+                                    }
+                                }
+                                .disabled(isSending)
                             }
                             .padding(.horizontal, 21)
+
+                            // Hidden UIKit text field to reliably summon keyboard/emoji picker
+                            HiddenEmojiTextField(text: $customEmoji, isFirstResponder: $isEmojiFieldFocused)
+                                .frame(width: 1, height: 1)
+                                .opacity(0.01)
+                                .onChange(of: customEmoji) { newValue in
+                                    guard !isSending else { return }
+                                    if let emoji = newValue.firstEmoji, !emoji.isEmpty {
+                                        isEmojiFieldFocused = false
+                                        customEmoji = ""
+                                        sendEmojiReaction(emoji)
+                                    }
+                                }
                         }
                         
                         // Send Text Note button
@@ -1243,6 +1275,42 @@ extension String {
             }
         }
         return nil
+    }
+}
+
+// MARK: - HiddenEmojiTextField (UIKit bridge)
+private struct HiddenEmojiTextField: UIViewRepresentable {
+    @Binding var text: String
+    @Binding var isFirstResponder: Bool
+
+    func makeUIView(context: Context) -> UITextField {
+        let tf = UITextField(frame: .zero)
+        tf.delegate = context.coordinator
+        tf.autocorrectionType = .no
+        tf.autocapitalizationType = .none
+        tf.isHidden = true
+        return tf
+    }
+
+    func updateUIView(_ uiView: UITextField, context: Context) {
+        if isFirstResponder && !uiView.isFirstResponder {
+            uiView.becomeFirstResponder()
+        } else if !isFirstResponder && uiView.isFirstResponder {
+            uiView.resignFirstResponder()
+        }
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    final class Coordinator: NSObject, UITextFieldDelegate {
+        var parent: HiddenEmojiTextField
+        init(_ parent: HiddenEmojiTextField) { self.parent = parent }
+
+        func textField(_ textField: UITextField, shouldChangeCharactersIn range: NSRange, replacementString string: String) -> Bool {
+            if string.isEmpty { return true }
+            parent.text.append(string)
+            return false
+        }
     }
 }
 
