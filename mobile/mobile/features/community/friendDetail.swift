@@ -145,9 +145,8 @@ struct FriendDetailView: View {
         }
         .padding(.horizontal, 20)
         .padding(.top, 10)
-        .sheet(isPresented: $showingFriendCalendar) {
+        .fullScreenCover(isPresented: $showingFriendCalendar) {
             FriendTrackerView(friendUserId: friend.userId, friendName: friend.name)
-                .presentationDetents([.large])
         }
     }
     

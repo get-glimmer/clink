@@ -484,20 +484,35 @@ class CommunityService: ObservableObject {
                 .value
             
             var categoriesWithTasks: [CategoryWithTasks] = []
-            
-            // For each category, fetch its tasks for the specified date
+
+            // For each category, fetch its tasks
+            // - Daily categories: filter by specific date
+            // - Archived categories: do not filter by date
             for category in categories {
-                let tasks: [TaskListItem] = try await supabase
-                    .from("task")
-                    .select("*")
-                    .eq("userid", value: friendId)
-                    .eq("categoryid", value: category.id.uuidString)
-                    .eq("duedate", value: dateString)
-                    .in("privacy_status", value: allowed)
-                    .execute()
-                    .value
-                
-                // Only include categories that have tasks for this date or are public
+                let tasks: [TaskListItem]
+                switch category.type {
+                case .daily:
+                    tasks = try await supabase
+                        .from("task")
+                        .select("*")
+                        .eq("userid", value: friendId)
+                        .eq("categoryid", value: category.id.uuidString)
+                        .eq("duedate", value: dateString)
+                        .in("privacy_status", value: allowed)
+                        .execute()
+                        .value
+                case .archived:
+                    tasks = try await supabase
+                        .from("task")
+                        .select("*")
+                        .eq("userid", value: friendId)
+                        .eq("categoryid", value: category.id.uuidString)
+                        .in("privacy_status", value: allowed)
+                        .order("createdat", ascending: true)
+                        .execute()
+                        .value
+                }
+
                 if !tasks.isEmpty {
                     let categoryWithTasks = CategoryWithTasks(
                         id: category.id,

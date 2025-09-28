@@ -702,23 +702,54 @@ struct FriendTasksView: View {
                     .padding(.top, 40)
                 } else {
                     // Friend's real tasks
-                    VStack(spacing: 16) {
-                        ForEach(categoriesWithTasks) { categoryWithTasks in
-                            TaskCategoryCard(
-                                categoryWithTasks: categoryWithTasks,
-                                backgroundColor: AppColors.neutral900,
-                                readOnly: true
-                            ) {
-                                HeartButton(
-                                    categoryId: categoryWithTasks.category.id,
-                                    categoryEmoji: categoryWithTasks.category.emoji,
-                                    friendUserId: friend.userId
-                                )
+                    VStack(alignment: .leading, spacing: 0) {
+                        // Daily section
+                        VStack(spacing: 16) {
+                            ForEach(categoriesWithTasks.filter { $0.category.type == .daily }) { categoryWithTasks in
+                                TaskCategoryCard(
+                                    categoryWithTasks: categoryWithTasks,
+                                    backgroundColor: AppColors.neutral900,
+                                    readOnly: true
+                                ) {
+                                    HeartButton(
+                                        categoryId: categoryWithTasks.category.id,
+                                        categoryEmoji: categoryWithTasks.category.emoji,
+                                        friendUserId: friend.userId
+                                    )
+                                }
                             }
                         }
+                        .padding(.horizontal, 20)
+
+                        // Archived header
+                        HStack {
+                            Text("Archived Task")
+                                .appFont(AppFont.title3)
+                                .foregroundColor(AppColors.textWhite)
+                        }
+                        .padding(.horizontal, 28)
+                        .padding(.top, 24)
+                        .padding(.bottom, 4)
+
+                        // Archived section
+                        VStack(spacing: 16) {
+                            ForEach(categoriesWithTasks.filter { $0.category.type == .archived }) { categoryWithTasks in
+                                TaskCategoryCard(
+                                    categoryWithTasks: categoryWithTasks,
+                                    backgroundColor: AppColors.neutral900,
+                                    readOnly: true
+                                ) {
+                                    HeartButton(
+                                        categoryId: categoryWithTasks.category.id,
+                                        categoryEmoji: categoryWithTasks.category.emoji,
+                                        friendUserId: friend.userId
+                                    )
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 120)
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 120)
                 }
             }
         }
