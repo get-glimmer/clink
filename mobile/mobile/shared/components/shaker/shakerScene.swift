@@ -31,6 +31,7 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
     // Custom boundary configuration for friend shakers
     private var customInset: CGFloat?
     private var customLidHeight: CGFloat?
+    private var customBottomExtra: CGFloat?
     // Emoji size scaling (1.0 = default)
     private var emojiScaleFactor: CGFloat = 1.0
     
@@ -73,8 +74,14 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
     
     // MARK: - Boundary Configuration
     func configureBoundaries(inset: CGFloat, lidHeight: CGFloat) {
+        configureBoundaries(inset: inset, lidHeight: lidHeight, bottomExtraDepth: 0)
+    }
+
+    // Allows extending the physics floor downward by `bottomExtraDepth` points (preview tiles)
+    func configureBoundaries(inset: CGFloat, lidHeight: CGFloat, bottomExtraDepth: CGFloat) {
         customInset = inset
         customLidHeight = lidHeight
+        customBottomExtra = max(0, bottomExtraDepth)
         setupPhysicsBoundaries()
     }
 
@@ -86,12 +93,14 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
     private func setupPhysicsBoundaries() {
         let usedInset = customInset ?? inset
         let usedLidHeight = customLidHeight ?? lidHeight
+        let extra = customBottomExtra ?? 0
         
         /* ----- edge-loop smaller than PNG ----- */
+        // Extend height by `extra` and shift rect down by the same amount to lower the floor
         let rect = CGRect(x: -size.width/2  + usedInset,
-                          y: -size.height/2 + usedInset,
+                          y: -size.height/2 + usedInset - extra,
                           width:  size.width  - usedInset*2,
-                          height: size.height - usedInset*2 - usedLidHeight)
+                          height: size.height - usedInset*2 - usedLidHeight + extra)
         let wall = SKPhysicsBody(edgeLoopFrom: rect)
         wall.friction = 0
         wall.isDynamic = false
