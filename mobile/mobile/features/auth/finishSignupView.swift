@@ -30,18 +30,20 @@ struct FinishSignupView: View {
     @State private var usernameStatus: String? = nil
     @State private var usernameStatusColor: Color = .white
     @State private var hasSelectedDate = false
+    @State private var showCropper = false
+
 
     // MARK: - Body
 
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
+                // Custom top navigation bar
+                TopNavBar(title: "Finish signing up") {
+                    dismiss()
+                }
+                
                 VStack(spacing: 24) {
-                    // Custom top navigation bar
-                    TopNavBar(title: "Finish signing up") {
-                        dismiss()
-                    }
-
                     // Profile avatar picker
                     PhotosPicker(selection: $photoItem, matching: .images) {
                         if let profileImage {
@@ -68,6 +70,7 @@ struct FinishSignupView: View {
                             if let data = try? await newItem?.loadTransferable(type: Data.self),
                                let uiImage = UIImage(data: data) {
                                 profileImage = uiImage
+                                showCropper = true
                             }
                         }
                     }
@@ -75,6 +78,7 @@ struct FinishSignupView: View {
                     // Full name input field
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Your name")
+                            .padding(.leading, 10)
                             .font(.subheadline)
                             .foregroundColor(Color("Neutral-300"))
 
@@ -88,6 +92,7 @@ struct FinishSignupView: View {
                     // Username input field and confirmation
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Username")
+                            .padding(.leading, 10)
                             .font(.subheadline)
                             .foregroundColor(Color("Neutral-300"))
 
@@ -116,7 +121,7 @@ struct FinishSignupView: View {
                                 }
                             } label: {
                                 Text("Confirm")
-                                    .frame(maxHeight: .infinity)
+                                    .frame(width: 100, height: 55)
                                     .foregroundColor(username.isEmpty ? .white : Color("Neutral-900"))
                                     .padding(.horizontal, 16)
                                     .background(username.isEmpty ? Color("Neutral-800") : Color("Green-300"))
@@ -137,6 +142,7 @@ struct FinishSignupView: View {
                     // Date of birth picker
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Date of Birth (Optional)")
+                            .padding(.leading, 10)
                             .font(.subheadline)
                             .foregroundColor(Color("Neutral-300"))
 
@@ -177,7 +183,7 @@ struct FinishSignupView: View {
                         }
                         .animation(.easeInOut(duration: 0.25), value: showChangeDateSheet)
 
-                        Text("Your birthday won't be shared with other people.")
+                        Text("Your birthday won’t be shared with other people who use Clink!.")
                             .font(.caption2)
                             .foregroundColor(.gray)
                             .padding(.horizontal, 4)
