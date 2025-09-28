@@ -66,7 +66,12 @@ struct RoutinesSheet: View {
             viewModel.refreshLatestEmojis()
             viewModel.refreshRoutines()
         }
-        // todo: fullScreenCover(add/edit)
+        .fullScreenCover(item: $targetCategoryForAdd) { cat in
+            AddRoutineSheet(category: cat, viewModel: viewModel)
+        }
+        .fullScreenCover(item: $editingRoutine) { r in
+            EditRoutineSheet(routine: r, viewModel: viewModel)
+        }
     }
 
     // MARK: - Header per Category
@@ -81,13 +86,14 @@ struct RoutinesSheet: View {
                     .padding(.leading, 1.42)
                 Spacer()
                 Button {
-                    targetCategoryForAdd = cat // TODO: present add routine
+                    targetCategoryForAdd = cat
                 } label: {
                     Image(systemName: "plus")
                         .font(.system(size: 24, weight: .light))
                         .foregroundColor(Color("Neutral-400"))
                 }
                 .buttonStyle(.plain)
+                // add routine
             }
 
             Divider()

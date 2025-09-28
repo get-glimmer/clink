@@ -197,6 +197,8 @@ struct CategoriesSheet: View {
                 .frame(width: 361)
                 .background(Color("Neutral-800"))
                 .opacity(0.5)
+                .padding(.top, 6)
+                .padding(.bottom, -8)
         }
         .padding(.vertical, 0)
     }

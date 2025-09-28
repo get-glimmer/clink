@@ -5,10 +5,13 @@ struct TaskMenuSheet: View {
     let isDueToday: Bool
     let initialDueDate: Date?
     let archivedCategories: [CategoryItem]
-    var onArchive: (CategoryItem) -> Void = { _ in }
+    // for "make a routine"
+    var viewModel: TaskListViewModel? = nil
+    var categoryForRoutine: CategoryItem? = nil
     
     let isArchivedTask: Bool
-
+    
+    var onArchive: (CategoryItem) -> Void = { _ in }
     var onDoToday: () -> Void = {}
     var onDoTomorrow: () -> Void = {}
     var onChangeDate: () -> Void = {}
@@ -23,9 +26,12 @@ struct TaskMenuSheet: View {
     @State private var titleDraft: String
     @FocusState private var titleFieldFocused: Bool
     
-    // --- change date overlay state ---
+    // --- "change date" overlay state ---
     @State private var showChangeDateOverlay: Bool = false
     @State private var showChooseCategoryOverlay: Bool = false
+    
+    // --- "make a routine" overlay state ---
+    @State private var showAddRoutineOverlay: Bool = false
     
     // Ensure initial text matches sheet input
     init(
@@ -41,13 +47,17 @@ struct TaskMenuSheet: View {
         onMakeRoutine: @escaping () -> Void = {},
         onDelete: @escaping () -> Void = {},
         onEditTitle: @escaping (String) -> Void = { _ in },
-        isArchivedTask: Bool = false
+        isArchivedTask: Bool = false,
+        viewModel: TaskListViewModel? = nil,
+        categoryForRoutine: CategoryItem? = nil
     ) {
         self.taskTitle = taskTitle
         self.isDueToday = isDueToday
         self.initialDueDate = initialDueDate
         self.archivedCategories = archivedCategories
         self.isArchivedTask = isArchivedTask
+        self.viewModel = viewModel
+        self.categoryForRoutine = categoryForRoutine
         
         self.onArchive = onArchive
         self.onDoToday = onDoToday
@@ -116,6 +126,22 @@ struct TaskMenuSheet: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: showChooseCategoryOverlay)
+        
+        // ── AddRoutine overlay ────────────────────────────
+        .fullScreenCover(isPresented: $showAddRoutineOverlay) {
+            if let vm = viewModel, let cat = categoryForRoutine {
+                AddRoutineSheet(
+                    category: cat,
+                    viewModel: vm,
+                    initialTitle: currentTitle    // ← 자동 입력
+                )
+                .ignoresSafeArea()
+                .transition(.opacity)
+            } else {
+                Color.clear.onAppear { showAddRoutineOverlay = false }
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: showAddRoutineOverlay)
     }
     
     // MARK: - Header
@@ -200,12 +226,15 @@ struct TaskMenuSheet: View {
                 isDisabled: disableAll
             )
 
-            // Always disabled for now
             optionRow(
                 systemIcon: "clock.arrow.circlepath",
                 title: "Make it a Routine",
-                action: onMakeRoutine,
-                isDisabled: true
+                action: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showAddRoutineOverlay = true
+                    }
+                },
+                isDisabled: disableAll
             )
 
             optionRow(
@@ -253,6 +282,8 @@ struct TaskMenuSheet: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .disabled(isDisabled)
+        .allowsHitTesting(!isDisabled)
     }
     
     // MARK: - Title commit

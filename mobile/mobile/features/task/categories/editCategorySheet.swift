@@ -190,10 +190,10 @@ struct EditCategorySheet: View {
                         HStack(spacing: 10) {
                             Image(systemName: "globe")
                                 .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(Color("White"))
+                                .foregroundColor(.neutral300)
                             Text("Visibility")
-                                .appFont(AppFont.body1)
-                                .foregroundColor(Color("White"))
+                                .appFont(AppFont.labelM)
+                                .foregroundColor(.neutral300)
                         }
 
                         Spacer()
@@ -230,10 +230,10 @@ struct EditCategorySheet: View {
                         HStack(spacing: 10) {
                             Image(systemName: "rectangle.grid.1x2")
                                 .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(Color("White"))
+                                .foregroundColor(.neutral300)
                             Text("Type")
-                                .appFont(AppFont.body1)
-                                .foregroundColor(Color("White"))
+                                .appFont(AppFont.labelM)
+                                .foregroundColor(.neutral300)
                         }
                         Spacer()
                         Menu {
