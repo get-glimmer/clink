@@ -76,19 +76,27 @@ class CommunityService: ObservableObject {
         }
         
         do {
-            // Get accepted friendships in BOTH directions (me → them OR them → me)
-            let friendships: [FriendshipData] = try await supabase
+            // Get accepted friendships owned by me (outgoing) AND those where I am the target (incoming)
+            let outgoing: [FriendshipData] = try await supabase
                 .from("friends")
                 .select("*")
-                .or("and(user_id.eq.\(currentUserId),status.eq.accepted),and(friend_id.eq.\(currentUserId),status.eq.accepted)")
-                .neq("status", value: "blocked")  // Exclude blocked friends
+                .eq("user_id", value: currentUserId)
+                .eq("status", value: "accepted")
                 .execute()
                 .value
-            
-            // Resolve the "other" user id for each row
-            let friendIds: [String] = friendships.map { row in
-                row.user_id == currentUserId ? row.friend_id : row.user_id
-            }
+
+            let incoming: [FriendshipData] = try await supabase
+                .from("friends")
+                .select("*")
+                .eq("friend_id", value: currentUserId)
+                .eq("status", value: "accepted")
+                .execute()
+                .value
+
+            // The "other" user ID is friend_id for outgoing rows, and user_id for incoming rows
+            let outgoingIds = outgoing.map { $0.friend_id }
+            let incomingIds = incoming.map { $0.user_id }
+            let friendIds: [String] = Array(Set(outgoingIds + incomingIds))
             
             guard !friendIds.isEmpty else {
                 return []
@@ -102,10 +110,8 @@ class CommunityService: ObservableObject {
                 .execute()
                 .value
             
-            // Create a mapping of friend IDs to favorite status
-            // Only rows where I am the owner (user_id == me) carry my "favorite" preference
-            let myOwned = friendships.filter { $0.user_id == currentUserId }
-            let favoriteMapping = Dictionary(uniqueKeysWithValues: myOwned.map { ($0.friend_id, $0.favorite ?? false) })
+            // Favorites only exist on rows I own (outgoing). Default false for incoming-only links
+            let favoriteMapping = Dictionary(uniqueKeysWithValues: outgoing.map { ($0.friend_id, $0.favorite ?? false) })
             
             // Get task progress for each friend
             var friends: [Friend] = []
@@ -478,20 +484,35 @@ class CommunityService: ObservableObject {
                 .value
             
             var categoriesWithTasks: [CategoryWithTasks] = []
-            
-            // For each category, fetch its tasks for the specified date
+
+            // For each category, fetch its tasks
+            // - Daily categories: filter by specific date
+            // - Archived categories: do not filter by date
             for category in categories {
-                let tasks: [TaskListItem] = try await supabase
-                    .from("task")
-                    .select("*")
-                    .eq("userid", value: friendId)
-                    .eq("categoryid", value: category.id.uuidString)
-                    .eq("duedate", value: dateString)
-                    .in("privacy_status", value: allowed)
-                    .execute()
-                    .value
-                
-                // Only include categories that have tasks for this date or are public
+                let tasks: [TaskListItem]
+                switch category.type {
+                case .daily:
+                    tasks = try await supabase
+                        .from("task")
+                        .select("*")
+                        .eq("userid", value: friendId)
+                        .eq("categoryid", value: category.id.uuidString)
+                        .eq("duedate", value: dateString)
+                        .in("privacy_status", value: allowed)
+                        .execute()
+                        .value
+                case .archived:
+                    tasks = try await supabase
+                        .from("task")
+                        .select("*")
+                        .eq("userid", value: friendId)
+                        .eq("categoryid", value: category.id.uuidString)
+                        .in("privacy_status", value: allowed)
+                        .order("createdat", ascending: true)
+                        .execute()
+                        .value
+                }
+
                 if !tasks.isEmpty {
                     let categoryWithTasks = CategoryWithTasks(
                         id: category.id,
@@ -513,18 +534,18 @@ class CommunityService: ObservableObject {
     // Determine what privacy_status values the viewer can see for target user
     private func allowedPrivacyStatuses(viewerId: String, targetUserId: String) async throws -> [String] {
         if viewerId == targetUserId { return ["public", "friends_only", "user_only"] }
-        // Check friendship in either direction with status 'accepted'
+        // Check accepted friendship in EITHER direction
         struct Row: Decodable { let status: String }
         do {
             let a: [Row] = try await supabase!
                 .from("friends").select("status")
-                .eq("user_id", value: targetUserId)
-                .eq("friend_id", value: viewerId)
+                .eq("user_id", value: viewerId)
+                .eq("friend_id", value: targetUserId)
                 .execute().value
             let b: [Row] = try await supabase!
                 .from("friends").select("status")
-                .eq("user_id", value: viewerId)
-                .eq("friend_id", value: targetUserId)
+                .eq("user_id", value: targetUserId)
+                .eq("friend_id", value: viewerId)
                 .execute().value
             let isFriend = (a + b).contains { $0.status == "accepted" }
             return isFriend ? ["public", "friends_only"] : ["public"]
@@ -542,37 +563,14 @@ class CommunityService: ObservableObject {
         }
         
         do {
-            // Build date window for today (local time)
-            let cal = Calendar.current
-            let startOfDay = cal.startOfDay(for: Date())
-            let nextDay = cal.date(byAdding: .day, value: 1, to: startOfDay)!
-            let iso = ISO8601DateFormatter()
-            iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-
-            let response = try await supabase.database
+            let rows: [LikeRecord] = try await supabase
                 .from("likes")
                 .select("like_id")
-                .eq("user_id", value: userId)
-                .eq("category_id", value: categoryId)
-                .gte("created_at", value: iso.string(from: startOfDay))
-                .lt("created_at", value: iso.string(from: nextDay))
+                .eq("user_id", value: userId.uuidString)
+                .eq("category_id", value: categoryId.uuidString)
                 .execute()
-            
-            let data = response.data
-            
-            // Try to decode as LikeRecord array
-            do {
-                let decoder = JSONDecoder()
-                let likes = try decoder.decode([LikeRecord].self, from: data)
-                return !likes.isEmpty
-            } catch {
-                // Fallback: Check if response data contains any records
-                if let jsonArray = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
-                    return !jsonArray.isEmpty
-                } else {
-                    return false
-                }
-            }
+                .value
+            return !rows.isEmpty
         } catch {
             throw error
         }
@@ -584,20 +582,13 @@ class CommunityService: ObservableObject {
             throw NSError(domain: "SupabaseError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Supabase client not initialized"])
         }
         
-        // First check if already liked to avoid duplicates
-        let alreadyLiked = try await isLiked(categoryId: categoryId, userId: userId)
-        if alreadyLiked {
-            return // Already liked, do nothing
-        }
-        
         let likeData = [
             "user_id": userId.uuidString,
             "category_id": categoryId.uuidString
         ]
-        
-        let _ = try await supabase.database
+        let _ = try await supabase
             .from("likes")
-            .insert(likeData)
+            .upsert(likeData, onConflict: "user_id,category_id")
             .execute()
     }
     
@@ -606,21 +597,11 @@ class CommunityService: ObservableObject {
         guard let supabase = supabase else {
             throw NSError(domain: "SupabaseError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Supabase client not initialized"])
         }
-        
-        // today's window
-        let cal = Calendar.current
-        let startOfDay = cal.startOfDay(for: Date())
-        let nextDay = cal.date(byAdding: .day, value: 1, to: startOfDay)!
-        let iso = ISO8601DateFormatter()
-        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-
-        let _ = try await supabase.database
+        let _ = try await supabase
             .from("likes")
             .delete()
-            .eq("user_id", value: userId)
-            .eq("category_id", value: categoryId)
-            .gte("created_at", value: iso.string(from: startOfDay))
-            .lt("created_at", value: iso.string(from: nextDay))
+            .eq("user_id", value: userId.uuidString)
+            .eq("category_id", value: categoryId.uuidString)
             .execute()
     }
     
@@ -629,18 +610,13 @@ class CommunityService: ObservableObject {
         guard let supabase = supabase else {
             throw NSError(domain: "SupabaseError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Supabase client not initialized"])
         }
-        
-        let response = try await supabase.database
+        let rows: [LikeRecord] = try await supabase
             .from("likes")
             .select("like_id")
-            .eq("category_id", value: categoryId)
+            .eq("category_id", value: categoryId.uuidString)
             .execute()
-        
-        let data = response.data
-        let decoder = JSONDecoder()
-        let likes = try decoder.decode([LikeRecord].self, from: data)
-        
-        return likes.count
+            .value
+        return rows.count
     }
     
     // MARK: - Notes Functions

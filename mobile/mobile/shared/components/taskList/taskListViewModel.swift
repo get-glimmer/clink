@@ -234,6 +234,7 @@ class TaskListViewModel: ObservableObject {
                     .from("category")
                     .select()
                     .eq("userid", value: userId)
+                    .in("privacy_status", value: allowedStatuses)
                     .order("createdat", ascending: true)
                     .execute()
                     .value

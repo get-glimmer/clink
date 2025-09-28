@@ -48,7 +48,7 @@ struct BottomSheet<Content: View>: View {
             .frame(height: currentHeight + dragOffset)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(Color(.systemBackground))
+                    .fill(AppColors.neutral1000)
                     .shadow(radius: 5)
             )
             .offset(y: geo.size.height - (currentHeight + dragOffset))

@@ -69,8 +69,8 @@ struct SearchView: View {
                         if !incomingRequests.isEmpty && searchText.isEmpty {
                             VStack(alignment: .leading, spacing: 0) {
                                 Text("Friend Requests")
-                                    .foregroundColor(AppColors.textWhite)
-                                    .font(.system(size: 18, weight: .bold))
+                                    .foregroundColor(AppColors.neutral300)
+                                    .appFont(AppFont.labelL)
                                     .padding(.horizontal, 20)
                                     .padding(.top, 24)
                                     .padding(.bottom, 14)
@@ -88,8 +88,8 @@ struct SearchView: View {
                                 ProgressView()
                                     .progressViewStyle(CircularProgressViewStyle(tint: AppColors.textWhite))
                                 Text("Searching...")
-                                    .foregroundColor(AppColors.textWhite)
-                                    .font(.system(size: 16))
+                                    .foregroundColor(AppColors.neutral300)
+                                    .appFont(AppFont.labelM)
                             }
                             .padding(.top, 40)
                         }
@@ -98,7 +98,7 @@ struct SearchView: View {
                         else if let errorMessage = errorMessage {
                             Text(errorMessage)
                                 .foregroundColor(Color.red)
-                                .font(.system(size: 16))
+                                .appFont(AppFont.labelL)
                                 .padding(.horizontal, 20)
                                 .padding(.top, 40)
                         }
@@ -118,10 +118,10 @@ struct SearchView: View {
                                     .font(.system(size: 40))
                                 Text("No users found")
                                     .foregroundColor(AppColors.neutral400)
-                                    .font(.system(size: 18, weight: .medium))
+                                    .appFont(AppFont.labelL)
                                 Text("Try searching with a different username or name")
                                     .foregroundColor(AppColors.neutral500)
-                                    .font(.system(size: 14))
+                                    .appFont(AppFont.labelM)
                                     .multilineTextAlignment(.center)
                             }
                             .padding(.horizontal, 20)
@@ -133,8 +133,8 @@ struct SearchView: View {
                             VStack(alignment: .leading, spacing: 0) {
                                 HStack {
                                     Text("Suggestion")
-                                        .foregroundColor(AppColors.textWhite)
-                                        .font(.system(size: 18, weight: .medium))
+                                        .foregroundColor(AppColors.neutral300)
+                                        .appFont(AppFont.labelS)
                                     Spacer()
                                 }
                                 .padding(.horizontal, 20)
@@ -167,11 +167,11 @@ struct SearchView: View {
             HStack(spacing: 12) {
                 Image(systemName: "magnifyingglass")
                     .foregroundColor(AppColors.neutral400)
-                    .font(.system(size: 16))
+                    .font(.system(size: 24))
                 
                 TextField("Search users...", text: $searchText)
-                    .foregroundColor(AppColors.textWhite)
-                    .font(.system(size: 16))
+                    .foregroundColor(AppColors.neutral600)
+                    .appFont(AppFont.labelL)
                     .onChange(of: searchText) { oldValue, newValue in
                         Task {
                             await performSearch()
@@ -182,18 +182,18 @@ struct SearchView: View {
             .padding(.vertical, 12)
             .background(AppColors.neutral900)
             .cornerRadius(25)
-            .overlay(
-                RoundedRectangle(cornerRadius: 25)
-                    .stroke(Color.blue, lineWidth: 2)
-            )
             
             // Close Button
             Button(action: {
                 dismiss()
             }) {
                 Image(systemName: "xmark")
-                    .foregroundColor(AppColors.textWhite)
+                    .foregroundColor(AppColors.neutral400)
                     .font(.system(size: 18, weight: .medium))
+                    .frame(width: 44, height: 44)
+                    .background(
+                        Circle().fill(AppColors.neutral900)
+                    )
             }
         }
         .padding(.horizontal, 20)
@@ -284,12 +284,12 @@ struct UserRowView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(user.username)
                     .foregroundColor(AppColors.textWhite)
-                    .font(.system(size: 16, weight: .medium))
+                    .appFont(AppFont.labelM)
                 
                 if let mutualFriends = user.mutualFriends {
                     Text("\(mutualFriends) Mutuals")
                         .foregroundColor(AppColors.neutral400)
-                        .font(.system(size: 14))
+                        .appFont(AppFont.labelS)
                 }
             }
             
@@ -309,7 +309,7 @@ struct UserRowView: View {
                     } else {
                         Text(currentStatus.displayText)
                             .foregroundColor(currentStatus.textColor)
-                            .font(.system(size: 14, weight: .medium))
+                            .appFont(AppFont.labelS)
                     }
                 }
                 .frame(minWidth: 80)
@@ -376,25 +376,25 @@ struct FriendRequestRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(profile.name ?? profile.username ?? "Unknown")
                     .foregroundColor(AppColors.textWhite)
-                    .font(.system(size: 16, weight: .medium))
+                    .appFont(AppFont.labelM)
             }
             Spacer()
-
-            Button(action: { Task { await accept() } }) {
-                Text("Accept")
-                    .foregroundColor(.black)
-                    .font(.system(size: 14, weight: .semibold))
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(AppColors.green500)
-                    .cornerRadius(10)
-            }
-            .disabled(isWorking)
 
             Button(action: { Task { await decline() } }) {
                 Text("Decline")
                     .foregroundColor(AppColors.textWhite)
-                    .font(.system(size: 14, weight: .medium))
+                    .appFont(AppFont.labelS)
+            }
+            .disabled(isWorking)
+
+            Button(action: { Task { await accept() } }) {
+                Text("Accept")
+                    .foregroundColor(.black)
+                    .appFont(AppFont.labelS)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(AppColors.green500)
+                    .cornerRadius(10)
             }
             .disabled(isWorking)
         }

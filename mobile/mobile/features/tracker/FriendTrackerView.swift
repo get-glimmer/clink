@@ -6,6 +6,8 @@ struct FriendTrackerView: View {
     
     @StateObject private var trackerViewModel: TrackerViewModel
     @StateObject private var taskListViewModel: TaskListViewModel
+    @StateObject private var communityViewModel = CommunityViewModel()
+    @State private var isFavorite: Bool = false
     @State private var showMonthPicker = false
     @Environment(\.dismiss) private var dismiss
     
@@ -26,29 +28,67 @@ struct FriendTrackerView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Button(action: { dismiss() }) {
-                    Image(systemName: "chevron.left")
-                        .foregroundColor(Color("White"))
-                        .font(.system(size: 18, weight: .medium))
-                }
-                Spacer()
+            ZStack {
+                // Centered title
                 Text(friendName)
                     .appFont(AppFont.title2)
                     .foregroundColor(Color("White"))
-                Spacer()
-                HStack(spacing: 14) {
-                    // Jar icon – tap to return to friend jar
+                    .frame(maxWidth: .infinity, alignment: .center)
+
+                // Leading/trailing controls
+                HStack {
                     Button(action: { dismiss() }) {
-                        Image("jar")
-                            .renderingMode(.template)
+                        Image("left_arrow")
                             .resizable()
-                            .scaledToFit()
-                            .frame(width: 18, height: 18)
-                            .foregroundColor(Color("Neutral-400"))
+                            .renderingMode(.original)
+                            .frame(width:24, height: 24)
+                            .frame(width: 44, height: 44)
+                            .background(
+                                Circle().fill(AppColors.neutral900)
+                            )
                     }
-                    Image(systemName: "star")
-                        .foregroundColor(Color("Neutral-400"))
+                    Spacer()
+                    HStack(spacing: 12) {
+                        // Jar icon – tap to return to friend jar
+                        Button(action: { dismiss() }) {
+                            Image("jar_icon")
+                                .renderingMode(.template)
+                                .resizable()
+                                .scaledToFit()
+                                .foregroundColor(AppColors.neutral400)
+                                .frame(width: 24, height: 24)
+                                .frame(width: 44, height: 44)
+                                .background(
+                                    Circle().fill(AppColors.neutral900)
+                                )
+                        }
+                        Button(action: {
+                            isFavorite.toggle()
+                            if isFavorite {
+                                communityViewModel.addFriendToFavorites(named: friendName)
+                            } else {
+                                communityViewModel.removeFriendFromFavorites(named: friendName)
+                            }
+                        }) {
+                            Group {
+                                if isFavorite {
+                                    Image("star_on")
+                                        .resizable()
+                                        .renderingMode(.original)
+                                } else {
+                                    Image("star")
+                                        .resizable()
+                                        .renderingMode(.template)
+                                        .foregroundColor(AppColors.neutral400)
+                                }
+                            }
+                            .frame(width: 24, height: 24)
+                            .frame(width: 44, height: 44)
+                            .background(
+                                Circle().fill(AppColors.neutral900)
+                            )
+                        }
+                    }
                 }
             }
             .padding(.horizontal, 16)
@@ -145,8 +185,48 @@ struct FriendTrackerView: View {
                 try? await trackerViewModel.fetchShakers()
             }
             ScrollView {
-                TaskListView(taskSelectedDate: $taskListViewModel.taskSelectedDate, viewModel: taskListViewModel)
-                    .padding(.bottom, 32)
+                VStack(alignment: .leading, spacing: 0) {
+                    // --- daily section ---
+                    HStack {
+                        Text("Daily Task")
+                            .font(.headline)
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.top, 24)
+                    .padding(.bottom, 4)
+
+                    ForEach(taskListViewModel.categoriesWithTasks.filter { $0.category.type == .daily }) { item in
+                        TaskCategoryCard(
+                            categoryWithTasks: item,
+                            backgroundColor: Color("Neutral-900"),
+                            readOnly: true
+                        ) {
+                            EmptyView()
+                        }
+                        .padding(.horizontal)
+                    }
+
+                    // --- archived section ---
+                    HStack {
+                        Text("Archived Task")
+                            .font(.headline)
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.top, 24)
+                    .padding(.bottom, 4)
+
+                    ForEach(taskListViewModel.categoriesWithTasks.filter { $0.category.type == .archived }) { item in
+                        TaskCategoryCard(
+                            categoryWithTasks: item,
+                            backgroundColor: Color("Neutral-900"),
+                            readOnly: true
+                        ) {
+                            EmptyView()
+                        }
+                        .padding(.horizontal)
+                    }
+                }
+                .padding(.bottom, 32)
             }
             .onAppear {
                 taskListViewModel.fetchCategoriesAndTasks()

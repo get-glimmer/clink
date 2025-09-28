@@ -224,8 +224,8 @@ class UserSearchService: ObservableObject {
         }
         
         do {
-            // First check if I sent a request to them
-            let outgoingRequest: [FriendRelation] = try await supabase
+            // Check if I have a friendship with them (unidirectional)
+            let friendship: [FriendRelation] = try await supabase
                 .from("friends")
                 .select()
                 .eq("user_id", value: currentUserId)
@@ -233,20 +233,7 @@ class UserSearchService: ObservableObject {
                 .execute()
                 .value
             
-            if let request = outgoingRequest.first {
-                return FriendshipStatus(rawValue: request.status) ?? .none
-            }
-            
-            // Then check if they sent a request to me
-            let incomingRequest: [FriendRelation] = try await supabase
-                .from("friends")
-                .select()
-                .eq("user_id", value: userId)
-                .eq("friend_id", value: currentUserId)
-                .execute()
-                .value
-            
-            if let request = incomingRequest.first {
+            if let request = friendship.first {
                 return FriendshipStatus(rawValue: request.status) ?? .none
             }
             
