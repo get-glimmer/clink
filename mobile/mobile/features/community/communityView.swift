@@ -139,7 +139,7 @@ struct CommunityView: View {
 
                         VStack(alignment: .leading, spacing: 0) {
                             let rowHeight: CGFloat = 44
-                            let dividerThickness: CGFloat = 1
+                            let dividerThickness: CGFloat = 0.5
                             let totalRows = CGFloat(viewModel.categories.count) * rowHeight
                             let totalDividers = CGFloat(max(0, viewModel.categories.count - 1)) * dividerThickness
                             let contentHeight = totalRows + totalDividers
@@ -174,10 +174,24 @@ struct CommunityView: View {
                         .frame(width: 178, height: 152, alignment: .topLeading)
                         .background(AppColors.neutral900)
                         .cornerRadius(16)
-                        .overlay(RoundedRectangle(cornerRadius: 20).stroke(AppColors.neutral600, lineWidth: 1))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(
+                                    LinearGradient(
+                                        colors: [
+                                            Color("Neutral-400").opacity(0.7),
+                                            Color("Neutral-600").opacity(0.7)
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 1
+                                )
+                        )
                         .shadow(color: Color.black.opacity(0.3), radius: 10, x: 0, y: 5)
                         .offset(x: rect.minX, y: rect.maxY)
                         .animation(.easeInOut(duration: 0.2), value: viewModel.showingDropdown)
+                        
                     }
                 }
             }
@@ -579,14 +593,12 @@ struct FriendMenuSheet: View {
             )
         )
         .overlay(alignment: .top) {
-            // Exact top edge + corner arcs to the very edges (no padding)
+            // Gradient stroke only along the top edge and its rounded corners
             GeometryReader { geo in
                 let w = geo.size.width
                 let r: CGFloat = 16
                 Path { p in
-                    // Start at left vertical tangent
                     p.move(to: CGPoint(x: 0, y: r))
-                    // Left corner arc up to the top edge
                     p.addArc(
                         center: CGPoint(x: r, y: r),
                         radius: r,
@@ -594,9 +606,7 @@ struct FriendMenuSheet: View {
                         endAngle: .degrees(270),
                         clockwise: false
                     )
-                    // Top straight segment
                     p.addLine(to: CGPoint(x: w - r, y: 0))
-                    // Right corner arc down to the right vertical tangent
                     p.addArc(
                         center: CGPoint(x: w - r, y: r),
                         radius: r,
@@ -605,7 +615,21 @@ struct FriendMenuSheet: View {
                         clockwise: false
                     )
                 }
-                .stroke(AppColors.neutral400, style: StrokeStyle(lineWidth: 1, lineCap: .butt, lineJoin: .miter))
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            Color("Neutral-400").opacity(0.7),
+                            Color("Neutral-600").opacity(0.7)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .topTrailing
+                    ),
+                    style: StrokeStyle(
+                        lineWidth: 1,
+                        lineCap: .round,
+                        lineJoin: .round
+                    )
+                )
             }
             .frame(height: 16)
         }
