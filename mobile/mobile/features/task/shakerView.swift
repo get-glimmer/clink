@@ -89,8 +89,13 @@ struct ShakerView: View {
                 scene.setEmojiScale(isPreview ? 0.75 : 1.0)
                 scene.setMotionEnabled(!isPreview)
                 if isPreview {
+                    // Lower the floor a bit to avoid floating look in tight previews
+                    scene.configureBoundaries(inset: 12, lidHeight: 40, bottomExtraDepth: 20)
                     // Stronger constant gravity so marbles settle firmly at the bottom
                     scene.useConstantGravity(18)
+                } else {
+                    // Reset to default boundaries for full view
+                    scene.configureBoundaries(inset: 12, lidHeight: 40)
                 }
                 // Clear any previous contents to avoid duplicates across re-entries
                 scene.resetScene()
