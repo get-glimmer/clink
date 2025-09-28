@@ -246,14 +246,15 @@ struct ShakerView: View {
                 await MainActor.run { removeNoteEmoji() }
                 return
             }
-            // Check if any notes exist for this shaker
-            struct NoteRow: Decodable { let note_id: String }
-            let notes: [NoteRow] = try await client
-                .from("notes").select("note_id")
-                .eq("shaker_id", value: shakerId)
-                .limit(1)
-                .execute().value
-            if notes.isEmpty {
+            // Check if any TEXT notes (non-emoji) exist for this shaker
+            var hasTextNote = false
+            if let shakerUUID = UUID(uuidString: shakerId) {
+                do {
+                    let loaded = try await CommunityService().getNotesForShaker(shakerId: shakerUUID, limit: 20)
+                    hasTextNote = loaded.contains { !$0.noteContent.isEmojiOnly }
+                } catch { hasTextNote = false }
+            }
+            if !hasTextNote {
                 await MainActor.run {
                     removeNoteEmoji()
                     if isPreviewMode { scene.settleAllToBottom() }

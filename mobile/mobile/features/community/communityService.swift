@@ -519,15 +519,20 @@ class CommunityService: ObservableObject {
     // Determine what privacy_status values the viewer can see for target user
     private func allowedPrivacyStatuses(viewerId: String, targetUserId: String) async throws -> [String] {
         if viewerId == targetUserId { return ["public", "friends_only", "user_only"] }
-        // Check if viewer has added target user as friend (unidirectional)
+        // Check accepted friendship in EITHER direction
         struct Row: Decodable { let status: String }
         do {
-            let friendship: [Row] = try await supabase!
+            let a: [Row] = try await supabase!
                 .from("friends").select("status")
                 .eq("user_id", value: viewerId)
                 .eq("friend_id", value: targetUserId)
                 .execute().value
-            let isFriend = friendship.contains { $0.status == "accepted" }
+            let b: [Row] = try await supabase!
+                .from("friends").select("status")
+                .eq("user_id", value: targetUserId)
+                .eq("friend_id", value: viewerId)
+                .execute().value
+            let isFriend = (a + b).contains { $0.status == "accepted" }
             return isFriend ? ["public", "friends_only"] : ["public"]
         } catch {
             return ["public"]

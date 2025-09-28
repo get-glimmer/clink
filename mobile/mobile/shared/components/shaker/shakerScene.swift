@@ -41,10 +41,9 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
     private var computedFloorY: CGFloat = 0
     
     // MARK: - Visual tuning
-    // Strong, pleasant glow for emoji reactions
-    private let glowBlurRadius: CGFloat = 8.0
+    // Natural, stronger glow for emoji reactions
+    private let glowBlurRadius: CGFloat = 16.0
     private let glowAlpha: CGFloat = 0.85
-    private let glowScale: CGFloat = 1.18
     
     // MARK: - Haptic settings
     var isHapticsEnabled: Bool = true
@@ -203,7 +202,7 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
         
         let node = SKLabelNode(fontNamed: "AppleColorEmoji")
         node.text = symbol
-        node.fontSize = 64 * emojiScaleFactor // Slightly larger for reactions
+        node.fontSize = 54 * emojiScaleFactor // match regular size; no enlargement
         node.verticalAlignmentMode = .center
         node.position = CGPoint(x: spawnX, y: spawnY)
         node.zPosition = 55 // Higher than regular emojis
@@ -211,20 +210,22 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
         // Mark as reaction so we can identify later
         node.name = "reaction"
         
-        // Add glowing effect that FOLLOWS the emoji
-        // Build an effect node as a CHILD of the moving label node so it doesn't leave trails
+        // Revert to effect-node based blur (natural halo) but force yellow tint
         let glowEffect = SKEffectNode()
         glowEffect.filter = CIFilter(name: "CIGaussianBlur", parameters: ["inputRadius": glowBlurRadius])
         glowEffect.shouldRasterize = true
-        glowEffect.zPosition = -1  // render behind the emoji label
+        glowEffect.zPosition = -1
         glowEffect.alpha = glowAlpha
-        
+
+        // Yellow-tinted duplicate of the emoji (small scale so it doesn't look like a disk)
         let glowLabel = SKLabelNode(fontNamed: "AppleColorEmoji")
         glowLabel.text = symbol
         glowLabel.fontSize = node.fontSize
         glowLabel.verticalAlignmentMode = .center
-        glowLabel.setScale(glowScale)
-        
+        glowLabel.setScale(1.1)
+        // Remove forced tint so system emoji hue drives the glow (more natural)
+        glowLabel.colorBlendFactor = 0.0
+
         glowEffect.addChild(glowLabel)
         node.addChild(glowEffect)
         
@@ -302,6 +303,50 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
         body.contactTestBitMask = 0x1 << 0   // 다른 marble과 충돌
         body.collisionBitMask = 0xFFFFFFFF   // 기본 충돌
         return body
+    }
+    
+    // Procedural soft radial glow texture (1.0 center → 0 at edge)
+    private func makeRadialGlowTexture(diameter: CGFloat, color: UIColor) -> SKTexture {
+        let size = Int(max(16, diameter.rounded()))
+        let w = size, h = size
+        let bytesPerRow = w * 4
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let data = UnsafeMutablePointer<UInt8>.allocate(capacity: w * h * 4)
+        defer { data.deallocate() }
+        
+        let center = CGPoint(x: CGFloat(w - 1) / 2, y: CGFloat(h - 1) / 2)
+        let maxR = min(center.x, center.y)
+        
+        var rC: CGFloat = 1, gC: CGFloat = 1, bC: CGFloat = 0, aC: CGFloat = 1
+        color.getRed(&rC, green: &gC, blue: &bC, alpha: &aC)
+        
+        for y in 0..<h {
+            for x in 0..<w {
+                let dx = CGFloat(x) - center.x
+                let dy = CGFloat(y) - center.y
+                let d = sqrt(dx*dx + dy*dy)
+                let t = min(max(d / maxR, 0), 1) // 0..1
+        // Steeper falloff so edge fades quickly and center stays soft
+        let falloff = max(0, pow(1 - t, 2.5))
+                let alpha = UInt8((falloff * 255).rounded())
+                let off = (y * w + x) * 4
+                data[off + 0] = UInt8((rC * 255).rounded())
+                data[off + 1] = UInt8((gC * 255).rounded())
+                data[off + 2] = UInt8((bC * 255).rounded())
+                data[off + 3] = alpha
+            }
+        }
+        guard let ctx = CGContext(data: data,
+                                  width: w,
+                                  height: h,
+                                  bitsPerComponent: 8,
+                                  bytesPerRow: bytesPerRow,
+                                  space: colorSpace,
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue),
+              let cg = ctx.makeImage() else {
+            return SKTexture()
+        }
+        return SKTexture(cgImage: cg)
     }
     
     // MARK: - Contact delegate

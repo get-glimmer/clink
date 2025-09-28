@@ -24,7 +24,7 @@ struct FriendDetailView: View {
             let fullWidth = geo.size.width * 0.9
             let scale = max(0.4, 1 - 0.6 * sheetProgress)
             let shakerSide = fullWidth * scale
-            
+            AppColors.neutral1000.ignoresSafeArea()
             ZStack(alignment: .top) {
                 VStack(spacing: 12) {
                     headerSection
@@ -38,11 +38,10 @@ struct FriendDetailView: View {
                         .padding(.top, 16)
                         .overlay(
                             Group {
-                                if !hasLeftTextNote && friendTaskViewModel.hasAnyTasks {
+                                if !hasLeftTextNote && friendTaskViewModel.hasAnyTasks && scale >= 0.8 {
                                     VStack {
                                         Spacer().frame(height: shakerSide * 0.3)
                                         leaveNoteButton
-                                            .scaleEffect(scale * 0.8)
                                         Spacer()
                                     }
                                 }
@@ -85,24 +84,34 @@ struct FriendDetailView: View {
             // Centered title
             Text(friend.name)
                 .foregroundColor(AppColors.textWhite)
-                .font(.system(size: 24, weight: .bold))
+                .appFont(AppFont.title2)
                 .frame(maxWidth: .infinity, alignment: .center)
 
             // Leading/trailing controls
             HStack {
                 // Back
                 Button(action: { dismiss() }) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundColor(AppColors.textWhite)
+                    Image("left_arrow")
+                        .resizable()
+                        .renderingMode(.original)
+                        .frame(width: 24, height: 24)
+                        .frame(width: 44, height: 44)
+                        .background(
+                            Circle().fill(AppColors.neutral900)
+                        )
                 }
                 Spacer()
                 HStack(spacing: 12) {
                     // Calendar
                     Button(action: { showingFriendCalendar = true }) {
-                        Image(systemName: "calendar")
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundColor(AppColors.textWhite)
+                        Image("calendar")
+                            .resizable()
+                            .renderingMode(.original)
+                            .frame(width: 24, height: 24)
+                            .frame(width: 44, height: 44)
+                            .background(
+                                Circle().fill(AppColors.neutral900)
+                            )
                     }
                     // Favorite
                     Button(action: {
@@ -113,9 +122,23 @@ struct FriendDetailView: View {
                             communityViewModel.removeFriendFromFavorites(named: friend.name)
                         }
                     }) {
-                        Image(systemName: isFavorite ? "star.fill" : "star")
-                            .font(.system(size: 20, weight: .medium))
-                            .foregroundColor(isFavorite ? Color.yellow : AppColors.textWhite)
+                        Group {
+                            if isFavorite {
+                                Image("star_on")
+                                    .resizable()
+                                    .renderingMode(.original)
+                            } else {
+                                Image("star")
+                                    .resizable()
+                                    .renderingMode(.template)
+                                    .foregroundColor(AppColors.neutral400)
+                            }
+                        }
+                        .frame(width: 24, height: 24)
+                        .frame(width: 44, height: 44)
+                        .background(
+                            Circle().fill(AppColors.neutral900)
+                        )
                     }
                 }
             }
@@ -131,14 +154,19 @@ struct FriendDetailView: View {
     private var leaveNoteButton: some View {
         Button(action: { showingNoteSheet = true }) {
             Text("Leave a Note")
-                .foregroundColor(AppColors.neutral800)
-                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(AppColors.neutral1000)
+                .appFont(AppFont.labelL)
+                .lineLimit(1)
                 .padding(.horizontal, 36)
                 .padding(.vertical, 14)
         }
         .frame(width: 180, height: 51)
-        .background(AppColors.textWhite)
+        .background(AppColors.textWhite.opacity(0.7))
         .cornerRadius(30)
+        .overlay(
+            RoundedRectangle(cornerRadius: 30)
+                .stroke(AppColors.textWhite, lineWidth: 1)
+        )
     }
     
     private func showNotesPopup() { showingNotesPopup = true }

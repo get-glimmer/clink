@@ -641,7 +641,7 @@ struct FriendTasksView: View {
                 // Header
                 HStack {
                     Text("Daily Task")
-                        .font(.headline)
+                        .appFont(AppFont.title3)
                         .foregroundColor(AppColors.textWhite)
                 }
                                             .padding(.horizontal, 28)
@@ -704,7 +704,17 @@ struct FriendTasksView: View {
                     // Friend's real tasks
                     VStack(spacing: 16) {
                         ForEach(categoriesWithTasks) { categoryWithTasks in
-                            friendTaskCategoryView(categoryWithTasks: categoryWithTasks)
+                            TaskCategoryCard(
+                                categoryWithTasks: categoryWithTasks,
+                                backgroundColor: AppColors.neutral900,
+                                readOnly: true
+                            ) {
+                                HeartButton(
+                                    categoryId: categoryWithTasks.category.id,
+                                    categoryEmoji: categoryWithTasks.category.emoji,
+                                    friendUserId: friend.userId
+                                )
+                            }
                         }
                     }
                     .padding(.horizontal, 20)
@@ -851,8 +861,8 @@ struct LeaveNoteSheet: View {
                             dismiss()
                         }) {
                             Image(systemName: "xmark")
-                                .font(.system(size: 18, weight: .medium))
-                                .foregroundColor(Color.black)
+                                .font(.system(size: 12.5, weight: .medium))
+                                .foregroundColor(AppColors.neutral1000)
                         }
                     }
                     .padding(.horizontal, 28)
@@ -861,8 +871,8 @@ struct LeaveNoteSheet: View {
                     
                     // Title
                     Text("Leave a Note for \(friend.name)!")
-                        .font(.system(size: 22, weight: .bold))
-                        .foregroundColor(Color.black)
+                        .appFont(AppFont.title3)
+                        .foregroundColor(AppColors.neutral1000)
                         .padding(.bottom, 20)
                     
                     VStack(spacing: 20) {
@@ -881,8 +891,8 @@ struct LeaveNoteSheet: View {
                     
                     if noteText.isEmpty {
                                 Text("Write a kind word, a cheer, or a sticker 💛")
-                                    .foregroundColor(Color.gray.opacity(0.6))
-                            .font(.system(size: 16))
+                                    .foregroundColor(AppColors.neutral600)
+                            .appFont(AppFont.body2)
                                     .padding(.horizontal, 20)
                                     .padding(.top, 24)
                             .allowsHitTesting(false)
@@ -894,8 +904,8 @@ struct LeaveNoteSheet: View {
                         VStack(alignment: .leading, spacing: 12) {
                             HStack {
                                 Text("Emoji Reactions")
-                                    .font(.system(size: 20, weight: .semibold))
-                                    .foregroundColor(Color.black)
+                                    .appFont(AppFont.labelL)
+                                    .foregroundColor(AppColors.neutral1000)
                 Spacer()
                             }
                             .padding(.horizontal, 28)
@@ -908,16 +918,8 @@ struct LeaveNoteSheet: View {
                                         sendEmojiReaction(emoji)
                                     }) {
                                         Text(emoji)
-                                            .font(.system(size: 32))
+                                            .font(.system(size: 40))
                                             .frame(width: 44, height: 44)
-                                            .background(
-                                                Circle()
-                                                    .fill(Color.gray.opacity(0.1))
-                                                    .overlay(
-                                                        Circle()
-                                                            .stroke(Color.gray.opacity(0.3), lineWidth: 2)
-                                                    )
-                                            )
                                             .scaleEffect(isSending ? 0.9 : 1.0)
                                             .animation(.easeInOut(duration: 0.1), value: isSending)
                                     }
@@ -926,17 +928,6 @@ struct LeaveNoteSheet: View {
                             }
                             .padding(.horizontal, 28)
                         }
-                        
-                        // Divider
-                        HStack {
-                            VStack { Divider() }
-                            Text("OR")
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundColor(Color.gray)
-                                .padding(.horizontal, 8)
-                            VStack { Divider() }
-                        }
-                        .padding(.horizontal, 28)
                         
                         // Send Text Note button
                 Button(action: {
@@ -948,21 +939,21 @@ struct LeaveNoteSheet: View {
                                         .progressViewStyle(CircularProgressViewStyle(tint: Color.white))
                                 .scaleEffect(0.8)
                         }
-                                Text(isSending ? "Sending..." : "Send Text Note")
-                                    .font(.system(size: 18, weight: .semibold))
-                                    .foregroundColor(Color.white)
+                                Text(isSending ? "Sending..." : "Attach Note")
+                                    .appFont(AppFont.title3)
+                                    .foregroundColor(AppColors.textWhite)
                             }
                             .frame(height: 48)
                     .frame(maxWidth: .infinity)
-                            .background(Color.black)
-                            .cornerRadius(24)
+                            .background(AppColors.neutral900)
+                            .cornerRadius(32)
                 }
                 .disabled(noteText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSending)
                         .padding(.horizontal, 28)
                         .padding(.bottom, 24)
                     }
                 }
-                .background(Color.white)
+                .background(AppColors.neutral100)
                 .cornerRadius(16)
                 
                 // Green tape overlay - positioned on top of the modal
@@ -1109,10 +1100,11 @@ struct HeartButton: View {
                         .progressViewStyle(CircularProgressViewStyle(tint: AppColors.neutral400))
                         .scaleEffect(0.6)
                 } else {
-                    Image(systemName: isLiked ? "heart.fill" : "heart")
-                        .font(.system(size: 14))
-                        .foregroundColor(isLiked ? .red : AppColors.neutral400)
-                        .scaleEffect(isLiked ? 1.2 : 1.0)
+                    Image(isLiked ? "heart_on" : "heart")
+                        .resizable()
+                        .renderingMode(.original)
+                        .frame(width: 20, height: 19)
+                        // .scaleEffect(isLiked ? 1.2 : 1.0)
                         .animation(.easeInOut(duration: 0.1), value: isLiked)
                 }
             }
