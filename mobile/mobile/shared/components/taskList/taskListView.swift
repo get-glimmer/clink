@@ -143,7 +143,7 @@ struct TaskListView: View {
     private func categoryCard(for categoryWithTasks: CategoryWithTasks) -> some View {
         ZStack {
             RoundedRectangle(cornerRadius: 16)
-                .foregroundColor(Color("Neutral-1000"))
+                .foregroundColor(Color("Neutral-900"))
             VStack(alignment: .leading, spacing: 25) {
                 categoryHeader(for: categoryWithTasks)
                 tasksSection(for: categoryWithTasks)

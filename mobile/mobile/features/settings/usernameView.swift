@@ -42,12 +42,16 @@ struct UsernameView: View {
                     .foregroundColor(.white)
                     .padding(.horizontal)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                
+                Divider()
+                    .foregroundStyle(Color("Neutral-800"))
             }
+            
 
             // Username field
             VStack(alignment: .leading, spacing: 8) {
                 Text("Username")
-                    .foregroundColor(.gray)
+                    .foregroundColor(Color("Neutral-300"))
                     .font(.subheadline)
 
                 HStack(spacing: 8) {
@@ -68,7 +72,7 @@ struct UsernameView: View {
                     } label: {
                         Text(isSaving ? "Saving..." : "Confirm")
                             .foregroundColor(.white)
-                            .frame(maxWidth: 80)
+                            .frame(width: 100, height: 55)
                             .frame(height: 44)
                             .background(Color("Neutral-800"))
                             .cornerRadius(10)
@@ -116,5 +120,15 @@ struct UsernameView: View {
             }
         }
         isSaving = false
+    }
+}
+
+struct UsernameView_Previews: PreviewProvider {
+    static var previews: some View {
+        NavigationStack {
+            UsernameView()
+                .environmentObject(AuthViewModel()) // Provide a sample AuthViewModel
+                .preferredColorScheme(.dark)        // Optional: show dark mode
+        }
     }
 }

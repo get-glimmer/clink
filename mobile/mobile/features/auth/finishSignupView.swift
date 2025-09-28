@@ -30,6 +30,8 @@ struct FinishSignupView: View {
     @State private var usernameStatus: String? = nil
     @State private var usernameStatusColor: Color = .white
     @State private var hasSelectedDate = false
+    @State private var showCropper = false
+
 
     // MARK: - Body
 
@@ -68,9 +70,19 @@ struct FinishSignupView: View {
                             if let data = try? await newItem?.loadTransferable(type: Data.self),
                                let uiImage = UIImage(data: data) {
                                 profileImage = uiImage
+                                showCropper = true   // ⬅️ show cropper immediately after selection
                             }
                         }
                     }
+
+                    .sheet(isPresented: $showCropper) {
+                        if let image = profileImage {
+                            CircleCropView(image: $profileImage)
+                                .ignoresSafeArea()
+                        }
+                    }
+
+
 
                     // Full name input field
                     VStack(alignment: .leading, spacing: 4) {
@@ -116,7 +128,7 @@ struct FinishSignupView: View {
                                 }
                             } label: {
                                 Text("Confirm")
-                                    .frame(maxHeight: .infinity)
+                                    .frame(width: 100, height: 55)
                                     .foregroundColor(username.isEmpty ? .white : Color("Neutral-900"))
                                     .padding(.horizontal, 16)
                                     .background(username.isEmpty ? Color("Neutral-800") : Color("Green-300"))
@@ -177,7 +189,7 @@ struct FinishSignupView: View {
                         }
                         .animation(.easeInOut(duration: 0.25), value: showChangeDateSheet)
 
-                        Text("Your birthday won't be shared with other people.")
+                        Text("Your birthday won’t be shared with other people who use Clink!.")
                             .font(.caption2)
                             .foregroundColor(.gray)
                             .padding(.horizontal, 4)

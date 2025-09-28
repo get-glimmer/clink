@@ -47,7 +47,7 @@ struct EmailLoginView: View {
                     .padding(.leading, 5)
                     .padding(.top, 10)
                 
-                TextField("Enter your email", text: $email)
+                TextField("Email address", text: $email)
                     .keyboardType(.emailAddress)
                     .textInputAutocapitalization(.never)
                     .padding()
@@ -64,7 +64,7 @@ struct EmailLoginView: View {
                     .foregroundColor(.white)
                     .padding(.leading, 5)
                 
-                SecureField("Enter your password", text: $password)
+                SecureField("Password", text: $password)
                     .padding()
                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color("Neutral-600")))
                 
@@ -78,7 +78,7 @@ struct EmailLoginView: View {
                         showAlert = true
                     }
                 } label: {
-                    Text("Forgot password?")
+                    Text("Forgot your password?")
                         .underline(true, color: .white)
                         .font(.caption)
                         .foregroundColor(.white)
@@ -102,7 +102,7 @@ struct EmailLoginView: View {
             // Link to the sign-up view
             HStack {
                 Text("Don't have an account?")
-                    .foregroundColor(.gray)
+                    .foregroundColor(Color("Neutral-600"))
                 
                 Button {
                     path.append(Screen.emailSignup)
@@ -140,5 +140,15 @@ struct EmailLoginView: View {
         }
         .navigationTitle("")
         .navigationBarBackButtonHidden(true)
+    }
+}
+
+struct EmailLoginView_Previews: PreviewProvider {
+    static var previews: some View {
+        NavigationStack {
+            EmailLoginView(path: .constant(NavigationPath()))
+                .environmentObject(AuthViewModel()) // Provide a mock or real instance
+                .preferredColorScheme(.dark)        // Optional: dark mode preview
+        }
     }
 }

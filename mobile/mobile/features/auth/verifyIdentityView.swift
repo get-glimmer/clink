@@ -33,7 +33,7 @@ struct VerifyIdentityView: View {
     var body: some View {
         VStack(spacing: 24) {
             Text("Log in or Sign up")
-                .font(.title2)
+                .appFont(AppFont.title2)
                 .bold()
                 .frame(maxWidth: .infinity)
                 .multilineTextAlignment(.center)
@@ -59,28 +59,36 @@ struct VerifyIdentityView: View {
                     .padding(.horizontal, 8)
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.gray, lineWidth: 1)
+                            .stroke(Color("Neutral-600"), lineWidth: 1)
                     )
                 }
 
-                TextField("Enter your phone number", text: $phoneNumber)
-                    .keyboardType(.phonePad)
-                    .foregroundColor(.white)
-                    .padding()
-                    .frame(height: 50)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.gray, lineWidth: 1)
-                    )
-                    .onChange(of: phoneNumber) { _, newValue in
-                        let sanitized = newValue.filter { "0123456789".contains($0) }
-                        if sanitized != newValue { phoneNumber = sanitized }
-                    }
+                TextField(
+                    text: $phoneNumber,
+                    prompt: Text("Phone number")
+                        .foregroundColor(Color("Neutral-600")) // 👈 placeholder color
+                ) {
+                    EmptyView() // no label
+                }
+                .appFont(AppFont.body1)
+                .keyboardType(.phonePad)
+                .foregroundColor(.white) // 👈 user-entered text color
+                .padding()
+                .frame(height: 50)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color("Neutral-600"), lineWidth: 1)
+                )
+                .onChange(of: phoneNumber) { _, newValue in
+                    let sanitized = newValue.filter { "0123456789".contains($0) }
+                    if sanitized != newValue { phoneNumber = sanitized }
+                }
+
             }
 
             Text("We’ll call or text to confirm your number. Standard message and data rates apply.")
-                .foregroundColor(.gray)
-                .font(.footnote)
+                .foregroundColor(Color("Neutral-400"))
+                .appFont(AppFont.captionXS)
             
             // Continue button
             Button {
@@ -105,34 +113,45 @@ struct VerifyIdentityView: View {
                     .padding(.horizontal)
                 Rectangle()
                     .frame(height: 1)
-                    .foregroundColor(.gray)
+                    .foregroundColor(Color("Neutral-600"))
             }
             .padding(.vertical, 10)
 
             // Social sign-on buttons
             VStack(spacing: 12) {
-                SSOButton(title: "Continue with Google", color: Color("White"), icon: "globe") {
+                // Google → custom logo image in Assets
+                SSOButton(title: "Continue with Google",
+                          color: Color("White"),
+                          icon: "google") {
                     print("Google pressed")
                 }
 
-                SSOButton(title: "Continue with Apple", color: Color("White"), icon: "apple.logo") {
+                // Apple → still SF Symbol
+                SSOButton(title: "Continue with Apple",
+                          color: Color("White"),
+                          icon: "apple.logo") {
                     print("Apple pressed")
                 }
 
-                SSOButton(title: "Continue with Email", color: Color("White"), icon: "envelope") {
+                // Email → SF Symbol with black color
+                SSOButton(title: "Continue with Email",
+                          color: Color("White"),
+                          icon: "email") {
                     path.append(Screen.emailLogin)
                 }
             }
+
+
 
             Spacer()
             
             VStack(spacing: 5) {
                 Text("By signing up, you agree to our")
-                    .foregroundColor(.gray)
+                    .foregroundColor(Color("Neutral-400"))
                     .font(.footnote)
                     .multilineTextAlignment(.center)
                 Text("Terms of service and Privacy Policy")
-                    .foregroundColor(.gray)
+                    .foregroundColor(Color("Neutral-400"))
                     .font(.footnote)
                     .multilineTextAlignment(.center)
                     .padding(.bottom, 5)
@@ -185,37 +204,39 @@ struct VerifyIdentityView: View {
  * A reusable button for social sign-on options.
  */
 struct SSOButton: View {
-    // MARK: - Properties
-
-    /// The title of the button.
     var title: String
-
-    /// The background color of the button.
     var color: Color
-
-    /// The name of the system icon to display.
-    var icon: String
-
-    /// The action to perform when the button is tapped.
+    var icon: String      // Can be SF Symbol name or Asset name
+    var iconColor: Color? // Optional override
     var action: () -> Void
-    
-    // MARK: - Body
 
     var body: some View {
         Button(action: action) {
             HStack {
-                Image(systemName: icon)
+                if UIImage(named: icon) != nil {
+                    // If the icon exists in Assets (e.g., google_logo)
+                    Image(icon)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 20, height: 20)
+                } else {
+                    // Otherwise treat it as an SF Symbol
+                    Image(systemName: icon)
+                        .foregroundColor(iconColor ?? .black)
+                }
+
                 Text(title)
                     .bold()
             }
             .frame(maxWidth: .infinity)
             .frame(height: 50)
             .background(color)
-            .foregroundColor(.black)
+            .foregroundColor(.black) // text color
             .cornerRadius(12)
         }
     }
 }
+
 
 // MARK: - CountryPickerView
 

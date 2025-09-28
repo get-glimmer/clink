@@ -163,10 +163,20 @@ struct EmailSignupView: View {
      */
     private func passwordRequirementRow(_ text: String, check: Bool) -> some View {
         HStack {
-            Text(check ? "✅" : "☑️")
+            Text(check ? Image("checkboxFilled") : Image("checkboxEmpty"))
             Text(text)
                 .foregroundColor(.white)
                 .font(.subheadline)
+        }
+    }
+}
+
+struct EmailSignupView_Previews: PreviewProvider {
+    static var previews: some View {
+        NavigationStack {
+            EmailSignupView(path: .constant(NavigationPath()))
+                .environmentObject(AuthViewModel()) // Provide a mock or real instance
+                .preferredColorScheme(.dark)        // Optional: dark mode preview
         }
     }
 }
