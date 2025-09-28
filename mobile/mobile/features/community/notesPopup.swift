@@ -10,11 +10,6 @@ struct NotesPopupView: View {
     
     var body: some View {
         ZStack {
-            // Semi-transparent background
-            Color.black.opacity(0.4)
-                .ignoresSafeArea()
-                .onTapGesture { dismiss() }
-            
             // Main popup content
             VStack(spacing: 0) {
                 // Header with title and close button

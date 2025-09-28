@@ -60,10 +60,29 @@ struct FriendDetailView: View {
         }
         .ignoresSafeArea(edges: .bottom)
         .navigationBarHidden(true)
-        .sheet(isPresented: $showingNoteSheet) {
-            LeaveNoteSheet(friend: friend)
-                .presentationBackground(.clear)
-                .presentationDetents([.fraction(1.0)])
+        .overlay {
+            if showingNoteSheet {
+                ZStack(alignment: .center) {
+                    // Blur overlay covering entire screen
+                    Color.black.opacity(0.15)
+                        .background(.ultraThinMaterial)
+                        .ignoresSafeArea(.all)
+                        .transition(.opacity)
+                        .onTapGesture {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                showingNoteSheet = false
+                            }
+                        }
+
+                    // Centered note composer
+                    LeaveNoteSheet(friend: friend, onClose: { showingNoteSheet = false })
+                        .transition(.opacity)
+                        .zIndex(1)
+                }
+                .ignoresSafeArea(.all)
+                .zIndex(1000)
+                .animation(.easeInOut(duration: 0.2), value: showingNoteSheet)
+            }
         }
         .fullScreenCover(isPresented: $showingNotesPopup) {
             NotesPopupView(friend: friend)

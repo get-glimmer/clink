@@ -867,7 +867,7 @@ struct FriendTasksView: View {
 // Sheet for leaving a note to friend
 struct LeaveNoteSheet: View {
     let friend: Friend
-    @Environment(\.dismiss) private var dismiss
+    var onClose: () -> Void = {}
     @State private var noteText = ""
     @State private var isSending = false
     
@@ -879,24 +879,24 @@ struct LeaveNoteSheet: View {
             Color.clear
                 .ignoresSafeArea()
                 .onTapGesture {
-                    dismiss()
+                    onClose()
                 }
             
             // Centered floating modal
             ZStack {
-                VStack(spacing: 0) {
+                VStack(alignment: .leading, spacing: 0) {
                     // Header with close button
                     HStack {
                         Spacer()
                         Button(action: {
-                            dismiss()
+                            onClose()
                         }) {
                             Image(systemName: "xmark")
                                 .font(.system(size: 12.5, weight: .medium))
                                 .foregroundColor(AppColors.neutral1000)
                         }
                     }
-                    .padding(.horizontal, 28)
+                    .padding(.horizontal, 21)
                     .padding(.top, 20)
                     .padding(.bottom, 8)
                     
@@ -904,32 +904,39 @@ struct LeaveNoteSheet: View {
                     Text("Leave a Note for \(friend.name)!")
                         .appFont(AppFont.title3)
                         .foregroundColor(AppColors.neutral1000)
+                        .padding(.horizontal, 21)
                         .padding(.bottom, 20)
                     
                     VStack(spacing: 20) {
                         // Text input area
-                ZStack(alignment: .topLeading) {
+                        ZStack(alignment: .topLeading) {
+                            // White background with 1pt border #E1E5E2 and fixed size
                             RoundedRectangle(cornerRadius: 16)
-                                .fill(Color.gray.opacity(0.1))
-                        .frame(height: 120)
-                    
-                    TextEditor(text: $noteText)
+                                .fill(Color.white)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .stroke(Color(red: 225.0/255.0, green: 229.0/255.0, blue: 226.0/255.0), lineWidth: 1)
+                                )
+                                .frame(height: 130)
+
+                            TextEditor(text: $noteText)
                                 .foregroundColor(Color.black)
-                        .font(.system(size: 16))
+                                .font(.system(size: 16))
                                 .padding(16)
-                        .background(Color.clear)
-                        .scrollContentBackground(.hidden)
-                    
-                    if noteText.isEmpty {
+                                .frame(height: 130)
+                                .background(Color.clear)
+                                .scrollContentBackground(.hidden)
+
+                            if noteText.isEmpty {
                                 Text("Write a kind word, a cheer, or a sticker 💛")
                                     .foregroundColor(AppColors.neutral600)
-                            .appFont(AppFont.body2)
+                                    .appFont(AppFont.body2)
                                     .padding(.horizontal, 20)
                                     .padding(.top, 24)
-                            .allowsHitTesting(false)
-                    }
-                }
-                        .padding(.horizontal, 28)
+                                    .allowsHitTesting(false)
+                            }
+                        }
+                        .padding(.horizontal, 21)
                         
                         // Emoji Reactions Section
                         VStack(alignment: .leading, spacing: 12) {
@@ -939,7 +946,7 @@ struct LeaveNoteSheet: View {
                                     .foregroundColor(AppColors.neutral1000)
                 Spacer()
                             }
-                            .padding(.horizontal, 28)
+                            .padding(.horizontal, 21)
                             
                             // Emoji buttons
                             HStack(spacing: 16) {
@@ -957,7 +964,7 @@ struct LeaveNoteSheet: View {
                                     .disabled(isSending)
                                 }
                             }
-                            .padding(.horizontal, 28)
+                            .padding(.horizontal, 21)
                         }
                         
                         // Send Text Note button
@@ -974,17 +981,17 @@ struct LeaveNoteSheet: View {
                                     .appFont(AppFont.title3)
                                     .foregroundColor(AppColors.textWhite)
                             }
-                            .frame(height: 48)
-                    .frame(maxWidth: .infinity)
+                            .frame(width: 212, height: 64)
                             .background(AppColors.neutral900)
                             .cornerRadius(32)
                 }
                 .disabled(noteText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSending)
-                        .padding(.horizontal, 28)
+                        .padding(.horizontal, 21)
                         .padding(.bottom, 24)
                     }
                 }
-                .background(AppColors.neutral100)
+                // Card color #F1F3EF
+                .background(Color(red: 241.0/255.0, green: 243.0/255.0, blue: 239.0/255.0))
                 .cornerRadius(16)
                 
                 // Green tape overlay - positioned on top of the modal
@@ -992,17 +999,17 @@ struct LeaveNoteSheet: View {
                     HStack {
                         Spacer()
                         Rectangle()
-                            .fill(AppColors.green500)
-                            .frame(width: 80, height: 30)
-                            .cornerRadius(4)
-                            .rotationEffect(.degrees(15))
-                            .offset(x: -20, y: -10)
+                            .fill(AppColors.green300)
+                            .frame(width: 58, height: 23)
+                            .rotationEffect(.degrees(-23.65))
+                            .offset(x: 0, y: -7)
                         Spacer()
                     }
                     Spacer()
                 }
             }
             .frame(width: 370, height: 426)
+            .padding(.horizontal, 20)
             .shadow(color: Color.black.opacity(0.2), radius: 20, x: 0, y: 10)
         }
     }
@@ -1054,7 +1061,7 @@ struct LeaveNoteSheet: View {
                     }
                     
                     self.isSending = false
-                    self.dismiss()
+                    onClose()
                 }
             } catch {
                 await MainActor.run {
@@ -1098,7 +1105,7 @@ struct LeaveNoteSheet: View {
                     )
                     
                     self.isSending = false
-                    self.dismiss()
+                    onClose()
                 }
             } catch {
                 await MainActor.run {
