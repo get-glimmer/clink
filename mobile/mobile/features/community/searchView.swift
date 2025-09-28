@@ -162,9 +162,9 @@ struct SearchView: View {
     }
     
     private var searchHeader: some View {
-        HStack(spacing: 15) {
+        HStack(spacing: 8) {
             // Search Bar
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
                 Image(systemName: "magnifyingglass")
                     .foregroundColor(AppColors.neutral400)
                     .font(.system(size: 24))
@@ -181,7 +181,8 @@ struct SearchView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
             .background(AppColors.neutral900)
-            .cornerRadius(25)
+            .cornerRadius(22)
+            .frame(width: 318, height: 44)
             
             // Close Button
             Button(action: {
@@ -393,8 +394,8 @@ struct FriendRequestRow: View {
                     .appFont(AppFont.labelS)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
-                    .background(AppColors.green500)
-                    .cornerRadius(10)
+                    .background(AppColors.green300)
+                    .cornerRadius(4)
             }
             .disabled(isWorking)
         }

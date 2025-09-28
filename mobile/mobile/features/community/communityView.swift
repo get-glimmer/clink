@@ -96,9 +96,9 @@ struct CommunityView: View {
                     } else {
                         // Friends grid
                         LazyVGrid(columns: [
-                            GridItem(.flexible(), spacing: 10),
-                            GridItem(.flexible(), spacing: 10)
-                        ], spacing: 20) {
+                            GridItem(.flexible(), spacing: 16),
+                            GridItem(.flexible(), spacing: 16)
+                        ], spacing: 13) {
                             ForEach(viewModel.friends) { friend in
                                 FriendCardView(
                                     friend: friend, 
@@ -116,7 +116,7 @@ struct CommunityView: View {
                                 )
                             }
                         }
-                        .padding(.horizontal, 20)
+                        .padding(.horizontal, 16)
                         .padding(.top, 12)
                     }
                 }
@@ -312,7 +312,7 @@ struct CommunityView: View {
                 .contentShape(Circle())
             }
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, 23)
         .padding(.top, 6)
         // capture header height
         .onPreferenceChange(DropdownXPreferenceKey.self) { dropdownAnchorX = $0 }
@@ -420,12 +420,11 @@ struct FriendCardView: View {
                 }
                 .padding(.horizontal, headerPadX)
                 .padding(.top, headerPadTop)
-                .padding(.bottom, headerPadBottom)
+                .padding(.bottom, 24)
 
                 // Friend's Shaker (emoji garden) — square, with 21px side padding and 19px bottom
                 ShakerView(viewModel: TaskListViewModel(userId: friend.userId))
                     .aspectRatio(1, contentMode: .fit)
-                    .cornerRadius(12)
                     .padding(.horizontal, sidePadding)
                     .padding(.bottom, bottomPadding)
             }
