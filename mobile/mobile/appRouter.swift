@@ -69,7 +69,7 @@ struct CustomNavBar: View {
             Image(imageName)
                 .resizable()
                 .renderingMode(.template)
-                .frame(width: 24, height: 24)
+                .frame(width: 44, height: 44)
                 .foregroundColor(Color("White"))
                 .opacity(selectedTab == tab ? 1.0 : 0.7)
         }

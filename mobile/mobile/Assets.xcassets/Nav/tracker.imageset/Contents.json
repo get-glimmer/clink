@@ -1,17 +1,17 @@
 {
   "images" : [
     {
-      "filename" : "nav-tracker1x.png",
+      "filename" : "Tracker.png",
       "idiom" : "universal",
       "scale" : "1x"
     },
     {
-      "filename" : "nav-tracker2x.png",
+      "filename" : "Tracker (1).png",
       "idiom" : "universal",
       "scale" : "2x"
     },
     {
-      "filename" : "nav-tracker3x.png",
+      "filename" : "Tracker (2).png",
       "idiom" : "universal",
       "scale" : "3x"
     }
