@@ -41,6 +41,20 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		21F3E0DC2E946D6F00FA833D /* Exceptions for "mobile" folder in "mobileTests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"font/Figtree-SemiBold.ttf",
+			);
+			target = B44347182DFD212F00644724 /* mobileTests */;
+		};
+		21F3E0DD2E946D6F00FA833D /* Exceptions for "mobile" folder in "mobileUITests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"font/Figtree-SemiBold.ttf",
+			);
+			target = B44347222DFD212F00644724 /* mobileUITests */;
+		};
 		347454952E5B02AD00589856 /* Exceptions for "mobile" folder in "mobile" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -55,6 +69,8 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				347454952E5B02AD00589856 /* Exceptions for "mobile" folder in "mobile" target */,
+				21F3E0DC2E946D6F00FA833D /* Exceptions for "mobile" folder in "mobileTests" target */,
+				21F3E0DD2E946D6F00FA833D /* Exceptions for "mobile" folder in "mobileUITests" target */,
 			);
 			path = mobile;
 			sourceTree = "<group>";
