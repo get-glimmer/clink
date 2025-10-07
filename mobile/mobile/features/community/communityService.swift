@@ -789,10 +789,13 @@ class CommunityService: ObservableObject {
         guard let jsonArray = try? JSONSerialization.jsonObject(with: response.data) as? [[String: Any]],
               let first = jsonArray.first,
               let content = first["note_content"] as? String else {
+            print("🔴 userHasTextNote: no note found for user \(userId)")
             return false
         }
         
-        return !isEmojiOnly(content)
+        let isEmoji = isEmojiOnly(content)
+        print("📝 userHasTextNote: content='\(content)', isEmojiOnly=\(isEmoji)")
+        return !isEmoji
     }
     
     // Local helper to check if a string is emoji-only (duplicate of UI logic to avoid cross-module deps)

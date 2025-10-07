@@ -24,8 +24,8 @@ struct ShakerView: View {
     
     // store current emoji per completed task
     @State private var emojiCache: [UUID: String] = [:]
-    // Note emoji presence
-    @State private var hasNoteEmoji: Bool = false
+    // Track note emoji UUIDs (one per note)
+    @State private var noteEmojiIds: Set<UUID> = []
     // Preview mode (small tile) flag
     @State private var isPreviewMode: Bool = false
     
@@ -99,11 +99,21 @@ struct ShakerView: View {
                 }
                 // Clear any previous contents to avoid duplicates across re-entries
                 scene.resetScene()
-                hasNoteEmoji = false
+                noteEmojiIds.removeAll()
                 completionCache.removeAll()
                 syncWithTasks()
                 updateSeal(animated: false)
                 Task { await syncNoteEmoji() }
+                // Drain any pending reaction emojis queued while jar was hidden
+                if let owner = viewModel.ownerUserId {
+                    let pending = PendingEmojiDropStore.shared.drain(for: owner)
+                    for e in pending {
+                        scene.addGlowingEmoji(e, for: UUID())
+                    }
+                    if isPreviewMode { scene.settleAllToBottom() }
+                }
+                // Also ensure current liked categories are reflected when the jar remounts
+                Task { await addLikedCategoryEmojisToShaker() }
             }
             .onDisappear {
                 scene.setMotionEnabled(false) // for performance
@@ -116,7 +126,11 @@ struct ShakerView: View {
                 }
             }
         }
-        .onReceive(viewModel.$categoriesWithTasks) { _ in syncWithTasks() }
+        .onReceive(viewModel.$categoriesWithTasks) { _ in
+            syncWithTasks()
+            // Also reflect already-liked categories as glowing emojis when data arrives/changes
+            Task { await addLikedCategoryEmojisToShaker() }
+        }
         .onChange(of: viewModel.emojiForDate) { _ in syncWithTasks()
             // isAllCompleted 였다면 이모지 변경에 따라 기존 뚜껑색 변경 유도.
             viewModel.lidColorStart = nil
@@ -149,6 +163,18 @@ struct ShakerView: View {
                   let emoji  = info["emoji"] as? String,
                   target == owner else { return }
             scene.removeReactionEmoji(symbol: emoji)
+            if isPreviewMode { scene.settleAllToBottom() }
+        }
+        // Listen for note-added events and show the note emoji immediately
+        .onReceive(NotificationCenter.default.publisher(for: .friendShakerNoteAdded)) { output in
+            guard let owner = viewModel.ownerUserId,
+                  let info = output.userInfo,
+                  let target = info["friendUserId"] as? String,
+                  target == owner else { return }
+            // Add one note emoji when a new note is submitted
+            let id = UUID()
+            noteEmojiIds.insert(id)
+            scene.addEmoji("🗒️", for: id)
             if isPreviewMode { scene.settleAllToBottom() }
         }
     }
@@ -233,11 +259,18 @@ struct ShakerView: View {
         }
     }
 
-    // MARK: - Notes sync (drop a note emoji if a note exists for this shaker/date)
+    // MARK: - Notes sync (drop one note emoji per text note)
     private func syncNoteEmoji() async {
-        guard let owner = viewModel.ownerUserId else { return }
-        guard let client = SupabaseClientManager.shared.client else { return }
+        guard let owner = viewModel.ownerUserId else {
+            print("🔴 syncNoteEmoji: no owner")
+            return
+        }
+        guard let client = SupabaseClientManager.shared.client else {
+            print("🔴 syncNoteEmoji: no client")
+            return
+        }
         let dateStr = formattedDate(viewModel.taskSelectedDate)
+        print("📝 syncNoteEmoji: owner=\(owner), date=\(dateStr)")
         // Query shaker id for (owner, date)
         do {
             struct Row: Decodable { let id: String }
@@ -248,42 +281,91 @@ struct ShakerView: View {
                 .limit(1)
                 .execute().value
             guard let shakerId = rows.first?.id else {
-                await MainActor.run { removeNoteEmoji() }
+                print("📝 syncNoteEmoji: no shaker found")
+                await MainActor.run { removeAllNoteEmojis() }
                 return
             }
-            // Check if any TEXT notes (non-emoji) exist for this shaker
-            var hasTextNote = false
+            print("📝 syncNoteEmoji: shakerId=\(shakerId)")
+            // Fetch all notes for this shaker, then split into emoji-only vs text notes
+            var textNotes: [NoteRecord] = []
+            var emojiOnlySymbols: [String] = []
             if let shakerUUID = UUID(uuidString: shakerId) {
                 do {
                     let loaded = try await CommunityService().getNotesForShaker(shakerId: shakerUUID, limit: 20)
-                    hasTextNote = loaded.contains { !$0.noteContent.isEmojiOnly }
-                } catch { hasTextNote = false }
+                    for note in loaded {
+                        print("📝 syncNoteEmoji: note content='\(note.noteContent)', isEmojiOnly=\(note.noteContent.isEmojiOnly)")
+                    }
+                    // Separate text vs emoji notes
+                    textNotes = loaded.filter { !$0.noteContent.isEmojiOnly }
+                    emojiOnlySymbols = loaded.compactMap { note in
+                        note.noteContent.isEmojiOnly ? note.noteContent.firstEmoji : nil
+                    }
+                    print("📝 syncNoteEmoji: loaded \(loaded.count) notes, \(textNotes.count) text notes, \(emojiOnlySymbols.count) emoji notes")
+                } catch {
+                    print("🔴 syncNoteEmoji: error loading notes - \(error)")
+                    textNotes = []
+                    emojiOnlySymbols = []
+                }
             }
-            if !hasTextNote {
+
+            // For emoji-only notes, ensure glowing reaction emojis are present on reload
+            if !emojiOnlySymbols.isEmpty {
                 await MainActor.run {
-                    removeNoteEmoji()
+                    for symbol in emojiOnlySymbols {
+                        // Avoid duplicate adds of the same reaction symbol
+                        if !scene.hasReactionEmoji(symbol) {
+                            scene.addGlowingEmoji(symbol, for: UUID())
+                        }
+                    }
+                    if isPreviewMode { scene.settleAllToBottom() }
+                }
+            }
+            if textNotes.isEmpty {
+                print("📝 syncNoteEmoji: no text notes, removing all")
+                await MainActor.run {
+                    removeAllNoteEmojis()
                     if isPreviewMode { scene.settleAllToBottom() }
                 }
             } else {
+                print("📝 syncNoteEmoji: syncing \(textNotes.count) note emojis")
                 await MainActor.run {
-                    addNoteEmoji()
+                    // Add one note emoji per text note
+                    syncNoteEmojis(count: textNotes.count)
                     if isPreviewMode { scene.settleAllToBottom() }
                 }
             }
         } catch {
-            // fail silently
+            print("🔴 syncNoteEmoji: error - \(error)")
         }
     }
 
-    private func addNoteEmoji() {
-        guard !hasNoteEmoji else { return }
-        hasNoteEmoji = true
-        scene.addEmoji("🗒️", for: UUID())
+    private func syncNoteEmojis(count: Int) {
+        let current = noteEmojiIds.count
+        print("📝 syncNoteEmojis: current=\(current), target=\(count)")
+        if count > current {
+            // Add more note emojis
+            for _ in 0..<(count - current) {
+                let id = UUID()
+                noteEmojiIds.insert(id)
+                scene.addEmoji("🗒️", for: id)
+                print("📝 Added note emoji with id=\(id)")
+            }
+        } else if count < current {
+            // Remove excess note emojis
+            let toRemove = current - count
+            for id in noteEmojiIds.prefix(toRemove) {
+                scene.removeEmoji(for: id)
+                noteEmojiIds.remove(id)
+                print("📝 Removed note emoji with id=\(id)")
+            }
+        }
     }
-    private func removeNoteEmoji() {
-        guard hasNoteEmoji else { return }
-        hasNoteEmoji = false
-        scene.removeEmoji(symbol: "🗒️")
+    
+    private func removeAllNoteEmojis() {
+        for id in noteEmojiIds {
+            scene.removeEmoji(for: id)
+        }
+        noteEmojiIds.removeAll()
     }
     private func gradientFromScene() -> [Color] {
         // Grab up to 6 candidate colors
@@ -313,6 +395,33 @@ struct ShakerView: View {
             viewModel.isAllCompleted = false
         }
         updateSeal(animated: false)
+    }
+
+    // MARK: - Pre-populate reaction emojis for already-liked categories
+    private func addLikedCategoryEmojisToShaker() async {
+        guard let owner = viewModel.ownerUserId,
+              let currentUserId = getUserId(),
+              let userUUID = UUID(uuidString: currentUserId) else { return }
+        let service = CommunityService()
+        var added: Set<String> = []
+        for categoryWithTasks in viewModel.categoriesWithTasks {
+            let categoryId = categoryWithTasks.category.id
+            do {
+                let liked = try await service.isLiked(categoryId: categoryId, userId: userUUID)
+                if liked {
+                    let symbol = categoryWithTasks.category.emoji
+                    if !added.contains(symbol) && !scene.hasReactionEmoji(symbol) {
+                        added.insert(symbol)
+                        await MainActor.run {
+                            scene.addGlowingEmoji(symbol, for: UUID())
+                            if isPreviewMode { scene.settleAllToBottom() }
+                        }
+                    }
+                }
+            } catch {
+                // ignore
+            }
+        }
     }
 }
 // MARK: - Color helpers

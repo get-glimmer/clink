@@ -190,7 +190,7 @@ struct SearchView: View {
             }) {
                 Image(systemName: "xmark")
                     .foregroundColor(AppColors.neutral400)
-                    .font(.system(size: 18, weight: .medium))
+                    .font(.system(size: 16, weight: .medium))
                     .frame(width: 44, height: 44)
                     .background(
                         Circle().fill(AppColors.neutral900)

@@ -305,7 +305,7 @@ struct CommunityView: View {
                             .padding(.vertical, 2)
                             .background(Color.red)
                             .clipShape(Capsule())
-                            .offset(x: 4, y: -4)
+                            .offset(x: 3, y: -3)
                     }
                 }
                 .frame(width: 44, height: 44)

@@ -186,7 +186,10 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
         let margin: CGFloat = 14 * emojiScaleFactor
         let minX = -size.width/2 + margin*2
         let maxX =  size.width/2 - margin*2
-        let spawnX = CGFloat.random(in: minX...maxX)
+        // Guard against invalid ranges when scene size is not yet laid out
+        let low = min(minX, maxX)
+        let high = max(minX, maxX)
+        let spawnX: CGFloat = (high - low) <= 0 ? 0 : CGFloat.random(in: low...high)
         let spawnY =  size.height/2 - margin*2 - lidHeight - margin*(CGFloat.random(in: 2...3))
         
         let node = SKLabelNode(fontNamed: "AppleColorEmoji")
@@ -206,7 +209,10 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
         let margin: CGFloat = 14 * emojiScaleFactor
         let minX = -size.width/2 + margin*2
         let maxX =  size.width/2 - margin*2
-        let spawnX = CGFloat.random(in: minX...maxX)
+        // Guard against invalid ranges when scene size is not yet laid out
+        let low = min(minX, maxX)
+        let high = max(minX, maxX)
+        let spawnX: CGFloat = (high - low) <= 0 ? 0 : CGFloat.random(in: low...high)
         let spawnY =  size.height/2 - margin*2 - lidHeight - margin*(CGFloat.random(in: 2...3))
         
         let node = SKLabelNode(fontNamed: "AppleColorEmoji")
