@@ -200,8 +200,8 @@ struct CommunityView: View {
         .overlay {
             if let menuFriend = activeMenuFriend {
                 ZStack(alignment: .bottom) {
-                    // Blur overlay covering everything including nav bar
-                    Color.black.opacity(0.15)
+                    // Darker, less white-tinted blur overlay covering everything including nav bar
+                    AppColors.neutral1000.opacity(0.6)
                         .background(.ultraThinMaterial)
                         .ignoresSafeArea(.all)
                         .transition(.opacity)
@@ -581,57 +581,37 @@ struct FriendMenuSheet: View {
         .padding(.bottom, max(16, bottomSafeAreaInset()))
         .padding(.bottom, 0)
         .frame(maxWidth: .infinity, alignment: .top)
-        .background(AppColors.neutral1000.opacity(0.5))
+        .background(Color(red: 32.0/255.0, green: 32.0/255.0, blue: 32.0/255.0).opacity(0.3))
         .clipShape(
             UnevenRoundedRectangle(
-                topLeadingRadius: 16,
+                topLeadingRadius: 24,
                 bottomLeadingRadius: 0,
                 bottomTrailingRadius: 0,
-                topTrailingRadius: 16,
+                topTrailingRadius: 24,
                 style: .circular
             )
         )
-        .overlay(alignment: .top) {
-            // Gradient stroke only along the top edge and its rounded corners
-            GeometryReader { geo in
-                let w = geo.size.width
-                let r: CGFloat = 16
-                Path { p in
-                    p.move(to: CGPoint(x: 0, y: r))
-                    p.addArc(
-                        center: CGPoint(x: r, y: r),
-                        radius: r,
-                        startAngle: .degrees(180),
-                        endAngle: .degrees(270),
-                        clockwise: false
-                    )
-                    p.addLine(to: CGPoint(x: w - r, y: 0))
-                    p.addArc(
-                        center: CGPoint(x: w - r, y: r),
-                        radius: r,
-                        startAngle: .degrees(270),
-                        endAngle: .degrees(360),
-                        clockwise: false
-                    )
-                }
-                .stroke(
-                    LinearGradient(
-                        colors: [
-                            Color("Neutral-400").opacity(0.7),
-                            Color("Neutral-600").opacity(0.7)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .topTrailing
-                    ),
-                    style: StrokeStyle(
-                        lineWidth: 1,
-                        lineCap: .round,
-                        lineJoin: .round
-                    )
-                )
-            }
-            .frame(height: 16)
-        }
+        .overlay(
+            UnevenRoundedRectangle(
+                topLeadingRadius: 24,
+                bottomLeadingRadius: 0,
+                bottomTrailingRadius: 0,
+                topTrailingRadius: 24,
+                style: .circular
+            )
+            .inset(by: -0.7)
+            .stroke(
+                LinearGradient(
+                    colors: [
+                        Color(red: 0xA1/255.0, green: 0xA1/255.0, blue: 0xA1/255.0).opacity(0.7),
+                        Color(red: 0x5E/255.0, green: 0x5E/255.0, blue: 0x5E/255.0).opacity(0.7)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ),
+                lineWidth: 1
+            )
+        )
         .ignoresSafeArea(edges: .bottom)
         
     }

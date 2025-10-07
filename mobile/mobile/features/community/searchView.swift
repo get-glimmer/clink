@@ -71,7 +71,7 @@ struct SearchView: View {
                                 Text("Friend Requests")
                                     .foregroundColor(AppColors.neutral300)
                                     .appFont(AppFont.labelL)
-                                    .padding(.horizontal, 20)
+                                    .padding(.horizontal, 16)
                                     .padding(.top, 24)
                                     .padding(.bottom, 14)
 
@@ -99,7 +99,7 @@ struct SearchView: View {
                             Text(errorMessage)
                                 .foregroundColor(Color.red)
                                 .appFont(AppFont.labelL)
-                                .padding(.horizontal, 20)
+                                .padding(.horizontal, 16)
                                 .padding(.top, 40)
                         }
                         
@@ -124,7 +124,7 @@ struct SearchView: View {
                                     .appFont(AppFont.labelM)
                                     .multilineTextAlignment(.center)
                             }
-                            .padding(.horizontal, 20)
+                            .padding(.horizontal, 16)
                             .padding(.top, 60)
                         }
                         
@@ -137,7 +137,7 @@ struct SearchView: View {
                                         .appFont(AppFont.labelS)
                                     Spacer()
                                 }
-                                .padding(.horizontal, 20)
+                                .padding(.horizontal, 16)
                                 .padding(.top, 30)
                                 .padding(.bottom, 15)
                                 
@@ -167,7 +167,7 @@ struct SearchView: View {
             HStack(spacing: 10) {
                 Image(systemName: "magnifyingglass")
                     .foregroundColor(AppColors.neutral400)
-                    .font(.system(size: 24))
+                    .font(.system(size: 16))
                 
                 TextField("Search users...", text: $searchText)
                     .foregroundColor(AppColors.neutral600)
@@ -197,7 +197,7 @@ struct SearchView: View {
                     )
             }
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, 16)
         .padding(.top, 10)
     }
     
@@ -313,11 +313,11 @@ struct UserRowView: View {
                             .appFont(AppFont.labelS)
                     }
                 }
-                .frame(minWidth: 80)
+                .frame(minWidth: 80, alignment: .trailing)
             }
             .disabled(isActionLoading)
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, 16)
         .padding(.vertical, 12)
     }
     
@@ -399,7 +399,7 @@ struct FriendRequestRow: View {
             }
             .disabled(isWorking)
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, 16)
         .padding(.vertical, 12)
     }
 

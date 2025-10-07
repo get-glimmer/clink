@@ -120,7 +120,7 @@ struct FriendDetailView: View {
                         )
                 }
                 Spacer()
-                HStack(spacing: 12) {
+                HStack(spacing: 8) {
                     // Calendar
                     Button(action: { showingFriendCalendar = true }) {
                         Image("calendar")
