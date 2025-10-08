@@ -37,6 +37,7 @@ struct TaskListView: View {
                 archivedCategoriesSection
             }
         }
+        // MARK: Task Menu Sheet
         .sheet(item: $activeTask, onDismiss: { activeTask = nil }) { task in
             let isToday: Bool = task.dueDate.map { Calendar.current.isDateInToday($0) } ?? false
             let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
@@ -72,7 +73,6 @@ struct TaskListView: View {
                     activeTask = nil
                 },
                 onMakeRoutine: {
-                    // 필요시 루틴 시트 열기 로직 연결
                 },
                 onDelete: {
                     Task { await viewModel.deleteTask(task: task) }
@@ -90,7 +90,9 @@ struct TaskListView: View {
                 
                 onEditTitle: { newTitle in
                     Task { await viewModel.updateTaskTitle(taskId: task.id, newTitle: newTitle) }
-                }
+                },
+                viewModel: viewModel,                        // ✨
+                baseRoutineCategory: holder?.category        // ✨ (daily 태스크의 현재 카테고리)
             )
             .presentationDetents([ .height(menuHeight) ])
             .presentationCornerRadius(24)

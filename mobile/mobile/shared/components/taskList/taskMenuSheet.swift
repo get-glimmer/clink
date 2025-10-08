@@ -8,6 +8,8 @@ struct TaskMenuSheet: View {
     let isArchivedTask: Bool
     let dailyCategories: [CategoryItem]
     let archivedCategories: [CategoryItem]
+    let viewModel: TaskListViewModel?    // ✨
+    let baseRoutineCategory: CategoryItem?   // ✨
     
     // Actions from parent
     var onDoToday: () -> Void = {}
@@ -20,11 +22,12 @@ struct TaskMenuSheet: View {
     var onArchiveToCategory: (CategoryItem) -> Void = { _ in }
     var onReassignToDaily: (CategoryItem) -> Void = { _ in }
     
+    // routines
+    @State private var showAddRoutineOverlay: Bool = false   // ✨
+    @State private var routineCategory: CategoryItem? = nil  // ✨
+    
     // Title edit commit
     var onEditTitle: (String) -> Void = { _ in }
-    
-    // (Optional analytics) tap hooks
-    var onChangeDateTap: () -> Void = {}
 
     // MARK: - Local UI states
     // Title edit
@@ -58,7 +61,8 @@ struct TaskMenuSheet: View {
         onArchiveToCategory: @escaping (CategoryItem) -> Void = { _ in },
         onReassignToDaily: @escaping (CategoryItem) -> Void = { _ in },
         onEditTitle: @escaping (String) -> Void = { _ in },
-        onChangeDateTap: @escaping () -> Void = {}
+        viewModel: TaskListViewModel? = nil,                 // ✨
+        baseRoutineCategory: CategoryItem? = nil
     ) {
         self.taskTitle = taskTitle
         self.isDueToday = isDueToday
@@ -74,7 +78,9 @@ struct TaskMenuSheet: View {
         self.onArchiveToCategory = onArchiveToCategory
         self.onReassignToDaily = onReassignToDaily
         self.onEditTitle = onEditTitle
-        self.onChangeDateTap = onChangeDateTap
+        self.viewModel = viewModel
+        self.baseRoutineCategory = baseRoutineCategory
+        _routineCategory = State(initialValue: baseRoutineCategory)
         _currentTitle = State(initialValue: taskTitle)
         _titleDraft   = State(initialValue: taskTitle)
     }
@@ -124,7 +130,7 @@ struct TaskMenuSheet: View {
             }
         }
         
-        // ── ChangeDateSheet overlay ────────────────────────────
+        // MARK: ChangeDateSheet overlay
         .fullScreenCover(isPresented: $showChangeDateOverlay) {
             if showChangeDateOverlay {
                 ChangeDateSheet(
@@ -144,7 +150,7 @@ struct TaskMenuSheet: View {
         }
         .animation(.easeInOut(duration: 0.25), value: showChangeDateOverlay)
         
-        // Choose Archived Category (daily → archived)
+        // MARK: Choose Archived Category (daily → archived)
         .fullScreenCover(isPresented: $showChooseArchivedOverlay) {
             ChooseArchivedCategorySheet(
                 archivedCategories: archivedCategories,
@@ -157,7 +163,7 @@ struct TaskMenuSheet: View {
             .transition(.opacity)
             .ignoresSafeArea()
         }
-        // Choose Daily Category (archived → daily)
+        // MARK: Choose Daily Category (archived → daily)
         .fullScreenCover(isPresented: $showChooseDailyOverlay) {
             ChooseDailyCategorySheet(
                 dailyCategories: dailyCategories,
@@ -169,7 +175,9 @@ struct TaskMenuSheet: View {
                     case .doToday:    onDoToday()
                     case .doTomorrow: onDoTomorrow()
                     case .changeDate: showChangeDateOverlay = true
-                    case .makeRoutine: onMakeRoutine()
+                    case .makeRoutine:
+                           routineCategory = cat
+                           showAddRoutineOverlay = true
                     case .none: break
                     }
                     pendingAction = nil
@@ -183,9 +191,24 @@ struct TaskMenuSheet: View {
             .transition(.opacity)
             .ignoresSafeArea()
         }
+        // MARK: AddRoutineSheet overlay
+        .fullScreenCover(isPresented: $showAddRoutineOverlay) {
+            if let vm = viewModel, let cat = routineCategory {
+                AddRoutineSheet(
+                    category: cat,
+                    viewModel: vm,
+                    initialTitle: currentTitle
+                )
+                .ignoresSafeArea()
+                .transition(.opacity)
+            } else {
+                Color.clear.onAppear { showAddRoutineOverlay = false }
+            }
+        }
         .animation(.easeInOut(duration: 0.22), value: showChangeDateOverlay)
         .animation(.easeInOut(duration: 0.22), value: showChooseArchivedOverlay)
         .animation(.easeInOut(duration: 0.22), value: showChooseDailyOverlay)
+        .animation(.easeInOut(duration: 0.22), value: showAddRoutineOverlay)
     }
     
     // MARK: - grabber
@@ -277,7 +300,6 @@ struct TaskMenuSheet: View {
                     pendingAction = .changeDate
                     showChooseDailyOverlay = true
                 } else {
-                    onChangeDateTap()
                     showChangeDateOverlay = true
                 }
             }
@@ -288,7 +310,8 @@ struct TaskMenuSheet: View {
                     pendingAction = .makeRoutine
                     showChooseDailyOverlay = true
                 } else {
-                    onMakeRoutine()
+                    routineCategory = baseRoutineCategory
+                    showAddRoutineOverlay = true 
                 }
             }
             
