@@ -142,14 +142,10 @@ struct TaskView: View {
                 BottomSheet(
                     minHeight: 340,
                     maxHeight: 560,
-                    progress: $sheetProgress,
-                    yOffset: -12,
-                    expandHitAreaHeight: 130,
-                    pullDownHitAreaHeight: 130
+                    progress: $sheetProgress
                 ) {
                     // --Task List Content--
                     ScrollView {
-                        BottomSheetScrollDetector()
                         TaskListView(taskSelectedDate: $selectedDate, viewModel: viewModel)
                             .padding(.bottom, 120)
                     }
@@ -188,6 +184,7 @@ struct TaskView: View {
             .zIndex(999)
             .animation(.easeInOut(duration: 0.25), value: showOptionsSheet)
         }
+        .background(.neutral1000)
         .ignoresSafeArea(edges: .bottom)
         .onAppear {
             viewModel.fetchCategoriesAndTasks()

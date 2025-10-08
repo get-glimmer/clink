@@ -27,6 +27,7 @@ enum AppColors {
     static let neutral50   = Color("Neutral-50")
     static let white       = Color("White")
     static let textWhite = Color.white
+    static let bottomSheet = Color("BottomSheet")
 }
 
 enum AppFonts {
