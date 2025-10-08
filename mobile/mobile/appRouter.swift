@@ -5,7 +5,9 @@ struct AppRouter: View {
     @State private var currentUserUUID: String = ""
     @State private var selectedTab: Tab = .task
     @State private var isCommunityMenuPresented: Bool = false
-        enum Tab: Hashable { case task, tracker, community, profile }
+    @State private var isNavHidden: Bool = false
+    
+    enum Tab: Hashable { case task, tracker, community, profile }
 
         // Hide system tab bar globally
         init() {
@@ -20,17 +22,23 @@ struct AppRouter: View {
                     CommunityView(isMenuPresented: $isCommunityMenuPresented).tag(Tab.community)
                     ProfileView().tag(Tab.profile)
                 }
+                .onPreferenceChange(NavBarHiddenPreferenceKey.self) { value in
+                    isNavHidden = value // If any active child requests hiding
+                }
 
                 VStack {
                     Spacer()
                     CustomNavBar(selectedTab: $selectedTab)
                 }
                 .ignoresSafeArea(.keyboard)
-                // Hide nav when community menu overlay is presented
-                .opacity(isCommunityMenuPresented ? 0 : 1)
-                .zIndex(isCommunityMenuPresented ? 0 : 1)
+                // Hide nav
+                .opacity(shouldHideNavBar ? 0 : 1)
+                .zIndex(shouldHideNavBar ? 0 : 1)
             }
         }
+    private var shouldHideNavBar: Bool {
+        isCommunityMenuPresented || isNavHidden
+    }
     
 }
 

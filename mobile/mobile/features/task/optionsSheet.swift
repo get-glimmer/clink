@@ -47,9 +47,10 @@ struct OptionsSheet: View {
                           isEnabled: true,
                           action: onTapAddCategory)
             }
-            .padding(.bottom, 136)
+            .padding(.bottom, 78)
             .padding(.leading, 36)
         }
+        .navBarHidden(true)
     }
 }
 
