@@ -144,7 +144,7 @@ struct TaskView: View {
                     maxHeight: 560,
                     progress: $sheetProgress,
                     yOffset: -12,
-                    expandHitAreaHeight: .infinity,
+                    expandHitAreaHeight: 130,
                     pullDownHitAreaHeight: 130
                 ) {
                     // --Task List Content--
