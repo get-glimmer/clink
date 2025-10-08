@@ -142,16 +142,18 @@ struct TaskView: View {
                 BottomSheet(
                     minHeight: 340,
                     maxHeight: 560,
-                    progress: $sheetProgress
+                    progress: $sheetProgress,
+                    yOffset: -12,
+                    expandHitAreaHeight: .infinity,
+                    pullDownHitAreaHeight: 130
                 ) {
                     // --Task List Content--
                     ScrollView {
-//                        Text("Daily Task")
-//                            .font(.headline)
-//                            .frame(maxWidth: 340, alignment: .leading)
+                        BottomSheetScrollDetector()
                         TaskListView(taskSelectedDate: $selectedDate, viewModel: viewModel)
                             .padding(.bottom, 120)
                     }
+                    .coordinateSpace(name: "BottomSheetScroll")
                 }
             }
             .animation(.easeInOut, value: scale)
