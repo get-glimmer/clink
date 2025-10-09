@@ -232,6 +232,13 @@ class AuthViewModel: ObservableObject {
                             password.rangeOfCharacter(from: .lowercaseLetters) != nil
         return hasMin8 && hasNumber && hasUpperLower
     }
+    
+    func validateEmail(_ email: String) -> Bool {
+        let emailFormat = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}"
+        let emailPredicate = NSPredicate(format: "SELF MATCHES %@", emailFormat)
+        return emailPredicate.evaluate(with: email)
+    }
+
 
     /**
      * Checks password requirements individually.
@@ -394,6 +401,22 @@ class AuthViewModel: ObservableObject {
             print("❌ Error updating avatar:", error.localizedDescription)
         }
     }
+    
+    func updateUsername(_ newUsername: String) async throws {
+        guard let client = client, let profile = profile else { return }
+
+        let response: PostgrestResponse<Profile> = try await client
+            .from("profiles")
+            .update(["username": newUsername])
+            .eq("id", value: profile.id)
+            .select("*")
+            .single()
+            .execute()
+
+        self.profile = response.value
+        print("✅ Username updated in AuthViewModel: \(self.profile?.username ?? "nil")")
+    }
+
 
 
     /**

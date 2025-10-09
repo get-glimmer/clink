@@ -50,6 +50,12 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
     var isHapticsEnabled: Bool = true
     private var lastHapticTime: TimeInterval = 0
     private let hapticCooldown: TimeInterval = 0.25
+    private let hapticImpulseThreshold: CGFloat = 1.0
+    
+    // control haptics visibility-wise
+    func setHapticsEnabled(_ enabled: Bool) {
+        isHapticsEnabled = enabled
+    }
     
     override init(size: CGSize) {
         super.init(size: size)
@@ -366,23 +372,20 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
     
     // MARK: - Contact delegate
     func didBegin(_ contact: SKPhysicsContact) {
-        guard isHapticsEnabled else { return }
-        
-        let impulse = contact.collisionImpulse
-        let now = CACurrentMediaTime()
-        guard now - lastHapticTime > hapticCooldown else { return }
-        
-        if impulse > 5 {
-            UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
-        } else if impulse > 3 {
-            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-        } else if impulse > 2 {
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        } else {
-            return // 너무 약한 충돌은 무시
-        }
-        
-        lastHapticTime = now
+      guard isHapticsEnabled else { return }
+
+      // Ignore very small, invisible jitters
+      let impulse = contact.collisionImpulse
+      guard impulse > hapticImpulseThreshold else { return }
+
+      let now = CACurrentMediaTime()
+      guard now - lastHapticTime > hapticCooldown else { return }
+
+      let normalized = min(max(impulse / 10.0, 0.0), 1.0)
+      let gen = UIImpactFeedbackGenerator(style: .medium)
+      gen.impactOccurred(intensity: normalized)
+
+      lastHapticTime = now
     }
     
     private func triggerHaptic() {

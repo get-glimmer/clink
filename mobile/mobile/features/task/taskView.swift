@@ -45,6 +45,15 @@ struct TaskView: View {
             let fullWidth = geo.size.width*0.9
             let scale = max(0.4, 1 - 0.6 * sheetProgress)
             let shakerSide = fullWidth * scale
+            
+            let shakerIsActive =
+              !showOptionsSheet &&
+              !showAddCategorySheet &&
+              !showCategoriesSheet &&
+              !showRoutinesSheet &&
+              !showingNotesPopup &&
+              !showChangeDateSheet &&
+              (sheetProgress == 0)
 
             ZStack(alignment: .top) {
                 VStack(spacing: 12) {
@@ -121,6 +130,7 @@ struct TaskView: View {
                     // ---- Shaker (scaled) ----
                     ShakerView(
                         viewModel: viewModel,
+                        isActive: shakerIsActive,
                         onNoteEmojiTapped: { showingNotesPopup = true }
                     )
                         .frame(width: shakerSide, height: shakerSide)

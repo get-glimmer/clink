@@ -1,17 +1,17 @@
 {
   "images" : [
     {
-      "filename" : "checkboxEmpty1x.png",
+      "filename" : "Ellipse 1.png",
       "idiom" : "universal",
       "scale" : "1x"
     },
     {
-      "filename" : "checkboxEmpty2x.png",
+      "filename" : "Ellipse 1 (1).png",
       "idiom" : "universal",
       "scale" : "2x"
     },
     {
-      "filename" : "checkboxEmpty3x.png",
+      "filename" : "Ellipse 1 (2).png",
       "idiom" : "universal",
       "scale" : "3x"
     }

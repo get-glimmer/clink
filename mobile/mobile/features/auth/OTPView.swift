@@ -26,6 +26,8 @@ struct OTPView: View {
 
     /// The remaining time for the user to enter the OTP before they can request a new one.
     @State private var timeRemaining = 30
+    
+    @State private var errorMessage: String? = nil
 
     /// The authentication view model from the environment.
     @EnvironmentObject var authViewModel: AuthViewModel
@@ -45,7 +47,7 @@ struct OTPView: View {
                 dismiss()
             }
             
-            Text("Enter the code sent to \(phoneNumber)")
+            Text("Enter the code we texted you on \(phoneNumber)")
                 .multilineTextAlignment(.center)
                 .font(.subheadline)
                 .foregroundColor(Color("White"))
@@ -55,7 +57,7 @@ struct OTPView: View {
                 ForEach(0..<6, id: \.self) { index in
                     ZStack {
                         RoundedRectangle(cornerRadius: 10)
-                            .stroke(Color.gray, lineWidth: 1)
+                            .stroke(Color("Neutral-600"), lineWidth: 1)
                             .background(
                                 RoundedRectangle(cornerRadius: 10)
                                     .fill(code.count > index ? Color("Green-400") : Color.clear)
@@ -79,7 +81,7 @@ struct OTPView: View {
                     .focused($isTextFieldFocused)
                     .frame(width: 0, height: 0)
                     .opacity(0.01)
-                    .onChange(of: code) { newValue in
+                    .onChange(of: code) { newValue, oldValue in
                         if newValue.count > 6 {
                             code = String(newValue.prefix(6))
                         }
@@ -92,9 +94,16 @@ struct OTPView: View {
                 isTextFieldFocused = true
             }
             
+            if let errorMessage = errorMessage {
+                Text(errorMessage)
+                    .foregroundColor(.red)
+                    .font(.footnote)
+            }
+
+            
             // Resend code timer
             Text(timeRemaining > 0 ? "Resend code in \(timeRemaining)" : "Resend Code")
-                .foregroundColor(timeRemaining > 0 ? .gray : .blue)
+                .foregroundColor(timeRemaining > 0 ? Color("Neutral-400") : .blue)
                 .onTapGesture {
                     if timeRemaining == 0 {
                         resendCode()
@@ -143,13 +152,13 @@ struct OTPView: View {
                 authViewModel.isAuthenticated = true
             }
         } catch {
-            print("OTP verification failed:", error.localizedDescription)
+            errorMessage = "Invalid verification code. Please try again."  // 👈 set message
             code = "" // Reset input on failure
         }
         
         isLoading = false
     }
-    
+
     /**
      * Starts the countdown timer for resending the OTP.
      */

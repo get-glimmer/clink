@@ -13,6 +13,10 @@ import Supabase
 struct ShakerView: View {
     // External state
     @ObservedObject var viewModel: TaskListViewModel
+    
+    // externally tell this view whether it is actually visible/active
+    var isActive: Bool = true
+    
     // Optional callbacks
     var onNoteEmojiTapped: (() -> Void)? = nil
     
@@ -97,6 +101,10 @@ struct ShakerView: View {
                     // Reset to default boundaries for full view
                     scene.configureBoundaries(inset: 12, lidHeight: 40)
                 }
+                
+                // haptic off when isPreview
+                scene.setHapticsEnabled(!isPreview && isActive)
+                
                 // Clear any previous contents to avoid duplicates across re-entries
                 scene.resetScene()
                 noteEmojiIds.removeAll()
@@ -117,6 +125,7 @@ struct ShakerView: View {
             }
             .onDisappear {
                 scene.setMotionEnabled(false) // for performance
+                scene.setHapticsEnabled(false)
             }
             .onChange(of: geo.size) { _ in
                 // On size changes (preview tiles) ensure marbles snap to floor
@@ -143,6 +152,11 @@ struct ShakerView: View {
             syncWithTasks()
             UnsealLidAndUpdate()
             Task { await syncNoteEmoji() }
+        }
+        .onChange(of: isActive) { active in
+            // Only enable when not preview
+            let enableHaptics = (!isPreviewMode && active)
+            scene.setHapticsEnabled(enableHaptics)
         }
         // Listen for like/unlike reactions and reflect in this shaker if the userId matches
         .onReceive(NotificationCenter.default.publisher(for: .friendShakerEmojiReactionAdded)) { output in

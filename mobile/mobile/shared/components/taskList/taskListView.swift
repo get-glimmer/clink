@@ -45,14 +45,10 @@ struct TaskListView: View {
                 .filter { $0.category.type == .archived }
                 .map { $0.category }
             
-            let isArchivedTask: Bool = {
-                if let holder = viewModel.categoriesWithTasks.first(
-                    where: { $0.tasks.contains(where: { $0.id == task.id }) }
-                ) {
-                    return holder.category.type == .archived
-                }
-                return false
-            }()
+            let holder = viewModel.categoriesWithTasks.first {
+                $0.tasks.contains(where: { $0.id == task.id })
+            }
+            let isArchivedTask: Bool = (holder?.category.type == .archived)
             
             TaskMenuSheet(
                 taskTitle: task.title,
@@ -97,7 +93,9 @@ struct TaskListView: View {
                         await viewModel.updateTaskTitle(taskId: task.id, newTitle: newTitle)
                     }
                 },
-                isArchivedTask: isArchivedTask   // NEW
+                isArchivedTask: isArchivedTask,
+                viewModel: viewModel,
+                categoryForRoutine: holder?.category
             )
             .presentationDetents([ .height(380) ])
             .presentationCornerRadius(24)
@@ -143,7 +141,7 @@ struct TaskListView: View {
     private func categoryCard(for categoryWithTasks: CategoryWithTasks) -> some View {
         ZStack {
             RoundedRectangle(cornerRadius: 16)
-                .foregroundColor(Color("Neutral-1000"))
+                .foregroundColor(Color("Neutral-900"))
             VStack(alignment: .leading, spacing: 25) {
                 categoryHeader(for: categoryWithTasks)
                 tasksSection(for: categoryWithTasks)
