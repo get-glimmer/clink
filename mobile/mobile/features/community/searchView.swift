@@ -70,7 +70,7 @@ struct SearchView: View {
                             VStack(alignment: .leading, spacing: 0) {
                                 Text("Friend Requests")
                                     .foregroundColor(AppColors.neutral300)
-                                    .appFont(AppFont.labelL)
+                                    .appFont(AppFont.labelS)
                                     .padding(.horizontal, 16)
                                     .padding(.top, 24)
                                     .padding(.bottom, 14)
@@ -171,7 +171,7 @@ struct SearchView: View {
                 
                 TextField("Search users...", text: $searchText)
                     .foregroundColor(AppColors.neutral600)
-                    .appFont(AppFont.labelL)
+                    .appFont(AppFont.body1)
                     .onChange(of: searchText) { oldValue, newValue in
                         Task {
                             await performSearch()
@@ -274,12 +274,8 @@ struct UserRowView: View {
     
     var body: some View {
         HStack(spacing: 15) {
-            // Profile Image
-            Image(user.profileImageName)
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-                .frame(width: 50, height: 50)
-                .clipShape(Circle())
+            // Profile Image (URL-aware with fallback, consistent with CommunityView)
+            avatarView()
             
             // User Info
             VStack(alignment: .leading, spacing: 2) {
@@ -290,7 +286,7 @@ struct UserRowView: View {
                 if let mutualFriends = user.mutualFriends {
                     Text("\(mutualFriends) Mutuals")
                         .foregroundColor(AppColors.neutral400)
-                        .appFont(AppFont.labelS)
+                        .appFont(AppFont.captionXS_M)
                 }
             }
             
@@ -310,7 +306,7 @@ struct UserRowView: View {
                     } else {
                         Text(currentStatus.displayText)
                             .foregroundColor(currentStatus.textColor)
-                            .appFont(AppFont.labelS)
+                            .appFont(AppFont.buttonM)
                     }
                 }
                 .frame(minWidth: 80, alignment: .trailing)
@@ -357,6 +353,50 @@ struct UserRowView: View {
             isActionLoading = false
         }
     }
+
+    // MARK: - Avatar helper (matches FriendCardView logic)
+    @ViewBuilder
+    private func avatarView() -> some View {
+        let size: CGFloat = 40
+        let glyphSize: CGFloat = size * 0.62
+        // Fallback avatar: gray circle + profile glyph + stroke
+        let fallbackAvatar = AnyView(
+            ZStack {
+                Circle()
+                    .fill(AppColors.neutral800)
+                Image("profile")
+                    .renderingMode(.template)
+                    .resizable()
+                    .foregroundColor(AppColors.textWhite)
+                    .frame(width: glyphSize, height: glyphSize)
+                Circle()
+                    .stroke(AppColors.neutral700, lineWidth: 1)
+            }
+            .frame(width: size, height: size)
+        )
+
+        if let url = URL(string: user.profileImageName), user.profileImageName.lowercased().hasPrefix("http") {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .empty:
+                    fallbackAvatar
+                case .success(let image):
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                case .failure:
+                    fallbackAvatar
+                @unknown default:
+                    fallbackAvatar
+                }
+            }
+            .frame(width: size, height: size)
+            .clipShape(Circle())
+        } else {
+            fallbackAvatar
+                .clipShape(Circle())
+        }
+    }
 }
 
 // MARK: - Friend Request Row
@@ -368,10 +408,11 @@ struct FriendRequestRow: View {
 
     var body: some View {
         HStack(spacing: 15) {
+            // Match 40x40 avatar size
             Image(profile.avatar_url ?? "nav-profile1x")
                 .resizable()
                 .aspectRatio(contentMode: .fill)
-                .frame(width: 50, height: 50)
+                .frame(width: 40, height: 40)
                 .clipShape(Circle())
 
             VStack(alignment: .leading, spacing: 2) {
@@ -384,7 +425,7 @@ struct FriendRequestRow: View {
             Button(action: { Task { await decline() } }) {
                 Text("Decline")
                     .foregroundColor(AppColors.textWhite)
-                    .appFont(AppFont.labelS)
+                    .appFont(AppFont.buttonM)
             }
             .disabled(isWorking)
 

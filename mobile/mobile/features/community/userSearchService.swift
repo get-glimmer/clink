@@ -140,18 +140,24 @@ class UserSearchService: ObservableObject {
         }
         
         do {
-            // Get my friends first
-            let myFriends: [FriendRelation] = try await supabase
+            // Fetch all relationships that involve me (either direction)
+            let relations: [FriendRelation] = try await supabase
                 .from("friends")
                 .select()
-                .eq("user_id", value: currentUserId)
-                .eq("status", value: "accepted")
+                .or("user_id.eq.\(currentUserId),friend_id.eq.\(currentUserId)")
                 .execute()
                 .value
-            
-            let myFriendIds = myFriends.map { $0.friend_id }
-            
-            // Get all users except current user first, then filter out friends in Swift
+            // Build an exclusion set for users already connected with me in any of these states
+            let excludedStatuses: Set<String> = ["accepted", "requested", "blocked"]
+            var excludedUserIds: Set<String> = []
+            for rel in relations {
+                if excludedStatuses.contains(rel.status.lowercased()) {
+                    let other = (rel.user_id == currentUserId) ? rel.friend_id : rel.user_id
+                    excludedUserIds.insert(other)
+                }
+            }
+
+            // Get all users except current user first, then filter out related users in Swift
             let allProfiles: [UserProfile] = try await supabase
                 .from("profiles")
                 .select()
@@ -161,9 +167,9 @@ class UserSearchService: ObservableObject {
                 .execute()
                 .value
             
-            // Filter out friends using Swift instead of SQL
+            // Filter out any users who are already related (requested, blocked, accepted)
             let profiles = allProfiles.filter { profile in
-                !myFriendIds.contains(profile.id)
+                !excludedUserIds.contains(profile.id)
             }.prefix(10) // Limit to 10 after filtering
             
             var suggestions: [UserSearchResult] = []
