@@ -38,35 +38,41 @@ struct EmailLoginView: View {
             dismiss()
         }
         
-        VStack (spacing: 35) {
+        VStack  {
             // Email input field
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading) {
                 Text("Email")
-                    .font(.headline)
+                    .appFont(AppFont.labelL)
                     .foregroundColor(.white)
-                    .padding(.leading, 10)
-                    .padding(.top, 10)
+                    .padding(.leading, 7)
+                    .padding(.top, 24)
                 
                 TextField("Email address", text: $email)
                     .keyboardType(.emailAddress)
                     .textInputAutocapitalization(.never)
-                    .padding()
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color("Neutral-600")))
+                    .frame(height: 49)
+                    .padding(.leading, 18)
+                    .appFont(AppFont.body1)
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color("Neutral-600"), lineWidth: 0.7))
                     .onChange(of: email) { _, newValue in
                         email = newValue.lowercased()
                     }
             }
+
             
             // Password input field
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading) {
                 Text("Password")
-                    .font(.headline)
+                    .appFont(AppFont.labelL)
                     .foregroundColor(.white)
-                    .padding(.leading, 10)
+                    .padding(.top, 24)
+                    .padding(.leading, 7)
                 
                 SecureField("Password", text: $password)
-                    .padding()
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color("Neutral-600")))
+                    .appFont(AppFont.body1)
+                    .frame(height: 49)
+                    .padding(.leading, 18)
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color("Neutral-600"), lineWidth: 0.7))
                 
                 // Forgot password button
                 Button {
@@ -113,6 +119,7 @@ struct EmailLoginView: View {
                         .foregroundColor(.white)
                 }
             }
+            .padding(.bottom, 16)
             .frame(maxWidth: .infinity, alignment: .center)
             
             // Continue button
@@ -132,15 +139,19 @@ struct EmailLoginView: View {
                     .foregroundColor(!email.isEmpty && !password.isEmpty ? Color("Neutral-900") : Color("Neutral-600"))
                     .cornerRadius(12)
             }
+            .padding(.bottom, 16)
             .disabled(email.isEmpty || password.isEmpty || isLoading)
         }
-        .padding()
+        .padding(.horizontal, 16)
         .alert(alertMessage, isPresented: $showAlert) {
             Button("OK", role: .cancel) { }
         }
+    
         .navigationTitle("")
         .navigationBarBackButtonHidden(true)
     }
+    
+    
 }
 
 struct EmailLoginView_Previews: PreviewProvider {

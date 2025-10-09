@@ -41,38 +41,39 @@ struct OTPView: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(spacing: 24) {
-            // Custom top navigation bar
-            TopNavBar(title: "Verification Code") {
-                dismiss()
-            }
-            
-            Text("Enter the code we texted you on \(phoneNumber)")
+        TopNavBar(title: "Verification Code") {
+            dismiss()
+        }
+        
+        VStack {
+            Text("Enter the code we texted you \non \(phoneNumber)")
+                .padding(.top, 82)
                 .multilineTextAlignment(.center)
-                .font(.subheadline)
+                .appFont(AppFont.body1)
                 .foregroundColor(Color("White"))
             
             // OTP input boxes
-            HStack(spacing: 12) {
+            HStack(spacing: 8) {
                 ForEach(0..<6, id: \.self) { index in
                     ZStack {
                         RoundedRectangle(cornerRadius: 10)
-                            .stroke(Color("Neutral-600"), lineWidth: 1)
-                            .background(
-                                RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color("Neutral-600"), lineWidth: 0.7)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .inset(by: 0.35)
                                     .fill(code.count > index ? Color("Green-400") : Color.clear)
                             )
                             .frame(width: 50, height: 80)
                         
                         if code.count > index {
                             Text(String(code[code.index(code.startIndex, offsetBy: index)]))
-                                .font(.largeTitle)
-                                .bold()
+                                .appFont(AppFont.headlineL)
                                 .foregroundColor(Color("Neutral-1000"))
                         }
                     }
                 }
             }
+            .padding(.top, 34)
             // Hidden text field for OTP input
             .background(
                 TextField("", text: $code)
@@ -97,13 +98,15 @@ struct OTPView: View {
             if let errorMessage = errorMessage {
                 Text(errorMessage)
                     .foregroundColor(.red)
-                    .font(.footnote)
+                    .appFont(AppFont.captionS)
             }
-
+            
             
             // Resend code timer
             Text(timeRemaining > 0 ? "Resend code in \(timeRemaining)" : "Resend Code")
-                .foregroundColor(timeRemaining > 0 ? Color("Neutral-400") : .blue)
+                .padding(.top, 19)
+                .appFont(AppFont.captionS)
+                .foregroundColor(timeRemaining > 0 ? Color("Neutral-400") : Color("Green-300"))
                 .onTapGesture {
                     if timeRemaining == 0 {
                         resendCode()
@@ -112,14 +115,15 @@ struct OTPView: View {
             
             Spacer()
         }
-        .padding()
+        .background(Color("Neutral-1000"))
+        .padding(.horizontal, 29)
         .onAppear {
             startTimer()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 isTextFieldFocused = true
             }
         }
-        .navigationTitle("")
+//        .navigationTitle("")
         .navigationBarBackButtonHidden(true)
     }
     
