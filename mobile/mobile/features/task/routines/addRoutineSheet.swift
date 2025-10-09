@@ -161,13 +161,13 @@ struct AddRoutineSheet: View {
 
                 if showFromPicker {
                     innerDivider
-                    graphicalPicker(
-                        selection: Binding(
+                    CustomCalendar(
+                        selectedDate: Binding(
                             get: { startDate ?? Date() },
                             set: { startDate = startOfDay($0) }
                         ),
-                        lower: nil,
-                        upper: endDate
+                        lowerBound: nil,
+                        upperBound: endDate
                     )
                 }
 
@@ -183,13 +183,13 @@ struct AddRoutineSheet: View {
 
                 if showToPicker {
                     innerDivider
-                    graphicalPicker(
-                        selection: Binding(
+                    CustomCalendar(
+                        selectedDate: Binding(
                             get: { endDate ?? (startDate ?? Date()) },
                             set: { endDate = startOfDay($0) }
                         ),
-                        lower: startDate,
-                        upper: nil
+                        lowerBound: startDate,
+                        upperBound: nil
                     )
                 }
             }
@@ -286,19 +286,6 @@ struct AddRoutineSheet: View {
         Rectangle().fill(Color("Neutral-800"))
             .frame(height: 0.7)
             .padding(.horizontal, 12)
-    }
-
-    private func graphicalPicker(selection: Binding<Date>, lower: Date?, upper: Date?) -> some View {
-        DatePicker("", selection: selection,
-                   in: (lower ?? Date.distantPast)...(upper ?? Date.distantFuture),
-                   displayedComponents: .date)
-            .datePickerStyle(.graphical)
-            .tint(Color("Green-300"))
-            .labelsHidden()
-            .scaleEffect(kMonthScale, anchor: .top)
-            .padding(.horizontal, kMonthPadH)
-            .padding(.vertical, kMonthPadV)
-            .padding(.bottom, -10)
     }
 
     // MARK: - calendar

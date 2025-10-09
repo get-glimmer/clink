@@ -223,6 +223,7 @@ struct SettingsView: View {
             }
             .padding(.vertical)
         }
+        //.navBarHidden(true)
         .navigationBarBackButtonHidden(true)
     }
 }

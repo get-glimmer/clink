@@ -18,13 +18,10 @@ struct OptionsSheet: View {
         ZStack(alignment: .bottomLeading) {
             // --- Background: blur + dim (tap to close) ---
             ZStack {
-                // 1) System material blur
-                Rectangle()
-                    .fill(.ultraThinMaterial).opacity(0.85)
+                DarkBlurView(style: .systemChromeMaterialDark)
                     .ignoresSafeArea()
-                
-                // 2) Additional dim
-                Color.black.opacity(0.8)
+
+                Color.black.opacity(0.5)
                     .ignoresSafeArea()
             }
             .contentShape(Rectangle())
@@ -47,9 +44,10 @@ struct OptionsSheet: View {
                           isEnabled: true,
                           action: onTapAddCategory)
             }
-            .padding(.bottom, 136)
+            .padding(.bottom, 78)
             .padding(.leading, 36)
         }
+        .navBarHidden(true)
     }
 }
 
@@ -86,15 +84,15 @@ private struct OptionRow: View {
     }
 }
 
-//#Preview {
-//    ZStack {
-//        Color.black.ignoresSafeArea()
-//        OptionsSheet(
-//            onTapOutside: {},
-//            onTapRoutines: {},
-//            onTapCategories: {},
-//            onTapAddCategory: {}
-//        )
-//    }
-//    .preferredColorScheme(.dark)
-//}
+#Preview {
+    ZStack {
+        Color.black.ignoresSafeArea()
+        OptionsSheet(
+            onTapOutside: {},
+            onTapRoutines: {},
+            onTapCategories: {},
+            onTapAddCategory: {}
+        )
+    }
+    .preferredColorScheme(.dark)
+}

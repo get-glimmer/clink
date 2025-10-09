@@ -39,7 +39,7 @@ struct TaskView: View {
         _viewModel = StateObject(wrappedValue: TaskListViewModel(userId: userId, date: todayDate()))
     }
 
-
+//MARK: - main view
     var body: some View {
         GeometryReader { geo in
             let fullWidth = geo.size.width*0.9
@@ -57,7 +57,7 @@ struct TaskView: View {
 
             ZStack(alignment: .top) {
                 VStack(spacing: 12) {
-                    // ---- Header ----
+                    //MARK: - header
                     ZStack {
                         // Center: Date controls
                         HStack(spacing: 20) {
@@ -127,7 +127,7 @@ struct TaskView: View {
                         .padding(.trailing, 16)
                     }
 
-                    // ---- Shaker (scaled) ----
+                    //MARK: - shaker
                     ShakerView(
                         viewModel: viewModel,
                         isActive: shakerIsActive,
@@ -138,7 +138,7 @@ struct TaskView: View {
                         .padding(.top, 16)
                 }
 
-                // ---- Bottom Sheet ----
+                //MARK: - task list
                 BottomSheet(
                     minHeight: 340,
                     maxHeight: 560,
@@ -146,16 +146,14 @@ struct TaskView: View {
                 ) {
                     // --Task List Content--
                     ScrollView {
-//                        Text("Daily Task")
-//                            .font(.headline)
-//                            .frame(maxWidth: 340, alignment: .leading)
                         TaskListView(taskSelectedDate: $selectedDate, viewModel: viewModel)
                             .padding(.bottom, 120)
                     }
+                    .coordinateSpace(name: "BottomSheetScroll")
                 }
             }
             .animation(.easeInOut, value: scale)
-            // --- "Options" sheet overlay ---
+            //MARK: - "Options" sheet
             .overlay(alignment: .bottomLeading) {
                 if showOptionsSheet {
                     OptionsSheet(
@@ -186,6 +184,7 @@ struct TaskView: View {
             .zIndex(999)
             .animation(.easeInOut(duration: 0.25), value: showOptionsSheet)
         }
+        .background(.neutral1000)
         .ignoresSafeArea(edges: .bottom)
         .onAppear {
             viewModel.fetchCategoriesAndTasks()
@@ -195,7 +194,7 @@ struct TaskView: View {
             viewModel.taskSelectedDate = newValue
             // viewModel.fetchCategoriesAndTasks()
         }
-        // -- "Add category" sheet --
+        //MARK: - "Add category" sheet
         .fullScreenCover(isPresented: $showAddCategorySheet) {
             AddCategorySheet(
                 emoji: $newCategoryEmoji,
@@ -219,15 +218,15 @@ struct TaskView: View {
                 }
             )
         }
-        // -- "Categories" sheet --
+        //MARK: - "Categories" sheet
         .fullScreenCover(isPresented: $showCategoriesSheet) {
             CategoriesSheet(viewModel: viewModel)
         }
-        // -- "Routines" sheet --
+        //MARK: -  "Routines" sheet
         .fullScreenCover(isPresented: $showRoutinesSheet) {
             RoutinesSheet(viewModel: viewModel)
         }
-        // -- "Change Date" sheet --
+        //MARK: -  "Change Date" sheet
         .overlay(alignment: .bottomLeading) {
             if showChangeDateSheet {
                 ChangeDateSheet(

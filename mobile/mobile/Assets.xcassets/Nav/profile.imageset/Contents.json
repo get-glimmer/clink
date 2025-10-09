@@ -1,17 +1,17 @@
 {
   "images" : [
     {
-      "filename" : "nav-profile1x.png",
+      "filename" : "Personal.png",
       "idiom" : "universal",
       "scale" : "1x"
     },
     {
-      "filename" : "nav-profile2x.png",
+      "filename" : "Personal (1).png",
       "idiom" : "universal",
       "scale" : "2x"
     },
     {
-      "filename" : "nav-profile3x.png",
+      "filename" : "Personal (2).png",
       "idiom" : "universal",
       "scale" : "3x"
     }
