@@ -91,8 +91,8 @@ struct TaskListView: View {
                 onEditTitle: { newTitle in
                     Task { await viewModel.updateTaskTitle(taskId: task.id, newTitle: newTitle) }
                 },
-                viewModel: viewModel,                        // ✨
-                baseRoutineCategory: holder?.category        // ✨ (daily 태스크의 현재 카테고리)
+                viewModel: viewModel,
+                baseRoutineCategory: holder?.category  
             )
             .presentationDetents([ .height(menuHeight) ])
             .presentationCornerRadius(24)

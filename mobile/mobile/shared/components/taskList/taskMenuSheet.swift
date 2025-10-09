@@ -8,8 +8,8 @@ struct TaskMenuSheet: View {
     let isArchivedTask: Bool
     let dailyCategories: [CategoryItem]
     let archivedCategories: [CategoryItem]
-    let viewModel: TaskListViewModel?    // ✨
-    let baseRoutineCategory: CategoryItem?   // ✨
+    let viewModel: TaskListViewModel?
+    let baseRoutineCategory: CategoryItem?
     
     // Actions from parent
     var onDoToday: () -> Void = {}
@@ -23,8 +23,8 @@ struct TaskMenuSheet: View {
     var onReassignToDaily: (CategoryItem) -> Void = { _ in }
     
     // routines
-    @State private var showAddRoutineOverlay: Bool = false   // ✨
-    @State private var routineCategory: CategoryItem? = nil  // ✨
+    @State private var showAddRoutineOverlay: Bool = false
+    @State private var routineCategory: CategoryItem? = nil
     
     // Title edit commit
     var onEditTitle: (String) -> Void = { _ in }
@@ -61,7 +61,7 @@ struct TaskMenuSheet: View {
         onArchiveToCategory: @escaping (CategoryItem) -> Void = { _ in },
         onReassignToDaily: @escaping (CategoryItem) -> Void = { _ in },
         onEditTitle: @escaping (String) -> Void = { _ in },
-        viewModel: TaskListViewModel? = nil,                 // ✨
+        viewModel: TaskListViewModel? = nil,
         baseRoutineCategory: CategoryItem? = nil
     ) {
         self.taskTitle = taskTitle

@@ -30,14 +30,13 @@ public struct ChangeDateSheet: View {
     // MARK: - Body
     public var body: some View {
         ZStack {
-            // Dim background behind the card
             ZStack {
-                Rectangle()
-                    .fill(.ultraThinMaterial).opacity(0.85)
+                DarkBlurView(style: .systemChromeMaterialDark)
                     .ignoresSafeArea()
 
-                Color.black.opacity(0.8)
+                Color.black.opacity(0.5)
                     .ignoresSafeArea()
+
             }
             .contentShape(Rectangle())
             .onTapGesture {        // tap outside to close
@@ -124,6 +123,6 @@ public struct ChangeDateSheet: View {
             )
             .shadow(color: .black.opacity(0.45), radius: 18, x: 0, y: 14)
         }
-        
+        .navBarHidden(true)
     }
 }
