@@ -279,14 +279,19 @@ struct UserRowView: View {
             
             // User Info
             VStack(alignment: .leading, spacing: 2) {
-                Text(user.username)
-                    .foregroundColor(AppColors.textWhite)
-                    .appFont(AppFont.labelM)
-                
-                if let mutualFriends = user.mutualFriends {
-                    Text("\(mutualFriends) Mutuals")
-                        .foregroundColor(AppColors.neutral400)
-                        .appFont(AppFont.captionXS_M)
+                HStack(alignment: .center, spacing: 10) {
+                    Text(user.username)
+                        .foregroundColor(AppColors.textWhite)
+                        .appFont(AppFont.labelM)
+                    if let mutualFriends = user.mutualFriends {
+                        Text("\(mutualFriends) Mutuals")
+                            .foregroundColor(AppColors.neutral300)
+                            .appFont(AppFont.captionXS_M)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(AppColors.neutral900)
+                            .cornerRadius(8)
+                }
                 }
             }
             
@@ -408,12 +413,8 @@ struct FriendRequestRow: View {
 
     var body: some View {
         HStack(spacing: 15) {
-            // Match 40x40 avatar size
-            Image(profile.avatar_url ?? "nav-profile1x")
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-                .frame(width: 40, height: 40)
-                .clipShape(Circle())
+            // Match 40x40 avatar size with URL-aware fallback avatar
+            avatarView()
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(profile.name ?? profile.username ?? "Unknown")
@@ -469,6 +470,53 @@ struct FriendRequestRow: View {
             }
         } catch {
             await MainActor.run { isWorking = false }
+        }
+    }
+}
+
+// MARK: - FriendRequestRow Avatar helper (matches UserRowView logic)
+extension FriendRequestRow {
+    @ViewBuilder
+    fileprivate func avatarView() -> some View {
+        let size: CGFloat = 40
+        let glyphSize: CGFloat = size * 0.62
+        let fallbackAvatar = AnyView(
+            ZStack {
+                Circle()
+                    .fill(AppColors.neutral800)
+                Image("profile")
+                    .renderingMode(.template)
+                    .resizable()
+                    .foregroundColor(AppColors.textWhite)
+                    .frame(width: glyphSize, height: glyphSize)
+                Circle()
+                    .stroke(AppColors.neutral700, lineWidth: 1)
+            }
+            .frame(width: size, height: size)
+        )
+
+        if let avatar = profile.avatar_url,
+           avatar.lowercased().hasPrefix("http"),
+           let url = URL(string: avatar) {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .empty:
+                    fallbackAvatar
+                case .success(let image):
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                case .failure:
+                    fallbackAvatar
+                @unknown default:
+                    fallbackAvatar
+                }
+            }
+            .frame(width: size, height: size)
+            .clipShape(Circle())
+        } else {
+            fallbackAvatar
+                .clipShape(Circle())
         }
     }
 }

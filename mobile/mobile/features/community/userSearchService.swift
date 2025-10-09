@@ -230,19 +230,25 @@ class UserSearchService: ObservableObject {
         }
         
         do {
-            // Check if I have a friendship with them (unidirectional)
-            let friendship: [FriendRelation] = try await supabase
+            // Check relationship in BOTH directions
+            let relations: [FriendRelation] = try await supabase
                 .from("friends")
                 .select()
-                .eq("user_id", value: currentUserId)
-                .eq("friend_id", value: userId)
+                .or("and(user_id.eq.\(currentUserId),friend_id.eq.\(userId)),and(user_id.eq.\(userId),friend_id.eq.\(currentUserId))")
                 .execute()
                 .value
-            
-            if let request = friendship.first {
-                return FriendshipStatus(rawValue: request.status) ?? .none
+
+            // Prioritize accepted > requested > blocked > none
+            if relations.contains(where: { $0.status.lowercased() == "accepted" }) {
+                return .accepted
             }
-            
+            if relations.contains(where: { $0.status.lowercased() == "requested" }) {
+                return .requested
+            }
+            if relations.contains(where: { $0.status.lowercased() == "blocked" }) {
+                return .blocked
+            }
+
             return .none
         } catch {
             return .none
@@ -257,29 +263,34 @@ class UserSearchService: ObservableObject {
         }
         
         do {
-            // Get my accepted friends
-            let myFriends: [FriendRelation] = try await supabase
+            // Fetch accepted friendships involving me in either direction
+            let myRelations: [FriendRelation] = try await supabase
                 .from("friends")
                 .select()
-                .eq("user_id", value: currentUserId)
                 .eq("status", value: "accepted")
+                .or("user_id.eq.\(currentUserId),friend_id.eq.\(currentUserId)")
                 .execute()
                 .value
-            
-            let myFriendIds = Set(myFriends.map { $0.friend_id })
-            
-            // Get their accepted friends
-            let theirFriends: [FriendRelation] = try await supabase
+
+            // Map to the other user's id regardless of direction
+            let myFriendIds: Set<String> = Set(myRelations.map { rel in
+                return rel.user_id == currentUserId ? rel.friend_id : rel.user_id
+            })
+
+            // Fetch accepted friendships involving the other user in either direction
+            let theirRelations: [FriendRelation] = try await supabase
                 .from("friends")
                 .select()
-                .eq("user_id", value: userId)
                 .eq("status", value: "accepted")
+                .or("user_id.eq.\(userId),friend_id.eq.\(userId)")
                 .execute()
                 .value
-            
-            let theirFriendIds = Set(theirFriends.map { $0.friend_id })
-            
-            // Count the intersection
+
+            let theirFriendIds: Set<String> = Set(theirRelations.map { rel in
+                return rel.user_id == userId ? rel.friend_id : rel.user_id
+            })
+
+            // Intersection size is the mutual count
             return myFriendIds.intersection(theirFriendIds).count
             
         } catch {

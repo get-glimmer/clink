@@ -877,7 +877,7 @@ struct LeaveNoteSheet: View {
     @State private var customEmoji: String = ""
     @State private var isEmojiFieldFocused: Bool = false
     
-    private let emojiReactions = ["👍", "💗", "👏", "🔥", "🙏"]
+    private let emojiReactions = ["👍", "💖", "👏", "🔥", "🎉"]
     
     var body: some View {
         ZStack {
@@ -898,7 +898,7 @@ struct LeaveNoteSheet: View {
                             onClose()
                         }) {
                             Image(systemName: "xmark")
-                                .font(.system(size: 12.5, weight: .medium))
+                                .font(.system(size: 15, weight: .medium))
                                 .foregroundColor(AppColors.neutral1000)
                         }
                     }
@@ -908,7 +908,7 @@ struct LeaveNoteSheet: View {
                     
                     // Title
                     Text("Leave a Note for \(friend.name)!")
-                        .appFont(AppFont.title3)
+                        .appFont(AppFont.title3Semibold)
                         .foregroundColor(AppColors.neutral1000)
                         .padding(.horizontal, 21)
                         .padding(.bottom, 20)
@@ -925,20 +925,19 @@ struct LeaveNoteSheet: View {
                                 )
                                 .frame(height: 130)
 
-                            TextEditor(text: $noteText)
-                                .foregroundColor(Color.black)
-                                .font(.system(size: 16))
-                                .padding(16)
-                                .frame(height: 130)
-                                .background(Color.clear)
-                                .scrollContentBackground(.hidden)
+                            InsetTextView(
+                                text: $noteText,
+                                font: .systemFont(ofSize: 16),
+                                insets: UIEdgeInsets(top: 19, left: 17, bottom: 19, right: 17)
+                            )
+                            .frame(height: 130)
 
                             if noteText.isEmpty {
                                 Text("Write a kind word, a cheer, or a sticker 💛")
                                     .foregroundColor(AppColors.neutral600)
                                     .appFont(AppFont.body2)
-                                    .padding(.horizontal, 20)
-                                    .padding(.top, 24)
+                                    .padding(.horizontal, 17)
+                                    .padding(.top, 19)
                                     .allowsHitTesting(false)
                             }
                         }
@@ -948,7 +947,7 @@ struct LeaveNoteSheet: View {
                         VStack(alignment: .leading, spacing: 12) {
                             HStack {
                                 Text("Emoji Reactions")
-                                    .appFont(AppFont.labelL)
+                                    .appFont(AppFont.buttonL)
                                     .foregroundColor(AppColors.neutral1000)
                 Spacer()
                             }
@@ -981,7 +980,7 @@ struct LeaveNoteSheet: View {
                                             .frame(width: 40, height: 40)
                                         Image(systemName: "plus")
                                             .foregroundColor(.white)
-                                            .font(.system(size: 16, weight: .light))
+                                            .font(.system(size: 18, weight: .light))
                                     }
                                 }
                                 .disabled(isSending)
@@ -991,7 +990,8 @@ struct LeaveNoteSheet: View {
                             // Hidden UIKit text field to reliably summon keyboard/emoji picker
                             HiddenEmojiTextField(text: $customEmoji, isFirstResponder: $isEmojiFieldFocused)
                                 .frame(width: 1, height: 1)
-                                .opacity(0.01)
+                                .opacity(0.02)
+                                .allowsHitTesting(false)
                                 .onChange(of: customEmoji) { newValue in
                                     guard !isSending else { return }
                                     if let emoji = newValue.firstEmoji, !emoji.isEmpty {
@@ -1028,6 +1028,7 @@ struct LeaveNoteSheet: View {
                 // Card color #F1F3EF
                 .background(Color(red: 241.0/255.0, green: 243.0/255.0, blue: 239.0/255.0))
                 .cornerRadius(16)
+                .onTapGesture { dismissKeyboard() }
                 
                 // Green tape overlay - positioned on top of the modal
                 VStack {
@@ -1107,6 +1108,11 @@ struct LeaveNoteSheet: View {
             }
         }
     }
+
+    private func dismissKeyboard() {
+        isEmojiFieldFocused = false
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
     
     private func sendEmojiReaction(_ emoji: String) {
         guard let currentUserId = getUserId(),
@@ -1153,6 +1159,38 @@ struct LeaveNoteSheet: View {
     }
 }
 
+// UITextView with controllable text container insets (fix caret vs placeholder offset)
+private struct InsetTextView: UIViewRepresentable {
+    @Binding var text: String
+    var font: UIFont
+    var insets: UIEdgeInsets
+
+    func makeUIView(context: Context) -> UITextView {
+        let tv = UITextView()
+        tv.delegate = context.coordinator
+        tv.backgroundColor = .clear
+        tv.textContainerInset = insets
+        tv.font = font
+        tv.isScrollEnabled = true
+        tv.textColor = .black
+        return tv
+    }
+
+    func updateUIView(_ uiView: UITextView, context: Context) {
+        if uiView.text != text { uiView.text = text }
+        if uiView.textContainerInset != insets { uiView.textContainerInset = insets }
+        if uiView.font != font { uiView.font = font }
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+    final class Coordinator: NSObject, UITextViewDelegate {
+        var parent: InsetTextView
+        init(_ parent: InsetTextView) { self.parent = parent }
+        func textViewDidChange(_ textView: UITextView) {
+            parent.text = textView.text
+        }
+    }
+}
 // Interactive heart button component
 struct HeartButton: View {
     let categoryId: UUID
@@ -1286,20 +1324,37 @@ private struct HiddenEmojiTextField: UIViewRepresentable {
     @Binding var text: String
     @Binding var isFirstResponder: Bool
 
+    // UITextField subclass that prefers the emoji keyboard when possible
+    private final class EmojiFirstTextField: UITextField {
+        override var textInputContextIdentifier: String? { "" } // enable custom input mode
+        override var textInputMode: UITextInputMode? {
+            for mode in UITextInputMode.activeInputModes {
+                if let lang = mode.primaryLanguage, lang == "emoji" { return mode }
+            }
+            return super.textInputMode
+        }
+    }
+
     func makeUIView(context: Context) -> UITextField {
-        let tf = UITextField(frame: .zero)
+        let tf = EmojiFirstTextField(frame: .zero)
         tf.delegate = context.coordinator
         tf.autocorrectionType = .no
         tf.autocapitalizationType = .none
-        tf.isHidden = true
+        // Important: hidden views cannot become first responder
+        tf.isHidden = false
+        tf.tintColor = .clear // hide caret
         return tf
     }
 
     func updateUIView(_ uiView: UITextField, context: Context) {
         if isFirstResponder && !uiView.isFirstResponder {
-            uiView.becomeFirstResponder()
+            let ok = uiView.becomeFirstResponder()
+            print("[EmojiPicker] becomeFirstResponder -> \(ok)")
+            // Nudge input view to adopt preferred emoji mode immediately
+            DispatchQueue.main.async { uiView.reloadInputViews() }
         } else if !isFirstResponder && uiView.isFirstResponder {
             uiView.resignFirstResponder()
+            print("[EmojiPicker] resignFirstResponder")
         }
     }
 

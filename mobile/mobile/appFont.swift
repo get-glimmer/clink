@@ -41,6 +41,7 @@ struct AppFont {
     static let title1    = Style(fontName: Family.bold,   size: 24, lineHeight: 24 * 1.25, letterSpacing: 0)
     static let title2    = Style(fontName: Family.bold,   size: 20, lineHeight: 20 * 1.25, letterSpacing: 0)
     static let title3    = Style(fontName: Family.bold,   size: 18, lineHeight: 18 * 1.25, letterSpacing: 0)
+    static let title3Semibold = Style(fontName: Family.semibold, size: 18, lineHeight: 18 * 1.25, letterSpacing: 0)
 
     // Label
     static let labelL    = Style(fontName: Family.bold,   size: 16, lineHeight: 24,       letterSpacing: 0)
