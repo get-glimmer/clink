@@ -20,6 +20,7 @@ struct MonthYearPicker: View {
                     Picker("Year", selection: $tempYear) {
                         ForEach(years, id: \.self) { year in
                             Text(String(year))
+                                .appFont(AppFont.labelL)
                         }
                     }
                     .pickerStyle(WheelPickerStyle())
@@ -27,6 +28,7 @@ struct MonthYearPicker: View {
                     Picker("Month", selection: $tempMonth) {
                         ForEach(months, id: \.self) { month in
                             Text(String(format: "%02d", month))
+                                .appFont(AppFont.labelL)
                         }
                     }
                     .pickerStyle(WheelPickerStyle())
@@ -34,23 +36,48 @@ struct MonthYearPicker: View {
                 }
                 Spacer()
             }
-            .navigationBarTitle("Select Month", displayMode: .inline)
-            .navigationBarItems(
-                leading: Button("Cancel") {
-                    isPresented = false
-                },
-                trailing: Button("Done") {
-                    updateSelectedDate()
-                    isPresented = false
+            .scrollContentBackground(.hidden)
+            .background(.neutral1000)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                // --- Title ---
+                ToolbarItem(placement: .principal) {
+                    Text("Select Month")
+                        .appFont(AppFont.title2)
                 }
-            )
+                // --- Cancel ---
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: { isPresented = false }) {
+                        ZStack {
+                            Circle().fill(.neutral900).frame(width: 44, height: 44)
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 14))
+                                .foregroundColor(.neutral400)
+                        }
+                    }
+                }
+                // --- Done ---
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: {
+                        updateSelectedDate()
+                        isPresented = false
+                    }) {
+                        ZStack {
+                            Circle().fill(.neutral900).frame(width: 44, height: 44)
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 14))
+                                .foregroundColor(.neutral400)
+                        }
+                    }
+                }
+            }
         }
-        // when the navigation view first appears
         .onAppear {
             tempYear = Calendar.current.component(.year, from: selectedDate)
             tempMonth = Calendar.current.component(.month, from: selectedDate)
         }
     }
+    
     
     // updates "selectedDate" when done button is clicked
     func updateSelectedDate() {
