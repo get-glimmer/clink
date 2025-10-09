@@ -34,11 +34,14 @@ struct FriendDetailView: View {
                     Group {
                         if showingCalendar {
                             FriendTrackerView(friendUserId: friend.userId, friendName: friend.name)
+                                .frame(maxWidth: .infinity)
                         } else {
                             ShakerView(
                                 viewModel: friendTaskViewModel,
                                 onNoteEmojiTapped: { showNotesPopup() }
                             )
+                                .frame(width: shakerSide, height: shakerSide)
+                                .frame(maxWidth: 275)
                                 .overlay(
                                     Group {
                                         if !hasAnyNotes && friendTaskViewModel.hasAnyTasks && scale >= 0.8 {
@@ -52,9 +55,7 @@ struct FriendDetailView: View {
                                 )
                         }
                     }
-                    .frame(width: shakerSide, height: shakerSide)
-                    .frame(maxWidth: 275)
-                    .padding(.top, 16)
+                    .padding(.top, showingCalendar ? 2 : 16)
                 }
                 BottomSheet(
                     minHeight: 340,

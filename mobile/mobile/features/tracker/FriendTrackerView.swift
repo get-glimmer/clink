@@ -5,7 +5,6 @@ struct FriendTrackerView: View {
     let friendName: String
     
     @StateObject private var trackerViewModel: TrackerViewModel
-    @State private var showMonthPicker = false
     
     private let calendar = Calendar.current
     private let columns = Array(repeating: GridItem(.flexible()), count: 7)
@@ -20,44 +19,6 @@ struct FriendTrackerView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Month selector row
-            HStack {
-                Button(action: { showMonthPicker = true }) {
-                    HStack(spacing: 8) {
-                        Text(formattedMonthYear(trackerViewModel.selectedMonth))
-                            .appFont(AppFont.title3)
-                            .foregroundColor(Color("White"))
-                        Image(systemName: "chevron.down")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 9, height: 9)
-                            .foregroundColor(Color("White"))
-                    }
-                }
-                .sheet(isPresented: $showMonthPicker) {
-                    MonthYearPicker(
-                        selectedDate: $trackerViewModel.selectedDate,
-                        isPresented: $showMonthPicker
-                    )
-                }
-                
-                Spacer()
-                
-                HStack(spacing: 27) {
-                    Button(action: { moveMonth(by: -1) }) {
-                        Image(systemName: "chevron.left")
-                            .foregroundColor(Color("Neutral-400"))
-                    }
-                    Button(action: { moveMonth(by: 1) }) {
-                        Image(systemName: "chevron.right")
-                            .foregroundColor(Color("Neutral-400"))
-                    }
-                }
-                .padding(.trailing, 20)
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
-            
             // Weekday headers
             LazyVGrid(columns: columns, spacing: 0) {
                 ForEach(weekdaySymbols, id: \.self) { day in
@@ -96,15 +57,10 @@ struct FriendTrackerView: View {
                 }
             }
             .padding(.vertical, 12)
-            .padding(.horizontal, 15)
+            .padding(.horizontal, 18)
             .task(id: trackerViewModel.selectedDate) {
                 try? await trackerViewModel.fetchShakers()
             }
         }
-    }
-    
-    private func moveMonth(by value: Int) {
-        let newDate = calendar.date(byAdding: .month, value: value, to: trackerViewModel.selectedMonth)!
-        trackerViewModel.selectedDate = newDate
     }
 }
