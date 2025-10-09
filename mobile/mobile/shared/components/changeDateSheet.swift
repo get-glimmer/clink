@@ -11,10 +11,10 @@ public struct ChangeDateSheet: View {
     public let initialDate: Date
     public var onConfirm: (Date) -> Void
     public var onCancel: () -> Void
-
+    
     @Environment(\.dismiss) private var dismiss
     @State private var pickedDate: Date
-
+    
     // MARK: - Init
     public init(
         initialDate: Date,
@@ -26,26 +26,23 @@ public struct ChangeDateSheet: View {
         self.onCancel = onCancel
         _pickedDate = State(initialValue: initialDate)
     }
-
+    
     // MARK: - Body
     public var body: some View {
         ZStack {
-            // Dim background behind the card
             ZStack {
-                Rectangle()
-                    .fill(.ultraThinMaterial).opacity(0.85)
+                DarkBlurView(style: .systemChromeMaterialDark)
                     .ignoresSafeArea()
-
-                Color.black.opacity(0.8)
+                
+                Color.black.opacity(0.5)
                     .ignoresSafeArea()
+                
             }
             .contentShape(Rectangle())
-            .onTapGesture {        // tap outside to close
-                onCancel()
-            }
-
-            // Card
-            VStack(spacing: 10) {
+            .onTapGesture { onCancel() } // tap outside to close
+            
+            // MARK: Card
+            VStack(spacing: 0) {
                 // --- Header ---
                 HStack {
                     Text("Change Date")
@@ -58,31 +55,22 @@ public struct ChangeDateSheet: View {
                         Image(systemName: "xmark")
                             .font(.system(size: 18, weight: .light))
                             .foregroundColor(Color("White"))
-                            .padding(8)
                     }
                     .buttonStyle(.plain)
                 }
-                .padding(.top, 4)
-                .padding(.leading, 6)
+                .padding(.top, 21)
+                .padding(.leading, 25)
+                .padding(.trailing, 23)
                 
                 // --- divider ---
                 Divider()
                     .frame(width: 329)
                     .background(Color("Neutral-800"))
-
-                // --- Calendar ---
-                // Using Apple's graphical DatePicker
-                DatePicker(
-                    "Select a date",
-                    selection: $pickedDate,
-                    displayedComponents: [.date]
-                )
-                .padding(.horizontal, 4)
-                .datePickerStyle(.graphical)
-                .labelsHidden()
-                .tint(Color("Green-300"))// selected day pill color
-                .environment(\.locale, Locale(identifier: "en_US"))
-
+                    .padding(.top, 18)
+                
+                // --- Calendar (custom) ---
+                CustomCalendar(selectedDate: $pickedDate)
+                
                 // --- Confirm button ---
                 Button {
                     onConfirm(pickedDate)
@@ -97,10 +85,11 @@ public struct ChangeDateSheet: View {
                         )
                 }
                 .buttonStyle(.plain)
-                .padding(.bottom, 8)
+                .padding(.horizontal, 16)
+                .padding(.top, 18)
+                .padding(.bottom, 24)
             }
-            .padding(16)
-            .frame(width: 361, height: 481) //h: 451
+            .frame(width: 361, height: 491) //h: 451
             .background( // of the card
                 RoundedRectangle(cornerRadius: 24)
                     .fill(Color(.black)).opacity(0.5)
@@ -122,8 +111,7 @@ public struct ChangeDateSheet: View {
                         lineWidth: 1
                     )
             )
-            .shadow(color: .black.opacity(0.45), radius: 18, x: 0, y: 14)
         }
-        
+        .navBarHidden(true)
     }
 }

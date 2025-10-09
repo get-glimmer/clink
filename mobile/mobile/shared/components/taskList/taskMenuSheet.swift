@@ -1,93 +1,136 @@
 import SwiftUI
 
 struct TaskMenuSheet: View {
+    // MARK: - Inputs (state from parent)
     let taskTitle: String
     let isDueToday: Bool
     let initialDueDate: Date?
-    let archivedCategories: [CategoryItem]
-    // for "make a routine"
-    var viewModel: TaskListViewModel? = nil
-    var categoryForRoutine: CategoryItem? = nil
-    
     let isArchivedTask: Bool
+    let dailyCategories: [CategoryItem]
+    let archivedCategories: [CategoryItem]
+    let viewModel: TaskListViewModel?
+    let baseRoutineCategory: CategoryItem?
     
-    var onArchive: (CategoryItem) -> Void = { _ in }
+    // Actions from parent
     var onDoToday: () -> Void = {}
     var onDoTomorrow: () -> Void = {}
-    var onChangeDate: () -> Void = {}
     var onConfirmChangeDate: (Date) -> Void = { _ in }
     var onMakeRoutine: () -> Void = {}
     var onDelete: () -> Void = {}
-    var onEditTitle: (String) -> Void = { _ in }
     
-    // Edit state
+    // Category change hooks
+    var onArchiveToCategory: (CategoryItem) -> Void = { _ in }
+    var onReassignToDaily: (CategoryItem) -> Void = { _ in }
+    
+    // routines
+    @State private var showAddRoutineOverlay: Bool = false
+    @State private var routineCategory: CategoryItem? = nil
+    
+    // Title edit commit
+    var onEditTitle: (String) -> Void = { _ in }
+
+    // MARK: - Local UI states
+    // Title edit
     @State private var currentTitle: String
     @State private var isEditingTitle: Bool = false
     @State private var titleDraft: String
     @FocusState private var titleFieldFocused: Bool
     
-    // --- "change date" overlay state ---
+    // Overlays
     @State private var showChangeDateOverlay: Bool = false
-    @State private var showChooseCategoryOverlay: Bool = false
+    @State private var showChooseArchivedOverlay: Bool = false
+    @State private var showChooseDailyOverlay: Bool = false
     
-    // --- "make a routine" overlay state ---
-    @State private var showAddRoutineOverlay: Bool = false
+    // archived → daily 전환 이후 실행할 pending action
+    private enum PendingAction { case doToday, doTomorrow, changeDate, makeRoutine }
+    @State private var pendingAction: PendingAction? = nil
     
-    // Ensure initial text matches sheet input
+    // Init
     init(
         taskTitle: String,
         isDueToday: Bool,
         initialDueDate: Date?,
+        isArchivedTask: Bool,
+        dailyCategories: [CategoryItem],
         archivedCategories: [CategoryItem],
-        onArchive: @escaping (CategoryItem) -> Void = { _ in },
         onDoToday: @escaping () -> Void = {},
         onDoTomorrow: @escaping () -> Void = {},
-        onChangeDate: @escaping () -> Void = {},
         onConfirmChangeDate: @escaping (Date) -> Void = { _ in },
         onMakeRoutine: @escaping () -> Void = {},
         onDelete: @escaping () -> Void = {},
+        onArchiveToCategory: @escaping (CategoryItem) -> Void = { _ in },
+        onReassignToDaily: @escaping (CategoryItem) -> Void = { _ in },
         onEditTitle: @escaping (String) -> Void = { _ in },
-        isArchivedTask: Bool = false,
         viewModel: TaskListViewModel? = nil,
-        categoryForRoutine: CategoryItem? = nil
+        baseRoutineCategory: CategoryItem? = nil
     ) {
         self.taskTitle = taskTitle
         self.isDueToday = isDueToday
         self.initialDueDate = initialDueDate
-        self.archivedCategories = archivedCategories
         self.isArchivedTask = isArchivedTask
-        self.viewModel = viewModel
-        self.categoryForRoutine = categoryForRoutine
-        
-        self.onArchive = onArchive
+        self.dailyCategories = dailyCategories
+        self.archivedCategories = archivedCategories
         self.onDoToday = onDoToday
         self.onDoTomorrow = onDoTomorrow
-        self.onChangeDate = onChangeDate
         self.onConfirmChangeDate = onConfirmChangeDate
         self.onMakeRoutine = onMakeRoutine
         self.onDelete = onDelete
+        self.onArchiveToCategory = onArchiveToCategory
+        self.onReassignToDaily = onReassignToDaily
         self.onEditTitle = onEditTitle
-        _titleDraft   = State(initialValue: taskTitle)
+        self.viewModel = viewModel
+        self.baseRoutineCategory = baseRoutineCategory
+        _routineCategory = State(initialValue: baseRoutineCategory)
         _currentTitle = State(initialValue: taskTitle)
+        _titleDraft   = State(initialValue: taskTitle)
     }
-
+    
     var body: some View {
-        VStack(spacing: 0) {
-            // --- Header ---
-            header
-            
-            // --- Divider ---
-            Divider()
-                .frame(width: 361)
-                .background(Color("Neutral-800"))
-                .padding(.top, 16)
+        GeometryReader { proxy in
+            ZStack(alignment: .top) {
+                // MARK: BackGround
+                DarkBlurView(style: .systemChromeMaterialDark)
+                    .frame(width: proxy.size.width, height: proxy.size.height+100)
+                    .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                    .allowsHitTesting(false)
 
-            // --- Options ---
-            options
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 24, style: .continuous)
+                            .fill(.black.opacity(0.5))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 24, style: .continuous)
+                            .stroke(
+                                LinearGradient(
+                                    colors: [
+                                        Color(.neutral400).opacity(0.7),
+                                        Color(.neutral600).opacity(0.7)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1
+                            )
+                    )
+
+                // MARK: Contents
+                VStack(spacing: 0) {
+                    grabber
+                      .padding(.top,9)
+                    header
+                    Divider()
+                        .frame(width: 361)
+                        .background(Color("Neutral-800"))
+                        .padding(.top, 18)
+                    options
+                        .padding(.top, 26)
+                        .padding(.leading, 22)
+                }
+
+            }
         }
-        .presentationDragIndicator(.visible)
-
-        // ── ChangeDateSheet overlay ────────────────────────────
+        
+        // MARK: ChangeDateSheet overlay
         .fullScreenCover(isPresented: $showChangeDateOverlay) {
             if showChangeDateOverlay {
                 ChangeDateSheet(
@@ -107,33 +150,54 @@ struct TaskMenuSheet: View {
         }
         .animation(.easeInOut(duration: 0.25), value: showChangeDateOverlay)
         
-        // ── ChooseArchivedCategory overlay ────────────────────────────
-        .fullScreenCover(isPresented: $showChooseCategoryOverlay) {
-            if showChooseCategoryOverlay {
-                ChooseArchivedCategorySheet(
-                    archivedCategories: archivedCategories,
-                    onSelect: { cat in
-                        onArchive(cat)
-                        showChooseCategoryOverlay = false
-                    },
-                    onCancel: {
-                        showChooseCategoryOverlay = false
-                    }
-                )
-                .transition(.opacity)
-                .ignoresSafeArea()
-                .zIndex(10)
-            }
+        // MARK: Choose Archived Category (daily → archived)
+        .fullScreenCover(isPresented: $showChooseArchivedOverlay) {
+            ChooseArchivedCategorySheet(
+                archivedCategories: archivedCategories,
+                onSelect: { cat in
+                    onArchiveToCategory(cat)
+                    showChooseArchivedOverlay = false
+                },
+                onCancel: { showChooseArchivedOverlay = false }
+            )
+            .transition(.opacity)
+            .ignoresSafeArea()
         }
-        .animation(.easeInOut(duration: 0.25), value: showChooseCategoryOverlay)
-        
-        // ── AddRoutine overlay ────────────────────────────
+        // MARK: Choose Daily Category (archived → daily)
+        .fullScreenCover(isPresented: $showChooseDailyOverlay) {
+            ChooseDailyCategorySheet(
+                dailyCategories: dailyCategories,
+                onSelect: { cat in
+                    // 1) Change category first
+                    onReassignToDaily(cat)
+                    // 2) Continue with pending action
+                    switch pendingAction {
+                    case .doToday:    onDoToday()
+                    case .doTomorrow: onDoTomorrow()
+                    case .changeDate: showChangeDateOverlay = true
+                    case .makeRoutine:
+                           routineCategory = cat
+                           showAddRoutineOverlay = true
+                    case .none: break
+                    }
+                    pendingAction = nil
+                    showChooseDailyOverlay = false
+                },
+                onCancel: {
+                    pendingAction = nil
+                    showChooseDailyOverlay = false
+                }
+            )
+            .transition(.opacity)
+            .ignoresSafeArea()
+        }
+        // MARK: AddRoutineSheet overlay
         .fullScreenCover(isPresented: $showAddRoutineOverlay) {
-            if let vm = viewModel, let cat = categoryForRoutine {
+            if let vm = viewModel, let cat = routineCategory {
                 AddRoutineSheet(
                     category: cat,
                     viewModel: vm,
-                    initialTitle: currentTitle    // ← 자동 입력
+                    initialTitle: currentTitle
                 )
                 .ignoresSafeArea()
                 .transition(.opacity)
@@ -141,7 +205,19 @@ struct TaskMenuSheet: View {
                 Color.clear.onAppear { showAddRoutineOverlay = false }
             }
         }
-        .animation(.easeInOut(duration: 0.25), value: showAddRoutineOverlay)
+        .animation(.easeInOut(duration: 0.22), value: showChangeDateOverlay)
+        .animation(.easeInOut(duration: 0.22), value: showChooseArchivedOverlay)
+        .animation(.easeInOut(duration: 0.22), value: showChooseDailyOverlay)
+        .animation(.easeInOut(duration: 0.22), value: showAddRoutineOverlay)
+    }
+    
+    // MARK: - grabber
+    private var grabber: some View {
+        Rectangle()
+            .foregroundColor(.clear)
+            .frame(width: 44, height: 3)
+            .background(.neutral800)
+            .cornerRadius(2)
     }
     
     // MARK: - Header
@@ -165,7 +241,7 @@ struct TaskMenuSheet: View {
                     .lineLimit(1)
                     .truncationMode(.tail)
             }
-
+            
             Spacer()
             
             // --- Edit button ---
@@ -181,109 +257,114 @@ struct TaskMenuSheet: View {
                 Image("pencil")
             }
             .buttonStyle(.plain)
-            .padding(.trailing, 12)
-
+            .padding(.trailing, 10)
+            
             // --- Delete button ---
             Button(action: onDelete) {
                 Image("trashcan")
             }
             .buttonStyle(.plain)
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 8)
+            .padding(.top, 17)
+            .padding(.leading, 25)
+            .padding(.trailing, 19)
     }
     
     // MARK: - Options
     private var options: some View {
-        let disableAll = isArchivedTask   // archived task -> disable 4 options
-
         return VStack(spacing: 20) {
+            // Do it Today / Tomorrow
             if isDueToday {
-                optionRow(
-                    systemIcon: "arrow.right",
-                    title: "Do it Tomorrow",
-                    action: onDoTomorrow,
-                    isDisabled: disableAll
-                )
+                optionRow(assetIcon: "arrowRight", title: "Do it Tomorrow") {
+                    if isArchivedTask {
+                        pendingAction = .doTomorrow
+                        showChooseDailyOverlay = true
+                    } else {
+                        onDoTomorrow()
+                    }
+                }
             } else {
-                optionRow(
-                    systemIcon: "arrow.down",
-                    title: "Do it Today",
-                    action: onDoToday,
-                    isDisabled: disableAll
-                )
+                optionRow(assetIcon: "arrowDown", title: "Do it Today") {
+                    if isArchivedTask {
+                        pendingAction = .doToday
+                        showChooseDailyOverlay = true
+                    } else {
+                        onDoToday()
+                    }
+                }
             }
-
-            optionRow(
-                systemIcon: "arrow.trianglehead.2.counterclockwise.rotate.90",
-                title: "Change Date",
-                action: {
-                    onChangeDate()
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        showChangeDateOverlay = true
-                    }
-                },
-                isDisabled: disableAll
-            )
-
-            optionRow(
-                systemIcon: "clock.arrow.circlepath",
-                title: "Make it a Routine",
-                action: {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        showAddRoutineOverlay = true
-                    }
-                },
-                isDisabled: disableAll
-            )
-
-            optionRow(
-                systemIcon: "folder",
-                title: "Archive a Task",
-                action: {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        showChooseCategoryOverlay = true
-                    }
-                },
-                isDisabled: disableAll
-            )
+            
+            // Change Date
+            optionRow(assetIcon: "arrowsCircular", title: "Change Date") {
+                if isArchivedTask {
+                    pendingAction = .changeDate
+                    showChooseDailyOverlay = true
+                } else {
+                    showChangeDateOverlay = true
+                }
+            }
+            
+            // Make it a Routine
+            optionRow(assetIcon: "clock", title: "Make it a Routine") {
+                if isArchivedTask {
+                    pendingAction = .makeRoutine
+                    showChooseDailyOverlay = true
+                } else {
+                    routineCategory = baseRoutineCategory
+                    showAddRoutineOverlay = true 
+                }
+            }
+            
+            // Archive a Task (hidden on archived tasks)
+            if !isArchivedTask {
+                optionRow(assetIcon: "folder", title: "Archive a Task") {
+                    showChooseArchivedOverlay = true
+                }
+            }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 22)
     }
-
+    
     // MARK: - Row factory
     @ViewBuilder
     private func optionRow(
-        systemIcon: String,
+        systemIcon: String? = nil,
+        assetIcon: String? = nil,
         title: String,
         action: @escaping () -> Void,
         isDisabled: Bool = false
     ) -> some View {
         Button(action: action) {
-            HStack(spacing: 14) {
+            HStack(spacing: 16) {
                 ZStack {
                     Circle()
-                        .fill(Color("Green-300"))
+                        .fill(.neutral800)
                         .frame(width: 44, height: 44)
-                    Image(systemName: systemIcon)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(Color("White"))
+                    iconView(systemIcon: systemIcon, assetIcon: assetIcon)
                 }
-
-                // text dims when disabled
                 Text(title)
                     .appFont(AppFont.labelM)
                     .foregroundColor(Color("White"))
-                    .opacity(isDisabled ? 0.5 : 1.0)
-
                 Spacer()
             }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .disabled(isDisabled)
-        .allowsHitTesting(!isDisabled)
+    }
+    // // MARK: -iconView
+    @ViewBuilder
+    private func iconView(systemIcon: String?, assetIcon: String?) -> some View {
+        if let asset = assetIcon {
+            Image(asset)
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 24, height: 24)
+                .foregroundColor(Color("White"))
+        } else if let sys = systemIcon {
+            Image(systemName: sys)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(Color("White"))
+        }
     }
     
     // MARK: - Title commit

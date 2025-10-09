@@ -16,6 +16,7 @@ struct AppFont {
         static let bold   = "Figtree-Bold"
         static let medium = "Figtree-Medium"
         static let regular = "Figtree-Regular"
+        static let semibold = "Figtree-Semibold"
     }
 
     // MARK: - Style token (size / lineHeight / letterSpacing / fontName)
@@ -56,6 +57,10 @@ struct AppFont {
     static let captionS  = Style(fontName: Family.regular, size: 12, lineHeight: 16,       letterSpacing: 0)
     static let captionXS = Style(fontName: Family.regular, size: 11, lineHeight: 16,       letterSpacing: 0)
     static let captionXS_M = Style(fontName: Family.medium, size: 11, lineHeight: 22,      letterSpacing: 0)
+    
+    // Button
+    static let buttonL     = Style(fontName: Family.semibold, size: 16, lineHeight: 24, letterSpacing: 0) // 24
+    static let buttonM     = Style(fontName: Family.semibold, size: 12, lineHeight: 16, letterSpacing: 0) // 21
 }
 
 // MARK: - View modifier & sugar

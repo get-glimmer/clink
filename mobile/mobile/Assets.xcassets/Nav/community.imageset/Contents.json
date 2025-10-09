@@ -1,17 +1,17 @@
 {
   "images" : [
     {
-      "filename" : "nav-community1x.png",
+      "filename" : "Community.png",
       "idiom" : "universal",
       "scale" : "1x"
     },
     {
-      "filename" : "nav-community2x.png",
+      "filename" : "Community (1).png",
       "idiom" : "universal",
       "scale" : "2x"
     },
     {
-      "filename" : "nav-community3x.png",
+      "filename" : "Community (2).png",
       "idiom" : "universal",
       "scale" : "3x"
     }

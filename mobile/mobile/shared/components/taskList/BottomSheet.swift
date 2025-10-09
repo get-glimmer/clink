@@ -36,7 +36,7 @@ struct BottomSheet<Content: View>: View {
             VStack(spacing: 0) {
                 // Grabber handle
                 Capsule()
-                    .fill(Color.secondary)
+                    .fill(.neutral800)
                     .frame(width: 40, height: 5)
                     .padding(.top, 6)
 
@@ -48,8 +48,7 @@ struct BottomSheet<Content: View>: View {
             .frame(height: currentHeight + dragOffset)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(AppColors.neutral1000)
-                    .shadow(radius: 5)
+                    .fill(.neutral1000)
             )
             .offset(y: geo.size.height - (currentHeight + dragOffset))
             .gesture(

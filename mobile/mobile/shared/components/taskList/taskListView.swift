@@ -37,69 +37,67 @@ struct TaskListView: View {
                 archivedCategoriesSection
             }
         }
+        // MARK: Task Menu Sheet
         .sheet(item: $activeTask, onDismiss: { activeTask = nil }) { task in
             let isToday: Bool = task.dueDate.map { Calendar.current.isDateInToday($0) } ?? false
             let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
             
-            let archivedCats = viewModel.categoriesWithTasks
-                .filter { $0.category.type == .archived }
-                .map { $0.category }
+            let holder = viewModel.categoriesWithTasks.first { $0.tasks.contains { $0.id == task.id } }
+            let isArchivedTask = (holder?.category.type == .archived)
             
-            let holder = viewModel.categoriesWithTasks.first {
-                $0.tasks.contains(where: { $0.id == task.id })
-            }
-            let isArchivedTask: Bool = (holder?.category.type == .archived)
+            let dailyCats    = viewModel.categoriesWithTasks.filter { $0.category.type == .daily }.map { $0.category }
+            let archivedCats = viewModel.categoriesWithTasks.filter { $0.category.type == .archived }.map { $0.category }
+            
+            let menuHeight: CGFloat = isArchivedTask ? 317 : 380
             
             TaskMenuSheet(
                 taskTitle: task.title,
                 isDueToday: isToday,
                 initialDueDate: task.dueDate,
+
+                isArchivedTask: isArchivedTask,
+                dailyCategories: dailyCats,
                 archivedCategories: archivedCats,
-                onArchive: { selected in
-                    Task {
-                        await viewModel.moveTaskToCategory(taskId: task.id, toCategoryId: selected.id)
-                    }
+                
+                // actions
+                onDoToday: {
+                    Task { await viewModel.updateTaskDate(taskId: task.id, newDate: Date()) }
+                    activeTask = nil
+                },
+                onDoTomorrow: {
+                    Task { await viewModel.updateTaskDate(taskId: task.id, newDate: tomorrow) }
+                    activeTask = nil
+                },
+                onConfirmChangeDate: { picked in
+                    Task { await viewModel.updateTaskDate(taskId: task.id, newDate: picked) }
+                    activeTask = nil
+                },
+                onMakeRoutine: {
+                },
+                onDelete: {
+                    Task { await viewModel.deleteTask(task: task) }
                     activeTask = nil
                 },
                 
-                onDoToday: {
-                    Task {
-                        await viewModel.updateTaskDate(taskId: task.id, newDate: Date())
-                        activeTask = nil
-                    }
+                onArchiveToCategory: { selected in
+                    Task { await viewModel.moveTaskToCategory(taskId: task.id, toCategoryId: selected.id) }
+                    activeTask = nil
                 },
-                onDoTomorrow: {
-                    Task {
-                        await viewModel.updateTaskDate(taskId: task.id, newDate: tomorrow)
-                        activeTask = nil
-                    }
+                onReassignToDaily: { selectedDaily in
+                    Task { await viewModel.moveTaskToCategory(taskId: task.id, toCategoryId: selectedDaily.id) }
+                    // 이어지는 액션은 TaskMenuSheet 내부에서 pendingAction 으로 처리됨
                 },
-                onChangeDate:{ /* do nothing */ },
-                onConfirmChangeDate: { picked in
-                    Task {
-                        await viewModel.updateTaskDate(taskId: task.id, newDate: picked)
-                        activeTask = nil
-                    }
-                },
-                onMakeRoutine:{ /* hook later */ },
-                onDelete:    {
-                    Task {
-                        await viewModel.deleteTask(task: task)
-                        activeTask = nil
-                    }
-                },
+                
                 onEditTitle: { newTitle in
-                    Task {
-                        await viewModel.updateTaskTitle(taskId: task.id, newTitle: newTitle)
-                    }
+                    Task { await viewModel.updateTaskTitle(taskId: task.id, newTitle: newTitle) }
                 },
-                isArchivedTask: isArchivedTask,
                 viewModel: viewModel,
-                categoryForRoutine: holder?.category
+                baseRoutineCategory: holder?.category  
             )
-            .presentationDetents([ .height(380) ])
+            .presentationDetents([ .height(menuHeight) ])
             .presentationCornerRadius(24)
-            .presentationDragIndicator(.visible)
+            .presentationDragIndicator(.hidden)
+            .presentationBackground(.clear)
         }
     }
     

@@ -49,7 +49,7 @@ struct ShakerView: View {
             
             ZStack {
                 // --- Jar ---
-                Image("jar")
+                Image("jarBase")
                     .resizable()
                     .scaledToFit()
                     .frame(width: jarSize.width, height: jarSize.height)
@@ -78,6 +78,12 @@ struct ShakerView: View {
                 // --- Physics(canvas) ---
                 SpriteView(scene: scene, options: [.allowsTransparency])
                     .frame(width: jarSize.width, height: jarSize.height)
+                
+                Image("glitchLid")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: jarSize.width, height: jarSize.height)
+                    .allowsHitTesting(false)
             }
             // Center the jar inside available space (preview tiles especially)
             .frame(width: geo.size.width, height: geo.size.height, alignment: .center)

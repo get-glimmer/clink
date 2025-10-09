@@ -36,8 +36,8 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
     private var emojiScaleFactor: CGFloat = 1.0
     
     // MARK: - Edge-loop inset
-    private let inset: CGFloat = 12
-    private let lidHeight: CGFloat = 40
+    private let inset: CGFloat = 18
+    private let lidHeight: CGFloat = 44
     // Cached floor Y (inside edge loop)
     private var computedFloorY: CGFloat = 0
     
