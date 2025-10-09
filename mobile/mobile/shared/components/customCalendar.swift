@@ -86,9 +86,9 @@ public struct CustomCalendar: View {
             .padding(.horizontal, 16)
             .overlay(alignment: .topLeading) {
                 if showMonthDropdown {
-                    dropdownPicker
+                    MonthYearDropdown(anchorMonth: $currentMonthAnchor)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
                         .zIndex(10)
-                        .shadow(radius: 12)
                 }
             }
             .zIndex(0)
@@ -111,63 +111,6 @@ public struct CustomCalendar: View {
                 selectedDate = new
             }
         }
-    }
-
-    // MARK: - Dropdown Picker (identical visuals)
-    private var dropdownPicker: some View {
-        ZStack(alignment: .topLeading) {
-            RoundedRectangle(cornerRadius: 12)
-                .fill(.ultraThinMaterial)
-                .fill(.neutral900)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(.neutral700, lineWidth: 1)
-                )
-
-            HStack(spacing: 0) {
-                // Month wheel
-                Picker("Month", selection: Binding(
-                    get: { calendar.component(.month, from: currentMonthAnchor) },
-                    set: { newMonth in
-                        currentMonthAnchor = calendar.date(from: DateComponents(
-                            year: calendar.component(.year, from: currentMonthAnchor),
-                            month: newMonth, day: 1)) ?? currentMonthAnchor
-                    }
-                )) {
-                    ForEach(months, id: \.self) { m in
-                        Text(monthName(m))
-                            .appFont(AppFont.labelM)
-                            .foregroundColor(.white)
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.wheel)
-                .frame(maxWidth: .infinity, minHeight: 150)
-
-                // Year wheel
-                Picker("Year", selection: Binding(
-                    get: { calendar.component(.year, from: currentMonthAnchor) },
-                    set: { newYear in
-                        currentMonthAnchor = calendar.date(from: DateComponents(
-                            year: newYear,
-                            month: calendar.component(.month, from: currentMonthAnchor),
-                            day: 1
-                        )) ?? currentMonthAnchor
-                    }
-                )) {
-                    ForEach(years, id: \.self) { y in
-                        Text(String(y))
-                            .appFont(AppFont.labelM)
-                            .foregroundColor(.white)
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.wheel)
-                .frame(maxWidth: .infinity, minHeight: 150)
-            }
-            .padding(.horizontal, 6)
-        }
-        .frame(height: 170)
     }
 
     // MARK: - Day Cell (same colors/size/spacing, + bounds handling)

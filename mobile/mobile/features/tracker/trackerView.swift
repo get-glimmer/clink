@@ -3,7 +3,7 @@ import SwiftUI
 struct TrackerView: View {
     @StateObject private var trackerViewModel: TrackerViewModel
     @StateObject private var taskListViewModel: TaskListViewModel
-    @State private var showMonthPicker = false
+    @State private var showMonthDropdown = false
     @State private var isWeeklyView = false
     
     let calendar = Calendar.current
@@ -55,135 +55,142 @@ struct TrackerView: View {
 
     
     var body: some View {
-        VStack {
-            Spacer().frame(height: 10)
-            
-            // Month Selector button
-            HStack {
-                Button(action: {
-                    showMonthPicker = true
-                }) {
-                    HStack(spacing: 10) {
-                        Text(formattedMonthYear(trackerViewModel.selectedMonth))
-                            .appFont(AppFont.title3)
-                            .foregroundColor(Color("White"))
-                            .padding(.leading, 5)
+        ZStack(alignment: .topLeading) {
+            // --- Main content ---
+            VStack {
+                Spacer().frame(height: 10)
+                
+                // --- Month selector header ---
+                HStack {
+                    // Month text + chevron (toggle dropdown)
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.18)) { // fast animation
+                            showMonthDropdown.toggle()
+                        }
+                    }) {
+                        HStack(spacing: 10) {
+                            Text(formattedMonthYear(trackerViewModel.selectedMonth))
+                                .appFont(AppFont.title3)
+                                .foregroundColor(Color("White"))
+                                .padding(.leading, 5)
 
-                        Image(systemName: "chevron.down")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 9, height: 9)
-                            .foregroundColor(Color("White"))
+                            Image(systemName: showMonthDropdown ? "chevron.up" : "chevron.down")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 9, height: 9)
+                                .foregroundColor(Color("White"))
+                        }
+                    }
+
+                    Spacer()
+
+                    // Prev/Next month
+                    HStack(spacing: 27) {
+                        Button(action: { moveDate(by: -1) }) {
+                            Image(systemName: "chevron.left")
+                                .foregroundColor(Color("Neutral-400"))
+                        }
+                        Button(action: { moveDate(by: 1) }) {
+                            Image(systemName: "chevron.right")
+                                .foregroundColor(Color("Neutral-400"))
+                        }
+                    }
+                    .padding(.trailing, 20)
+
+                    // Monthly/Weekly toggle
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 15)
+                            .fill(Color("Neutral-900"))
+                            .frame(width: 47, height: 30)
+
+                        Button(action: {
+                            isWeeklyView.toggle()
+                            trackerViewModel.selectedDate = taskListViewModel.taskSelectedDate
+                        }) {
+                            Text(isWeeklyView ? "W" : "M")
+                                .appFont(AppFont.labelM)
+                                .foregroundColor(Color("White"))
+                        }
                     }
                 }
-                .sheet(isPresented: $showMonthPicker) {
-                    MonthYearPicker(
-                        selectedDate: $trackerViewModel.selectedDate,
-                        isPresented: $showMonthPicker
-                    )
-                }
+                .padding(.horizontal, 16)
                 .onChange(of: trackerViewModel.selectedDate) {
                     updateTaskSelectedDate(for: trackerViewModel.selectedDate)
                 }
-                
-                Spacer()
-                
-                // move left and right button
-                HStack(spacing: 27) {
-                    Button(action: {
-                        moveDate(by: -1)
-                    }) {
-                        Image(systemName: "chevron.left")
-                            .foregroundColor(Color("Neutral-400"))
-                    }
 
-                    Button(action: {
-                        moveDate(by: 1)
-                    }) {
-                        Image(systemName: "chevron.right")
-                            .foregroundColor(Color("Neutral-400"))
+                // --- Calendar grid (unchanged) ---
+                LazyVGrid(columns: columns, spacing: 0) {
+                    // Weekday labels
+                    ForEach(weekdaySymbols, id: \.self) { day in
+                        Text(day.uppercased())
+                            .appFont(AppFont.captionXS)
+                            .foregroundColor(Color("Neutral-50"))
+                            .frame(maxWidth: .infinity)
                     }
-                }
-                .padding(.trailing, 20)
-                
-                ZStack {
-                    RoundedRectangle(cornerRadius: 15)
-                        .fill(Color("Neutral-900"))
-                        .frame(width: 47, height: 30)
                     
-                    Button(action: {
-                        isWeeklyView.toggle()
-                        trackerViewModel.selectedDate = taskListViewModel.taskSelectedDate
-                    }) {
-                        Text(isWeeklyView ? "W" : "M")
-                            .appFont(AppFont.labelM)
-                            .foregroundColor(Color("White"))
-                    }
-                }
-            }
-            .padding(.horizontal, 16)
-            
-            
-            LazyVGrid(columns: columns, spacing: 0) {
-                // weekday labels
-                ForEach(weekdaySymbols, id: \.self) { day in
-                    Text(day.uppercased())
-                        .appFont(AppFont.captionXS)
-                        .foregroundColor(Color("Neutral-50"))
-                        .frame(maxWidth: .infinity)
-                }
-                
-                
-                let dates = isWeeklyView ? trackerViewModel.daysInWeek : trackerViewModel.daysInMonth
-                
-                ForEach(Array(dates.enumerated()), id: \.offset) { index, date in
-                    if let date = date {
-                        Button(action: {
-                            taskListViewModel.taskSelectedDate = date
-                        }) {
-                            VStack {
-                                ShakerBarView(
-                                    shakerRecord: trackerViewModel.shakersRecord[formattedDate(date)]
-                                )
-                                ZStack {
-                                    if calendar.isDate(date, inSameDayAs: taskListViewModel.taskSelectedDate) {
-                                        RoundedRectangle(cornerRadius: 7)
-                                            .fill(Color("Green-300"))
-                                            .frame(width: 26, height: 14)
-                                        
-                                        Text("\(calendar.component(.day, from: date))")
-                                            .appFont(AppFont.captionXS_M)
-                                            .foregroundColor(Color.black)
-                                        
-                                    } else {
-                                        Text("\(calendar.component(.day, from: date))")
-                                            .appFont(AppFont.captionXS_M)
-                                            .foregroundColor(Color("Neutral-400"))
+                    let dates = isWeeklyView ? trackerViewModel.daysInWeek : trackerViewModel.daysInMonth
+                    
+                    ForEach(Array(dates.enumerated()), id: \.offset) { index, date in
+                        if let date = date {
+                            Button(action: {
+                                taskListViewModel.taskSelectedDate = date
+                            }) {
+                                VStack {
+                                    ShakerBarView(
+                                        shakerRecord: trackerViewModel.shakersRecord[formattedDate(date)]
+                                    )
+                                    ZStack {
+                                        if calendar.isDate(date, inSameDayAs: taskListViewModel.taskSelectedDate) {
+                                            RoundedRectangle(cornerRadius: 7)
+                                                .fill(Color("Green-300"))
+                                                .frame(width: 26, height: 14)
+                                            
+                                            Text("\(calendar.component(.day, from: date))")
+                                                .appFont(AppFont.captionXS_M)
+                                                .foregroundColor(Color.black)
+                                            
+                                        } else {
+                                            Text("\(calendar.component(.day, from: date))")
+                                                .appFont(AppFont.captionXS_M)
+                                                .foregroundColor(Color("Neutral-400"))
+                                        }
                                     }
+                                    .frame(width: shakerWidth, height: 10)
                                 }
-                                .frame(width: shakerWidth, height: 10)
                             }
+                            .frame(width: 44, height: 65)
+                        } else {
+                            Color.clear.frame(height: 1)
                         }
-                        .frame(width: 44, height: 65)
-                    } else {
-                        Color.clear.frame(height: 1)
                     }
                 }
-            }
-            .padding(.vertical, 12)
-            .padding(.horizontal, 15)
-            .task(id: trackerViewModel.selectedDate) {
-                try? await trackerViewModel.fetchShakers()
-            }
-            ScrollView {
-                TaskListView(taskSelectedDate: $taskListViewModel.taskSelectedDate, viewModel: taskListViewModel)
-                    .padding(.bottom, 86)
-            }
+                .padding(.vertical, 12)
+                .padding(.horizontal, 15)
+                .task(id: trackerViewModel.selectedDate) {
+                    try? await trackerViewModel.fetchShakers()
+                }
+
+                // --- Task list ---
+                ScrollView {
+                    TaskListView(taskSelectedDate: $taskListViewModel.taskSelectedDate, viewModel: taskListViewModel)
+                        .padding(.bottom, 86)
+                }
                 .onAppear {
                     taskListViewModel.fetchCategoriesAndTasks()
                 }
+            }
+            .frame(maxHeight: .infinity, alignment: .top)
+            .zIndex(0) // base content at bottom layer
+
+            if showMonthDropdown {
+                MonthYearDropdown(anchorMonth: $trackerViewModel.selectedDate)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 46)
+                    .opacity(showMonthDropdown ? 1 : 0)
+                    .allowsHitTesting(showMonthDropdown)
+                    .zIndex(10)
+            }
         }
-        .frame(maxHeight: .infinity, alignment: .top)
     }
 }
 
