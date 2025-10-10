@@ -106,6 +106,54 @@ struct ShakerView: View {
                     .scaledToFit()
                     .frame(width: jarSize.width, height: jarSize.height)
                     .allowsHitTesting(false)
+
+                // --- Sticky Notes paging arrow (right) ---
+                if !isPreviewMode && stickyLayouts.count > 5 && stickyPage == 0 {
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            stickyPage = 1 // same as swiping right-to-left
+                        }
+                    }) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.white.opacity(0.7))
+                                .frame(width: 20, height: 20)
+                                .overlay(
+                                    Circle().stroke(Color.white, lineWidth: 1)
+                                )
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(AppColors.neutral1000)
+                        }
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .contentShape(Circle())
+                    .position(x: jarSize.width - 22, y: jarSize.height / 2 + 50)
+                }
+
+                // --- Sticky Notes paging arrow (left) ---
+                if !isPreviewMode && stickyLayouts.count > 5 && stickyPage == 1 {
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            stickyPage = 0 // same as swiping left-to-right
+                        }
+                    }) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.white.opacity(0.7))
+                                .frame(width: 20, height: 20)
+                                .overlay(
+                                    Circle().stroke(Color.white, lineWidth: 1)
+                                )
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(AppColors.neutral1000)
+                        }
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .contentShape(Circle())
+                    .position(x: 22, y: jarSize.height / 2 + 50)
+                }
             }
             // Center the jar inside available space (preview tiles especially)
             .frame(width: geo.size.width, height: geo.size.height, alignment: .center)
@@ -567,7 +615,7 @@ private extension ShakerView {
                               height: size.height * 0.68)
         interior = interior.insetBy(dx: noteW / 2, dy: noteH / 2)
         // Placement parameters
-        let minDistance: CGFloat = 58 // minimum center-to-center spacing
+        let minDistance: CGFloat = 72 // minimum center-to-center spacing (increased to reduce overlap)
         let edgeBiasProbability: CGFloat = 0.6 // chance to sample near edges
         let edgeBand: CGFloat = 8 // thickness of edge band inside interior
         let maxAttemptsPerNote = 80
