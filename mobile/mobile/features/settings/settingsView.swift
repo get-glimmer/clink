@@ -11,43 +11,24 @@ struct SettingsView: View {
     @State private var notif3 = true
     
     var body: some View {
+        TopNavBar(title: "Settings") {
+            dismiss()
+        }
+        
         ScrollView {
-            HStack {
-                Button { dismiss() } label: {
-                    ZStack {
-                        Circle()
-                            .fill(Color("Neutral-900"))
-                            .frame(width: 40, height: 40)
-                        Image(systemName: "chevron.left")
-                            .foregroundColor(Color("Neutral-400"))
-                            .frame(width: 12, height: 12)
-                    }
-                }
-                Spacer()
-                Text("Settings")
-                    .appFont(AppFont.title2)
-                    .foregroundColor(.white)
-                Spacer()
-                Circle()
-                    .frame(width: 40, height: 40)
-                    .opacity(0)
-            }
-            .padding(.horizontal)
-            .padding(.top, 8)
-            
-            VStack(spacing: 20) {
-                
+            VStack {
                 // MARK: - My Account Block
-                VStack(spacing: 0) {
+                VStack {
                     // Header
                     HStack {
                         Text("My Account")
-                            .font(.headline)
-                            .fontWeight(.bold)
+                            .appFont(AppFont.labelL)
                             .foregroundColor(.white)
                         Spacer()
                     }
-                    .padding(.vertical, 8)
+                    .padding(.top, 20)
+                    .padding(.bottom, 10)
+                    .padding(.leading, 10)
                     
                     Divider()
                     
@@ -55,104 +36,121 @@ struct SettingsView: View {
                     NavigationLink(destination: UsernameView()) {
                         HStack {
                             Text("Username")
-                                .subTextStyle()
+                                .padding(.top, 14)
+                                .padding(.bottom, 13)
+                                .appFont(AppFont.captionM)
+                                .foregroundStyle(Color(.white))
                             Spacer()
                             Image(systemName: "chevron.right")
                                 .foregroundColor(.gray)
                         }
-                        .padding(.vertical, 12)
+                        .padding(.leading, 18)
+                        .padding(.trailing, 16)
                     }
-                    
                     Divider()
                 }
-                .padding(.horizontal)
                 
                 // MARK: - Notifications Block
-                VStack(spacing: 0) {
+                VStack {
                     HStack {
                         Text("Notifications")
-                            .font(.headline)
-                            .fontWeight(.bold)
+                            .appFont(AppFont.labelL)
                             .foregroundColor(.white)
                         Spacer()
                     }
-                    .padding(.vertical, 8)
+                    .padding(.top, 24)
+                    .padding(.bottom, 10)
+                    .padding(.leading, 10)
                     
                     Divider()
                     
                     Toggle("Notification 01", isOn: $notif1)
+                        .padding(.leading, 18)
+                        .padding(.trailing, 12)
                         .tint(Color("Green-300"))
-                        .subTextStyle()
-                        .padding(.vertical, 12)
+                        .appFont(AppFont.captionM)
+                        .foregroundStyle(Color(.white))
                     
                     Divider()
                     
                     Toggle("Notification 02", isOn: $notif2)
+                        .padding(.leading, 18)
+                        .padding(.trailing, 12)
                         .tint(Color("Green-300"))
-                        .subTextStyle()
-                        .padding(.vertical, 12)
+                        .appFont(AppFont.captionM)
+                        .foregroundStyle(Color(.white))
                     
                     Divider()
                     
                     Toggle("Notification 03", isOn: $notif3)
+                        .padding(.leading, 18)
+                        .padding(.trailing, 12)
                         .tint(Color("Green-300"))
-                        .subTextStyle()
-                        .padding(.vertical, 12)
+                        .appFont(AppFont.captionM)
+                        .foregroundStyle(Color(.white))
                     
                     Divider()
                 }
-                .padding(.horizontal)
                 
                 // MARK: - Privacy & Security Block
-                VStack(spacing: 0) {
+                VStack {
                     HStack {
                         Text("Privacy & Security")
-                            .font(.headline)
-                            .fontWeight(.bold)
+                            .padding(.top, 24)
+                            .padding(.bottom, 10)
+                            .padding(.leading, 10)
+                            .appFont(AppFont.labelL)
                             .foregroundColor(.white)
                         Spacer()
                     }
-                    .padding(.vertical, 8)
                     
                     Divider()
                     
                     NavigationLink(destination: PrivacyPolicyView()) {
                         HStack {
                             Text("Privacy Policy")
-                                .subTextStyle()
+                                .padding(.top, 14)
+                                .padding(.bottom, 13)
+                                .appFont(AppFont.captionM)
+                                .foregroundStyle(Color(.white))
                             Spacer()
                             Image(systemName: "chevron.right")
-                                .foregroundColor(.gray)
+                                .foregroundColor(Color("Neutral-400"))
                         }
-                        .padding(.vertical, 12)
+                        .padding(.leading, 18)
+                        .padding(.trailing, 16)
                     }
                     
                     Divider()
                 }
-                .padding(.horizontal)
                 
                 // MARK: - Help & Support Block
-                VStack(spacing: 0) {
+                VStack {
                     HStack {
                         Text("Help & Support")
-                            .font(.headline)
-                            .fontWeight(.bold)
+                            .padding(.top, 24)
+                            .padding(.bottom, 10)
+                            .padding(.leading, 10)
+                            .appFont(AppFont.labelL)
                             .foregroundColor(.white)
                         Spacer()
                     }
-                    .padding(.vertical, 8)
                     
                     Divider()
                     
                     NavigationLink(destination: TermsOfServiceView()) {
                         HStack {
                             Text("Terms of Service")
-                                .subTextStyle()
+                                .padding(.top, 14)
+                                .padding(.bottom, 13)
+                                .appFont(AppFont.captionM)
+                                .foregroundStyle(Color(.white))
                             Spacer()
                             Image(systemName: "chevron.right")
-                                .foregroundColor(.gray)
+                                .foregroundColor(Color("Neutral-400"))
                         }
-                        .padding(.vertical, 12)
+                        .padding(.leading, 18)
+                        .padding(.trailing, 16)
                     }
                     
                     Divider()
@@ -160,33 +158,40 @@ struct SettingsView: View {
                     NavigationLink(destination: AboutView()) {
                         HStack {
                             Text("About")
-                                .subTextStyle()
+                                .padding(.top, 14)
+                                .padding(.bottom, 13)
+                                .appFont(AppFont.captionM)
+                                .foregroundStyle(Color(.white))
                             Spacer()
                             Image(systemName: "chevron.right")
-                                .foregroundColor(.gray)
+                                .foregroundColor(Color("Neutral-400"))
                         }
-                        .padding(.vertical, 12)
+                        .padding(.leading, 18)
+                        .padding(.trailing, 16)
                     }
                     
                     Divider()
                     
                     HStack {
                         Text("Version")
-                            .subTextStyle()
+                            .padding(.top, 14)
+                            .padding(.bottom, 13)
+                            .appFont(AppFont.captionM)
+                            .foregroundStyle(Color(.white))
                         Spacer()
                         Text("1.0")
-                            .foregroundColor(.gray)
+                            .appFont(AppFont.labelS)
+                            .foregroundColor(.white)
                     }
-                    .padding(.vertical, 12)
+                    .padding(.leading, 18)
+                    .padding(.trailing, 16)
                     
                     Divider()
                 }
-                .padding(.horizontal)
-                
-                Spacer()
+                .padding(.bottom, 40)
                 
                 // MARK: - Logout / Delete Block
-                VStack(spacing: 0) {
+                VStack (alignment: .leading,) {
                     Divider()
                         .background(Color("Neutral-600"))
                     
@@ -196,9 +201,11 @@ struct SettingsView: View {
                         }
                     } label: {
                         Text("Logout")
+                            .padding(.leading, 18)
+                            .padding(.top, 14)
+                            .padding(.bottom, 13)
                             .foregroundColor(Color("Red-300"))
-                            .subTextStyle()
-                            .padding(.vertical, 12)
+                            .appFont(AppFont.captionM)
                     }
                     
                     Divider()
@@ -206,9 +213,11 @@ struct SettingsView: View {
                     
                     NavigationLink(destination: DeleteAccountView()) {
                         Text("Delete Account")
+                            .padding(.leading, 18)
+                            .padding(.top, 14)
+                            .padding(.bottom, 13)
                             .foregroundColor(Color("Red-300"))
-                            .subTextStyle()
-                            .padding(.vertical, 12)
+                            .appFont(AppFont.captionM)
                     }
                     
                     Divider()
@@ -218,10 +227,11 @@ struct SettingsView: View {
                     
                     
                 }
-                .padding(.horizontal)
+//                .padding(.horizontal)
                 
             }
-            .padding(.vertical)
+            .padding(.horizontal, 16)
+//            .padding(.vertical)
         }
         .navigationBarBackButtonHidden(true)
     }
@@ -230,9 +240,9 @@ struct SettingsView: View {
 extension View {
     func subTextStyle() -> some View {
         self
-            .padding(.leading, 5)
-            .foregroundColor(.primary)
-            .font(.body)
+//            .padding(.leading, 5)
+//            .foregroundColor(.primary)
+//            .font(.body)
     }
 }
 
