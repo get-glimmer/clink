@@ -87,6 +87,7 @@ public struct CustomCalendar: View {
             .overlay(alignment: .topLeading) {
                 if showMonthDropdown {
                     MonthYearDropdown(anchorMonth: $currentMonthAnchor)
+                        .frame(width:280)
                         .transition(.opacity.combined(with: .move(edge: .top)))
                         .zIndex(10)
                 }

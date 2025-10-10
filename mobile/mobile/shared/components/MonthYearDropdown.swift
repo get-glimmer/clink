@@ -29,37 +29,30 @@ public struct MonthYearDropdown: View {
     public var body: some View {
         ZStack(alignment: .topLeading) {
             // Background
-            RoundedRectangle(cornerRadius: 12)
-                .fill(.ultraThinMaterial)
-                .fill(.neutral900)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(.neutral700, lineWidth: 1)
+            let plate = RoundedRectangle(cornerRadius: 12)
+
+            plate
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            Color(.neutral400).opacity(0.7),
+                            Color(.neutral600).opacity(0.7)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+                .background(
+                    ZStack {
+                        DarkBlurView(style: .systemChromeMaterialDark)
+                        Color.black.opacity(0.5)
+                    }
+                    .clipShape(plate)
                 )
 
             // Wheels
             HStack(spacing: 0) {
-                // Month wheel
-                Picker("Month", selection: Binding(
-                    get: { calendar.component(.month, from: anchorMonth) },
-                    set: { newMonth in
-                        anchorMonth = calendar.date(from: DateComponents(
-                            year: calendar.component(.year, from: anchorMonth),
-                            month: newMonth,
-                            day: 1
-                        )) ?? anchorMonth
-                    }
-                )) {
-                    ForEach(months, id: \.self) { m in
-                        Text(monthName(m))
-                            .appFont(AppFont.labelM)
-                            .foregroundColor(.white)
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.wheel)
-                .frame(maxWidth: .infinity, minHeight: 150)
-
                 // Year wheel
                 Picker("Year", selection: Binding(
                     get: { calendar.component(.year, from: anchorMonth) },
@@ -73,6 +66,27 @@ public struct MonthYearDropdown: View {
                 )) {
                     ForEach(years, id: \.self) { y in
                         Text(String(y))
+                            .appFont(AppFont.labelM)
+                            .foregroundColor(.white)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.wheel)
+                .frame(maxWidth: .infinity, minHeight: 150)
+                
+                // Month wheel
+                Picker("Month", selection: Binding(
+                    get: { calendar.component(.month, from: anchorMonth) },
+                    set: { newMonth in
+                        anchorMonth = calendar.date(from: DateComponents(
+                            year: calendar.component(.year, from: anchorMonth),
+                            month: newMonth,
+                            day: 1
+                        )) ?? anchorMonth
+                    }
+                )) {
+                    ForEach(months, id: \.self) { m in
+                        Text(monthName(m))
                             .appFont(AppFont.labelM)
                             .foregroundColor(.white)
                     }
