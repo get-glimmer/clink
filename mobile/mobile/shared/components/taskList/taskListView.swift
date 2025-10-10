@@ -183,7 +183,7 @@ struct TaskListView: View {
             }
             .padding(.top, 22)
             .padding(.horizontal, 19)
-            .padding(.bottom, 30)
+            .padding(.bottom, 26)
         }
         .frame(maxWidth: .infinity, minHeight: categoryWithTasks.tasks.isEmpty ? 60 : 120)
         .padding(.vertical, 8)
@@ -229,6 +229,7 @@ struct TaskListView: View {
         ForEach(categoryWithTasks.tasks) { task in
             taskRow(for: task)
                 .padding(.leading, 2.84)
+                .padding(.trailing, 0.4)
                 .id(task.id)
         }
     }

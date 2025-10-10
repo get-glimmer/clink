@@ -20,12 +20,7 @@ struct RoutinesSheet: View {
             // --- Header ---
             HStack {
                 Button(action: { dismiss() }) {
-                    ZStack {
-                        Circle().fill(Color("Neutral-900")).frame(width: 44, height: 44)
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 14))
-                            .foregroundColor(Color("Neutral-400"))
-                    }
+                    Image("dismissButton")
                 }
                 Spacer()
                 Text("Routines")
@@ -35,32 +30,32 @@ struct RoutinesSheet: View {
                 // global add (optional)
                 Color.clear.frame(width: 44, height: 44)
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, 16)
             .padding(.top, 12)
-            .padding(.bottom, 4) //14 - 10
+            .padding(.bottom, -10) //32-42
 
-            // --- List grouped by daily categories ---
-            List {
-                ForEach(viewModel.dailyCategoriesOnly, id: \.id) { cat in
-                    Section {
+            // --- routine list grouped by daily categories ---
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 0, pinnedViews: []) {
+                    ForEach(viewModel.dailyCategoriesOnly, id: \.id) { cat in
+                        categoryHeader(cat)
+
+                        // Routines of the category
                         let routines = viewModel.routinesByCategory[cat.id] ?? []
-                        if !(routines.isEmpty) {
+                        if !routines.isEmpty {
                             ForEach(routines, id: \.id) { routine in
                                 routineRow(routine, category: cat)
-                                    .listRowSeparator(.hidden)
                                     .contentShape(Rectangle())
                                     .onTapGesture {
-                                        // TODO: present edit routine
                                         editingRoutine = routine
                                     }
+                                    .padding(.horizontal, 16)
                             }
                         }
-                    } header: {
-                        categoryHeader(cat)
                     }
                 }
             }
-            .listStyle(.plain)
+            .padding(.bottom, 24)
         }
         .onAppear {
             viewModel.refreshLatestEmojis()
@@ -76,7 +71,7 @@ struct RoutinesSheet: View {
 
     // MARK: - Header per Category
     private func categoryHeader(_ cat: CategoryItem) -> some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 0) {
             HStack(spacing: 10) {
                 Text(viewModel.latestEmoji(for: cat.id, defaultEmoji: cat.emoji))
                     .font(.system(size: 27))
@@ -95,45 +90,49 @@ struct RoutinesSheet: View {
                 .buttonStyle(.plain)
                 // add routine
             }
+            .padding(.horizontal, 20)
 
             Divider()
                 .frame(width: 361)
                 .background(Color("Neutral-800"))
                 .opacity(0.5)
+                .padding(.top, 16)
         }
-        .padding(.top, 10)
+        .padding(.top, 42)
     }
 
     // MARK: - Routine Row
     private func routineRow(_ r: RoutineItem, category: CategoryItem) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            // task title
-            Text(r.title)
-                .appFont(AppFont.title3)
-                .foregroundStyle(.white)
-            
-            // period + status badge
-            HStack(alignment: .center) {
-                Text("\(formatDate(r.startDate)) - \(formatDate(r.endDate))")
+        VStack{
+            VStack(alignment: .leading, spacing: 6) {
+                // task title
+                Text(r.title)
+                    .appFont(AppFont.labelM)
+                    .foregroundStyle(.white)
+                
+                // period + status badge
+                HStack(alignment: .center) {
+                    Text("\(formatDate(r.startDate)) - \(formatDate(r.endDate))")
+                        .appFont(AppFont.captionXS_M)
+                        .foregroundStyle(Color("Neutral-400"))
+                    Spacer()
+                    statusBadge(for: r)
+                }
+                
+                // repeat summary
+                Text(repeatSummary(for: r))
                     .appFont(AppFont.captionXS_M)
                     .foregroundStyle(Color("Neutral-400"))
-                Spacer()
-                statusBadge(for: r)
             }
-
-            // repeat summary
-            Text(repeatSummary(for: r))
-                .appFont(AppFont.captionXS_M)
-                .foregroundStyle(Color("Neutral-400"))
-
+            .padding(.horizontal, 6)
+            .padding(.top, 15)
+            .padding(.bottom, 9)
+            
             Divider()
                 .frame(width: 361)
                 .background(Color("Neutral-800"))
                 .opacity(0.5)
-                .padding(.top, 12)
-                .padding(.bottom, -12)
         }
-        .padding(.vertical, 4)
     }
 }
 

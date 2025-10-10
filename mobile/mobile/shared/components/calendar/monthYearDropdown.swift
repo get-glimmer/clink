@@ -29,7 +29,7 @@ public struct MonthYearDropdown: View {
     public var body: some View {
         ZStack(alignment: .topLeading) {
             // Background
-            let plate = RoundedRectangle(cornerRadius: 12)
+            let plate = RoundedRectangle(cornerRadius: 16)
 
             plate
                 .stroke(
@@ -44,11 +44,12 @@ public struct MonthYearDropdown: View {
                     lineWidth: 1
                 )
                 .background(
-                    ZStack {
-                        DarkBlurView(style: .systemChromeMaterialDark)
-                        Color.black.opacity(0.5)
-                    }
-                    .clipShape(plate)
+                    .neutral900
+//                    ZStack {
+//                        DarkBlurView(style: .systemChromeMaterialDark)
+//                        Color.black.opacity(0.5)
+//                    }
+//                    .clipShape(plate)
                 )
 
             // Wheels
