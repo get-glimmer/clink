@@ -445,7 +445,9 @@ struct ShakerView: View {
         for categoryWithTasks in viewModel.categoriesWithTasks {
             let categoryId = categoryWithTasks.category.id
             do {
-                let liked = try await service.isLiked(categoryId: categoryId, userId: userUUID)
+                // Resolve today's shaker for the owner
+                guard let shakerId = try await service.getCurrentShakerForUser(userId: owner, date: viewModel.taskSelectedDate) else { continue }
+                let liked = try await service.isLiked(categoryId: categoryId, userId: userUUID, shakerId: shakerId)
                 if liked {
                     let symbol = categoryWithTasks.category.emoji
                     if !added.contains(symbol) && !scene.hasReactionEmoji(symbol) {

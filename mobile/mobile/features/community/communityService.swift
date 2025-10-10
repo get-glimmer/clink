@@ -556,102 +556,70 @@ class CommunityService: ObservableObject {
     
     // MARK: - Likes Functions
     
-    /// Check if user has liked a specific category TODAY (created_at within today's UTC window)
-    func isLiked(categoryId: UUID, userId: UUID) async throws -> Bool {
+    /// Check if user has liked a specific category for a given shaker (day)
+    func isLiked(categoryId: UUID, userId: UUID, shakerId: UUID) async throws -> Bool {
         guard let supabase = supabase else {
             throw NSError(domain: "SupabaseError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Supabase client not initialized"])
         }
-        
-        // Build today's UTC start/end ISO8601 range
-        let calendar = Calendar(identifier: .gregorian)
-        let now = Date()
-        let startOfDay = calendar.startOfDay(for: now)
-        guard let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) else { return false }
-        
-        let iso = ISO8601DateFormatter()
-        iso.timeZone = TimeZone(secondsFromGMT: 0)
-        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let startISO = iso.string(from: startOfDay)
-        let endISO   = iso.string(from: endOfDay)
-        
-        do {
-            let rows: [LikeRecord] = try await supabase
-                .from("likes")
-                .select("like_id")
-                .eq("user_id", value: userId.uuidString)
-                .eq("category_id", value: categoryId.uuidString)
-                .gte("created_at", value: startISO)
-                .lt("created_at", value: endISO)
-                .execute()
-                .value
-            return !rows.isEmpty
-        } catch {
-            throw error
-        }
-    }
-    
-    /// Like a category (once per day) - insert only if no like exists for TODAY (UTC)
-    func likeCategory(categoryId: UUID, userId: UUID) async throws {
-        guard let supabase = supabase else {
-            throw NSError(domain: "SupabaseError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Supabase client not initialized"])
-        }
-        // Today's UTC window
-        let calendar = Calendar(identifier: .gregorian)
-        let now = Date()
-        let startOfDay = calendar.startOfDay(for: now)
-        guard let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) else { return }
-        let iso = ISO8601DateFormatter()
-        iso.timeZone = TimeZone(secondsFromGMT: 0)
-        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let startISO = iso.string(from: startOfDay)
-        let endISO   = iso.string(from: endOfDay)
 
-        // If already liked today, no-op
-        let existing: [LikeRecord] = try await supabase
+        print("🔎 isLiked: user=\(userId), category=\(categoryId), shaker=\(shakerId)")
+        let rows: [LikeRecord] = try await supabase
             .from("likes")
             .select("like_id")
             .eq("user_id", value: userId.uuidString)
             .eq("category_id", value: categoryId.uuidString)
-            .gte("created_at", value: startISO)
-            .lt("created_at", value: endISO)
+            .eq("shaker_id", value: shakerId.uuidString)
             .execute()
             .value
-        if !existing.isEmpty { return }
-
-        let _ = try await supabase
-            .from("likes")
-            .insert([
-                "user_id": userId.uuidString,
-                "category_id": categoryId.uuidString
-            ])
-            .execute()
+        let liked = !rows.isEmpty
+        print("🔎 isLiked result=\(liked) count=\(rows.count)")
+        return liked
     }
+
     
-    /// Unlike a category (remove only TODAY's like, UTC window)
-    func unlikeCategory(categoryId: UUID, userId: UUID) async throws {
+    /// Like a category for a specific shaker (daily uniqueness enforced via DB on (user_id, category_id, shaker_id))
+    func likeCategory(categoryId: UUID, userId: UUID, shakerId: UUID) async throws {
         guard let supabase = supabase else {
             throw NSError(domain: "SupabaseError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Supabase client not initialized"])
         }
-        // Today's UTC window
-        let calendar = Calendar(identifier: .gregorian)
-        let now = Date()
-        let startOfDay = calendar.startOfDay(for: now)
-        guard let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) else { return }
-        let iso = ISO8601DateFormatter()
-        iso.timeZone = TimeZone(secondsFromGMT: 0)
-        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let startISO = iso.string(from: startOfDay)
-        let endISO   = iso.string(from: endOfDay)
 
-        let _ = try await supabase
+        do {
+            try await supabase
+                .from("likes")
+                .insert([
+                    "user_id": userId.uuidString,
+                    "category_id": categoryId.uuidString,
+                    "shaker_id": shakerId.uuidString
+                ])
+                .execute()
+
+            print("💖 likeCategory: inserted like for user=\(userId) category=\(categoryId) shaker=\(shakerId)")
+        } catch {
+            if let pg = error as? PostgrestError, pg.code == "23505" {
+                print("🟡 likeCategory: duplicate like detected (treated as success) user=\(userId) category=\(categoryId) shaker=\(shakerId)")
+                return
+            }
+            print("🔴 likeCategory: insert failed - \(error)")
+            throw error
+        }
+    }
+
+    func unlikeCategory(categoryId: UUID, userId: UUID, shakerId: UUID) async throws {
+        guard let supabase = supabase else {
+            throw NSError(domain: "SupabaseError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Supabase client not initialized"])
+        }
+
+        try await supabase
             .from("likes")
             .delete()
             .eq("user_id", value: userId.uuidString)
             .eq("category_id", value: categoryId.uuidString)
-            .gte("created_at", value: startISO)
-            .lt("created_at", value: endISO)
+            .eq("shaker_id", value: shakerId.uuidString)
             .execute()
+
+        print("💔 unlikeCategory: removed like for user=\(userId) category=\(categoryId) shaker=\(shakerId)")
     }
+
     
     /// Get like count for a category
     func getLikeCount(categoryId: UUID) async throws -> Int {

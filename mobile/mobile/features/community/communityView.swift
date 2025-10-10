@@ -746,10 +746,13 @@ struct FriendTasksView: View {
               let userId = UUID(uuidString: currentUserId) else { return }
         
         var addedSymbols: Set<String> = []
+        // Resolve today's shaker once for the friend
+        let shakerId = try? await communityService.getCurrentShakerForUser(userId: friend.userId)
+        guard let shakerId else { return }
         for categoryWithTasks in categoriesWithTasks {
             let categoryId = categoryWithTasks.category.id
             do {
-                let liked = try await communityService.isLiked(categoryId: categoryId, userId: userId)
+                let liked = try await communityService.isLiked(categoryId: categoryId, userId: userId, shakerId: shakerId)
                 if liked {
                     let symbol = categoryWithTasks.category.emoji
                     if !addedSymbols.contains(symbol) {
@@ -1136,12 +1139,14 @@ struct HeartButton: View {
               let userId = UUID(uuidString: currentUserId) else { return }
         Task {
             do {
-                let liked = try await communityService.isLiked(categoryId: categoryId, userId: userId)
-                await MainActor.run {
-                    self.isLiked = liked
+                guard let shakerId = try await communityService.getCurrentShakerForUser(userId: friendUserId) else {
+                    await MainActor.run { self.isLiked = false }
+                    return
                 }
+                let liked = try await communityService.isLiked(categoryId: categoryId, userId: userId, shakerId: shakerId)
+                await MainActor.run { self.isLiked = liked }
             } catch {
-                // Silently handle errors
+                await MainActor.run { self.isLiked = false }
             }
         }
     }
@@ -1154,20 +1159,30 @@ struct HeartButton: View {
         
         Task {
             do {
-                let willLike = !isLiked
-                if isLiked {
-                    try await communityService.unlikeCategory(categoryId: categoryId, userId: userId)
-                } else {
-                    try await communityService.likeCategory(categoryId: categoryId, userId: userId)
+                let targetLike = !isLiked
+                print("[HeartButton] toggleLike tapped. targetLike=\(targetLike) cat=\(categoryId) friend=\(friendUserId)")
+                guard let shakerId = try await communityService.getCurrentShakerForUser(userId: friendUserId) else {
+                    await MainActor.run {
+                        print("🔴 [HeartButton] no shaker for friend today, aborting like toggle")
+                        self.isLoading = false
+                    }
+                    return
                 }
-                
+                if targetLike {
+                    try await communityService.likeCategory(categoryId: categoryId, userId: userId, shakerId: shakerId)
+                } else {
+                    try await communityService.unlikeCategory(categoryId: categoryId, userId: userId, shakerId: shakerId)
+                }
+
+                // Verify persisted state from DB using shaker-based uniqueness
+                let verified = try await communityService.isLiked(categoryId: categoryId, userId: userId, shakerId: shakerId)
                 await MainActor.run {
+                    print("[HeartButton] post-op verification -> isLiked=\(verified)")
                     withAnimation(.easeInOut(duration: 0.2)) {
-                        self.isLiked.toggle()
+                        self.isLiked = verified
                     }
                     self.isLoading = false
-                    // On like, drop the category emoji as a glowing reaction in the jar
-                    if willLike {
+                    if verified {
                         NotificationCenter.default.post(
                             name: .friendShakerEmojiReactionAdded,
                             object: nil,
@@ -1177,7 +1192,6 @@ struct HeartButton: View {
                             ]
                         )
                     } else {
-                        // On unlike, remove one occurrence of the emoji from the jar
                         NotificationCenter.default.post(
                             name: .friendShakerEmojiReactionRemoved,
                             object: nil,
@@ -1191,7 +1205,7 @@ struct HeartButton: View {
             } catch {
                 await MainActor.run {
                     self.isLoading = false
-                    print("Error toggling like: \(error)")
+                    print("🔴 [HeartButton] toggleLike failed: \(error)")
                 }
             }
         }
