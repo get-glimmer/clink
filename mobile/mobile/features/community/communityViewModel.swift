@@ -177,6 +177,29 @@ class CommunityViewModel: ObservableObject {
             }
         }
     }
+
+    // ID-based variants used when we already have Friend.userId
+    func addFriendToFavoritesById(friendId: String) {
+        Task {
+            do {
+                try await communityService.addToFavorites(friendId: friendId)
+                await MainActor.run { self.loadFriendsData(refresh: false) }
+            } catch {
+                await MainActor.run { self.errorMessage = "Failed to add to favorites: \(error.localizedDescription)" }
+            }
+        }
+    }
+
+    func removeFriendFromFavoritesById(friendId: String) {
+        Task {
+            do {
+                try await communityService.removeFromFavorites(friendId: friendId)
+                await MainActor.run { self.loadFriendsData(refresh: false) }
+            } catch {
+                await MainActor.run { self.errorMessage = "Failed to remove from favorites: \(error.localizedDescription)" }
+            }
+        }
+    }
     
     func refreshFriends() {
         loadFriendsData(refresh: true)

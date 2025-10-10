@@ -216,9 +216,9 @@ struct FriendDetailView: View {
                     Button(action: {
                         isFavorite.toggle()
                         if isFavorite {
-                            communityViewModel.addFriendToFavorites(named: friend.name)
+                            communityViewModel.addFriendToFavoritesById(friendId: friend.userId)
                         } else {
-                            communityViewModel.removeFriendFromFavorites(named: friend.name)
+                            communityViewModel.removeFriendFromFavoritesById(friendId: friend.userId)
                         }
                     }) {
                         Group {
@@ -250,7 +250,7 @@ struct FriendDetailView: View {
         Button(action: { showingNoteSheet = true }) {
             Text("Leave a Note")
                 .foregroundColor(AppColors.neutral1000)
-                .appFont(AppFont.labelL)
+                .appFont(AppFont.title3Semibold)
                 .lineLimit(1)
                 .padding(.horizontal, 36)
                 .padding(.vertical, 14)

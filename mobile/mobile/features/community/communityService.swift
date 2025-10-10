@@ -366,6 +366,67 @@ class CommunityService: ObservableObject {
             throw error
         }
     }
+
+    // MARK: - Add to Favorites (by friendId) — robust for one-way friendships
+    func addToFavorites(friendId: String) async throws {
+        guard let supabase = supabase,
+              let currentUserId = currentUserId else {
+            throw NSError(domain: "CommunityService", code: 1, userInfo: [NSLocalizedDescriptionKey: "Not authenticated"])
+        }
+
+        // Check if an outgoing row exists; if not, insert one with accepted status
+        struct FavoriteUpdate: Encodable { let favorite: Bool; let updated_at: String }
+        let now = ISO8601DateFormatter().string(from: Date())
+        do {
+            // Does a row exist from me -> friend?
+            let existing: [FriendshipData] = try await supabase
+                .from("friends").select("*")
+                .eq("user_id", value: currentUserId)
+                .eq("friend_id", value: friendId)
+                .limit(1)
+                .execute().value
+            if existing.isEmpty {
+                // Insert my outgoing row and mark favorite
+                struct InsertRow: Encodable { let user_id: String; let friend_id: String; let status: String; let favorite: Bool; let updated_at: String }
+                let row = InsertRow(user_id: currentUserId, friend_id: friendId, status: "accepted", favorite: true, updated_at: now)
+                try await supabase.from("friends").insert(row).execute()
+            } else {
+                // Update existing to favorite=true
+                let update = FavoriteUpdate(favorite: true, updated_at: now)
+                try await supabase
+                    .from("friends")
+                    .update(update)
+                    .eq("user_id", value: currentUserId)
+                    .eq("friend_id", value: friendId)
+                    .execute()
+            }
+        } catch {
+            print("Error (id) adding friend to favorites: \(error)")
+            throw error
+        }
+    }
+
+    // MARK: - Remove from Favorites (by friendId)
+    func removeFromFavorites(friendId: String) async throws {
+        guard let supabase = supabase,
+              let currentUserId = currentUserId else {
+            throw NSError(domain: "CommunityService", code: 1, userInfo: [NSLocalizedDescriptionKey: "Not authenticated"])
+        }
+        struct FavoriteUpdate: Encodable { let favorite: Bool; let updated_at: String }
+        let now = ISO8601DateFormatter().string(from: Date())
+        do {
+            let update = FavoriteUpdate(favorite: false, updated_at: now)
+            try await supabase
+                .from("friends")
+                .update(update)
+                .eq("user_id", value: currentUserId)
+                .eq("friend_id", value: friendId)
+                .execute()
+        } catch {
+            print("Error (id) removing friend from favorites: \(error)")
+            throw error
+        }
+    }
     
     // MARK: - Friend Request Management
     func acceptFriendRequest(from userId: String) async throws {

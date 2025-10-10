@@ -117,7 +117,7 @@ struct ShakerView: View {
                         ZStack {
                             Circle()
                                 .fill(Color.white.opacity(0.7))
-                                .frame(width: 20, height: 20)
+                                .frame(width: 28, height: 28)
                                 .overlay(
                                     Circle().stroke(Color.white, lineWidth: 1)
                                 )
@@ -167,11 +167,12 @@ struct ShakerView: View {
                 // If height is small (preview), scale emoji down and use constant gravity (no device motion)
                 let isPreview = jarSize.height <= 150
                 isPreviewMode = isPreview
-                scene.setEmojiScale(isPreview ? 0.75 : 1.0)
+                // Preview emoji ~24pt (base is 54pt → scale ≈ 24/54)
+                scene.setEmojiScale(isPreview ? (24.0 / 54.0) : 1.0)
                 scene.setMotionEnabled(!isPreview)
                 if isPreview {
                     // Lower the floor a bit to avoid floating look in tight previews
-                    scene.configureBoundaries(inset: 12, lidHeight: 40, bottomExtraDepth: 20)
+                    scene.configureBoundaries(inset: 12, lidHeight: 40, bottomExtraDepth: 10)
                     // Stronger constant gravity so marbles settle firmly at the bottom
                     scene.useConstantGravity(18)
                 } else {
@@ -207,8 +208,14 @@ struct ShakerView: View {
             }
             .onChange(of: geo.size) { _ in
                 // On size changes (preview tiles) ensure marbles snap to floor
-                let isPreview = min(geo.size.width, geo.size.height) <= 150
-                if isPreview {
+                let isPreview = min(geo.size.width, geo.size.height) <= 300
+            // Update preview mode so overlays (sticky notes/arrows) hide when small
+            isPreviewMode = isPreview
+            // Keep emoji small in preview (~24pt)
+            scene.setEmojiScale(isPreview ? (24.0 / 54.0) : 1.0)
+            scene.setMotionEnabled(!isPreview)
+            scene.setHapticsEnabled(!isPreview && isActive)
+            if isPreview {
                     scene.settleAllToBottom()
                 }
                 // Regenerate sticky layouts for the new jar size
@@ -515,11 +522,19 @@ struct ShakerView: View {
 
 // MARK: - Sticky Notes Models/Views
 private struct StickyLayout: Identifiable {
-    let id = UUID()
+    let id: UUID
     let note: NoteRecord
     let position: CGPoint
     let rotation: Double
     let colorIndex: Int
+
+    init(id: UUID = UUID(), note: NoteRecord, position: CGPoint, rotation: Double, colorIndex: Int) {
+        self.id = id
+        self.note = note
+        self.position = position
+        self.rotation = rotation
+        self.colorIndex = colorIndex
+    }
 }
 
 private struct StickyNotesLayer: View {
@@ -572,9 +587,32 @@ private extension ShakerView {
 
     func regenerateLayoutsForSize(_ jarSize: CGSize) {
         guard !stickyLayouts.isEmpty else { return }
-        // Recompute positions for current notes to fit the new container size
-        let notes = stickyLayouts.map { $0.note }
-        stickyLayouts = generateLayouts(for: notes, in: jarSize)
+        // Preserve existing layout identity while reprojecting positions into new size
+        let current = stickyLayouts
+        var updated: [StickyLayout] = []
+        updated.reserveCapacity(current.count)
+        // Compute content rect for old and new sizes to map relative positions
+        let noteW: CGFloat = 80
+        let noteH: CGFloat = 80
+        func interior(for size: CGSize) -> CGRect {
+            var r = CGRect(x: size.width * 0.08,
+                           y: size.height * 0.18,
+                           width: size.width * 0.84,
+                           height: size.height * 0.68)
+            return r.insetBy(dx: noteW / 2, dy: noteH / 2)
+        }
+        let oldInterior = interior(for: lastJarSize == .zero ? jarSize : lastJarSize)
+        let newInterior = interior(for: jarSize)
+        let sx = newInterior.width / max(oldInterior.width, 1)
+        let sy = newInterior.height / max(oldInterior.height, 1)
+        for item in current {
+            // Map old relative offset within interior to new interior
+            let rx = (item.position.x - oldInterior.minX) * sx
+            let ry = (item.position.y - oldInterior.minY) * sy
+            let newPos = CGPoint(x: newInterior.minX + rx, y: newInterior.minY + ry)
+            updated.append(StickyLayout(id: item.id, note: item.note, position: newPos, rotation: item.rotation, colorIndex: item.colorIndex))
+        }
+        stickyLayouts = updated
     }
 
     func loadStickyNotes(jarSize: CGSize) async {
@@ -587,8 +625,16 @@ private extension ShakerView {
                 let texts = all.filter { !$0.noteContent.isEmojiOnly }
                 let picked = Array(texts.shuffled().prefix(10))
                 await MainActor.run {
-                    stickyPage = 0
-                    stickyLayouts = generateLayouts(for: picked, in: jarSize)
+                    // Only (re)generate if notes changed to avoid re-render noise on resize
+                    let currentIds = Set(stickyLayouts.map { $0.note.id })
+                    let newIds = Set(picked.map { $0.id })
+                    if currentIds != newIds {
+                        stickyPage = 0
+                        stickyLayouts = generateLayouts(for: picked, in: jarSize)
+                    } else {
+                        // Same notes: keep existing positions; just reproject for size
+                        regenerateLayoutsForSize(jarSize)
+                    }
                 }
             } else {
                 await MainActor.run {

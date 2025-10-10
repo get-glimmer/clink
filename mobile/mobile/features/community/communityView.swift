@@ -295,10 +295,11 @@ struct CommunityView: View {
                         Text("\(min(pendingRequestCount, 99))")
                             .appText(AppFont.captionXS_M)
                             .foregroundColor(Color.white)
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 2)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.6)
+                            .frame(width: 18, height: 18, alignment: .center)
                             .background(Color.red)
-                            .clipShape(Capsule())
+                            .clipShape(Circle())
                             .offset(x: 3, y: -3)
                     }
                 }
@@ -1122,7 +1123,7 @@ struct HeartButton: View {
                     Image(isLiked ? "heart_on" : "heart")
                         .resizable()
                         .renderingMode(.original)
-                        .frame(width: 20, height: 19)
+                        .frame(width: 26, height: 27)
                         // .scaleEffect(isLiked ? 1.2 : 1.0)
                         .animation(.easeInOut(duration: 0.1), value: isLiked)
                 }
