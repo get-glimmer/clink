@@ -11,12 +11,14 @@ struct TaskListItem: Codable, Identifiable {
     var isCompleted: Bool
     let dueDate: Date?
     var isTemporary: Bool = false
+    var privacyStatus: String = "public"
 
     enum CodingKeys: String, CodingKey {
         case id = "taskid"
         case title = "tasktitle"
         case isCompleted = "iscompleted"
         case dueDate = "duedate"
+        case privacyStatus = "privacy_status"
     }
     
     init(from decoder: Decoder) throws {
@@ -30,15 +32,18 @@ struct TaskListItem: Codable, Identifiable {
         let dueDateString = try? container.decodeIfPresent(String.self, forKey: .dueDate)
         dueDate = dateFromPostgreSQL(dueDateString)
         isTemporary = false
+        
+        privacyStatus = (try? container.decodeIfPresent(String.self, forKey: .privacyStatus)) ?? "public"
     }
     
     // Convenience initializer for creating tasks manually
-    init(id: UUID, title: String, isCompleted: Bool, dueDate: Date?, isTemporary: Bool = false) {
+    init(id: UUID, title: String, isCompleted: Bool, dueDate: Date?, isTemporary: Bool = false, privacyStatus: String = "public") {
         self.id = id
         self.title = title
         self.isCompleted = isCompleted
         self.dueDate = dueDate
         self.isTemporary = isTemporary
+        self.privacyStatus = privacyStatus
     }
 }
 

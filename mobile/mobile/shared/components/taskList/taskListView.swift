@@ -1,22 +1,30 @@
 //
-//  homeView.swift
+//  TaskListView.swift
 //  mobile
 //
 //  Created by Soohyeuk Choi on 6/17/25.
 //
 
 import SwiftUI
+import Combine
 
 struct TaskListView: View {
     @ObservedObject var viewModel: TaskListViewModel
     @State private var editingTexts: [UUID: String] = [:]
     @FocusState private var focusedTaskId: UUID?
     
+    // temporary row privacy toggle state (true = user_only)
+    @State private var editingPrivacyOn: [UUID: Bool] = [:]
+    
     // task menu sheet state
     @State private var activeTask: TaskListItem? = nil
     
     // used so that fetchCategoriesAndTasks() can fetch data at wanted date
     @Binding var taskSelectedDate: Date
+    
+    // keyboard-avoid state
+    @State private var keyboardHeight: CGFloat = 0
+    @State private var keyboardAnimationDuration: Double = 0.25
   
     // now accepts a binded date as a parameter
     init(taskSelectedDate: Binding<Date>, viewModel: TaskListViewModel) {
@@ -26,15 +34,43 @@ struct TaskListView: View {
     
     // MARK: - Main View
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                // --- daily section ---
-                dailyTaskHeader
-                dailyCategoriesSection
-                
-                // --- archived section ---
-                archivedTaskHeader
-                archivedCategoriesSection
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    dailyTaskHeader
+                    dailyCategoriesSection
+                    archivedTaskHeader
+                    archivedCategoriesSection
+                }
+                .padding(.bottom, keyboardHeight)
+            }
+            .onChange(of: focusedTaskId) { newValue in // auto-scroll to focused input
+                guard let id = newValue else { return }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                    withAnimation(.easeInOut(duration: keyboardAnimationDuration)) {
+                        proxy.scrollTo(id, anchor: .top)
+                    }
+                }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { note in
+            guard
+                let userInfo = note.userInfo,
+                let endFrame = (userInfo[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue,
+                let duration = userInfo[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double
+            else { return }
+            keyboardAnimationDuration = duration
+            // Convert to local coordinates
+            let screen = UIScreen.main.bounds
+            let overlap = max(0, screen.maxY - endFrame.minY)
+            withAnimation(.easeInOut(duration: duration)) {
+                keyboardHeight = overlap
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { note in
+            let duration = (note.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double) ?? 0.25
+            withAnimation(.easeInOut(duration: duration)) {
+                keyboardHeight = 0
             }
         }
         // MARK: Task Menu Sheet
@@ -99,6 +135,7 @@ struct TaskListView: View {
             .presentationDragIndicator(.hidden)
             .presentationBackground(.clear)
         }
+        .scrollDismissesKeyboard(.interactively)
     }
     
     // MARK: - Headers
@@ -144,7 +181,9 @@ struct TaskListView: View {
                 categoryHeader(for: categoryWithTasks)
                 tasksSection(for: categoryWithTasks)
             }
-            .padding(20)
+            .padding(.top, 22)
+            .padding(.horizontal, 19)
+            .padding(.bottom, 30)
         }
         .frame(maxWidth: .infinity, minHeight: categoryWithTasks.tasks.isEmpty ? 60 : 120)
         .padding(.vertical, 8)
@@ -160,10 +199,15 @@ struct TaskListView: View {
             )
             .font(.system(size: 27))
 
-            Text(categoryWithTasks.category.name)
-                .appFont(AppFont.title3)
-                .padding(.leading, 2)
+            HStack(spacing: 0) {
+                Text(categoryWithTasks.category.name)
+                    .appFont(AppFont.title3)
 
+                if (categoryWithTasks.category.privacyStatus ?? "public") == "user_only" {
+                    Image("privacyOnSmall")
+                        .accessibilityLabel("Private category")
+                }
+            }
             Spacer()
             addTaskButton(for: categoryWithTasks.category.id)
         }
@@ -185,16 +229,33 @@ struct TaskListView: View {
         ForEach(categoryWithTasks.tasks) { task in
             taskRow(for: task)
                 .padding(.leading, 2.84)
+                .id(task.id)
         }
     }
     
+    //MARK: task row
     private func taskRow(for task: TaskListItem) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 0) {
             taskCheckbox(for: task)
             taskContent(for: task)
-                .padding(.leading, 1.42)
+                .padding(.leading, 13.42)
+            
+            // lock for private tasks
+            if !task.isTemporary && task.privacyStatus == "user_only" {
+                Image("privacyOnSmall")
+                    .accessibilityLabel("Private task")
+            }
             Spacer()
-            taskMenuButton(for: task)
+            if task.isTemporary{
+                privacyToggleButton(for: task)
+            }
+            else{
+                taskMenuButton(for: task)
+            }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            focusedTaskId = nil
         }
     }
     
@@ -222,27 +283,35 @@ struct TaskListView: View {
     }
     
     private func temporaryTaskField(for task: TaskListItem) -> some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 8)
-                .foregroundColor(Color(.systemGray6))
-            TextField("Type...", text: Binding(
-                get: { editingTexts[task.id] ?? "" },
-                set: { editingTexts[task.id] = $0 }
-            ))
-            .appFont(AppFont.body1)
-            .padding(8)
-            .background(Color.clear)
-            .textFieldStyle(PlainTextFieldStyle())
-            .focused($focusedTaskId, equals: task.id)
-            .onAppear {
-                editingTexts[task.id] = ""
-                focusedTaskId = task.id
+        VStack{
+            HStack(spacing: 10) {
+                TextField("Type...", text: Binding(
+                    get: { editingTexts[task.id] ?? "" },
+                    set: { editingTexts[task.id] = $0 }
+                ))
+                .appFont(AppFont.body1)
+                .textFieldStyle(PlainTextFieldStyle())
+                .focused($focusedTaskId, equals: task.id)
+                .submitLabel(.done)
+                .onAppear {
+                    editingTexts[task.id] = editingTexts[task.id] ?? ""
+                    focusedTaskId = task.id
+                    // default OFF (public) when first shown
+                    if editingPrivacyOn[task.id] == nil {
+                        editingPrivacyOn[task.id] = false
+                    }
+                }
+                .onSubmit {
+                    handleTaskSubmit(task: task)
+                }
+                Spacer()
             }
-            .onSubmit {
-                handleTaskSubmit(task: task)
-            }
+            .frame(width: 240)
+            // underline
+            Rectangle()
+                .frame(width: 240, height: 1)
+                .foregroundColor(Color("Neutral-400"))
         }
-        .frame(height: 36)
     }
     
     private func completedTaskText(for task: TaskListItem) -> some View {
@@ -267,16 +336,28 @@ struct TaskListView: View {
         .contentShape(Rectangle())
     }
     
+    private func privacyToggleButton(for task: TaskListItem) -> some View {
+        Button {
+            editingPrivacyOn[task.id]?.toggle()
+        } label: {
+            Image((editingPrivacyOn[task.id] ?? true) ? "privacyOn" : "privacyOff")
+                .accessibilityLabel("Toggle privacy")
+        }
+        .buttonStyle(.plain)
+    }
+    
     private func handleTaskSubmit(task: TaskListItem) {
         let text = editingTexts[task.id] ?? ""
         if !text.isEmpty {
+            let isPrivate = editingPrivacyOn[task.id] ?? false // default unlocked
             Task {
-                await viewModel.saveTemporaryTask(task: task, newTitle: text)
+                await viewModel.saveTemporaryTask(task: task, newTitle: text, isPrivate: isPrivate)
             }
         } else {
             viewModel.removeTemporaryTask(task: task)
         }
         editingTexts.removeValue(forKey: task.id)
+        editingPrivacyOn.removeValue(forKey: task.id)
         focusedTaskId = nil
     }
 }
