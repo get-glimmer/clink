@@ -60,7 +60,7 @@ struct BottomSheet<Content: View>: View {
                 Capsule()
                     .fill(.neutral800)
                     .frame(width: 40, height: 5)
-                    .padding(.top, 6)
+                    .padding(.vertical, 6)
                     .zIndex(2)
                     .gesture(dragGesture)
 

@@ -142,6 +142,7 @@ struct TaskView: View {
                     ScrollView {
                         TaskListView(taskSelectedDate: $selectedDate, viewModel: viewModel)
                             .padding(.bottom, 120)
+                            .padding(.top, -6) // for grabber hit area
                     }
                     .coordinateSpace(name: "BottomSheetScroll")
                 }
