@@ -20,11 +20,9 @@ struct CommunityView: View {
     @State private var selectedFriend: Friend? = nil
     @State private var activeMenuFriend: Friend? = nil
     @State private var pendingRequestCount: Int = 0
-    @State private var dropdownAnchorX: CGFloat = 0
-    @State private var dropdownAnchorY: CGFloat = 0
     @State private var enableBadgeTick: Bool = false
     private let badgeTimer = Timer.publish(every: 5, on: .main, in: .common).autoconnect()
-    @State private var isBadgePolling: Bool = false
+    
     
     var body: some View {
         ZStack {
@@ -232,9 +230,7 @@ struct CommunityView: View {
                 .animation(.easeInOut(duration: 0.2), value: activeMenuFriend != nil)
             }
         }
-        .fullScreenCover(isPresented: $showingSearch) {
-            SearchView()
-        }
+        .fullScreenCover(isPresented: $showingSearch) { SearchView() }
         .onAppear {
             Task { await refreshPendingRequests() }
             enableBadgeTick = true
@@ -249,9 +245,7 @@ struct CommunityView: View {
             Task { await refreshPendingRequests() }
         }
         .onDisappear { enableBadgeTick = false }
-        .fullScreenCover(item: $selectedFriend) { friend in
-            FriendDetailView(friend: friend)
-        }
+        .fullScreenCover(item: $selectedFriend) { friend in FriendDetailView(friend: friend) }
     }
     
     private var headerSection: some View {
@@ -314,9 +308,6 @@ struct CommunityView: View {
         }
         .padding(.horizontal, 23)
         .padding(.top, 6)
-        // capture header height
-        .onPreferenceChange(DropdownXPreferenceKey.self) { dropdownAnchorX = $0 }
-        .onPreferenceChange(DropdownYPreferenceKey.self) { dropdownAnchorY = $0 }
         .zIndex(99) // Keep header above scroll content but below dropdown
     }
 
@@ -395,7 +386,7 @@ struct FriendCardView: View {
                 HStack {
                     HStack(spacing: 8) {
                         // Profile Image with fallback (URL or local asset)
-                        avatarView(for: friend)
+                        AvatarView(imageURLOrName: friend.profileImageName, size: 24)
                         // Name
                         Text(friend.name)
                             .foregroundColor(AppColors.textWhite)
@@ -439,50 +430,7 @@ struct FriendCardView: View {
         }
     }
 
-    // MARK: - Avatar Helper
-    @ViewBuilder
-    private func avatarView(for friend: Friend) -> some View {
-        let size: CGFloat = 24
-        let glyphSize: CGFloat = size * 0.62 // better visual balance inside the circle
-        // Helper producing an Instagram-like default avatar: gray circle + profile asset
-        let fallbackAvatar = AnyView(
-            ZStack {
-                Circle()
-                    .fill(AppColors.neutral800)
-                Image("profile") // asset under Assets.xcassets/Nav/profile.imageset
-                    .renderingMode(.template)
-                    .resizable()
-                    .foregroundColor(AppColors.textWhite)
-                    .frame(width: glyphSize, height: glyphSize)
-                Circle()
-                    .stroke(AppColors.neutral700, lineWidth: 1)
-            }
-            .frame(width: size, height: size)
-        )
-
-        if let url = URL(string: friend.profileImageName), friend.profileImageName.lowercased().hasPrefix("http") {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .empty:
-                    fallbackAvatar
-                case .success(let image):
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                case .failure:
-                    fallbackAvatar
-                @unknown default:
-                    fallbackAvatar
-                }
-            }
-            .frame(width: size, height: size)
-            .clipShape(Circle())
-        } else {
-            // Non-URL value → show default avatar consistently
-            fallbackAvatar
-                .clipShape(Circle())
-        }
-    }
+    // Removed duplicate avatar helper (use shared AvatarView instead)
 }
 
 struct FriendMenuSheet: View {
@@ -822,50 +770,7 @@ struct FriendTasksView: View {
         }
     }
     
-    private func friendTaskCategoryView(categoryWithTasks: CategoryWithTasks) -> some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 16)
-                .foregroundColor(AppColors.neutral900)
-            
-            VStack(alignment: .leading, spacing: 20) {
-                // Category header
-                HStack {
-                    Text(categoryWithTasks.category.emoji)
-                        .font(.system(size: 24))
-                    Text(categoryWithTasks.category.name)
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(AppColors.textWhite)
-                    Spacer()
-                    
-                    // Like button for all categories
-                    HeartButton(
-                        categoryId: categoryWithTasks.category.id,
-                        categoryEmoji: categoryWithTasks.category.emoji,
-                        friendUserId: friend.userId
-                    )
-                }
-                
-                // Tasks (read-only)
-                ForEach(categoryWithTasks.tasks) { task in
-                    HStack(spacing: 12) {
-                        // Checkbox (read-only)
-                        Image(task.isCompleted ? "checkboxFilled" : "checkboxEmpty")
-                            .foregroundColor(AppColors.textWhite)
-                        
-                        // Task text
-                        Text(task.title)
-                            .font(.system(size: 16))
-                            .strikethrough(task.isCompleted)
-                            .foregroundColor(AppColors.textWhite)
-                        
-                        Spacer()
-                    }
-                }
-            }
-            .padding(20)
-        }
-        .padding(.vertical, 8)
-    }
+    // Removed unused friendTaskCategoryView (replaced by TaskCategoryCard elsewhere)
 }
 
 // Sheet for leaving a note to friend
@@ -1294,30 +1199,7 @@ struct HeartButton: View {
 }
 
 // MARK: - Emoji Detection Helper
-extension String {
-    var isEmojiOnly: Bool {
-        let trimmed = self.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return false }
-        
-        // Check if string contains only emoji characters
-        for scalar in trimmed.unicodeScalars {
-            if !scalar.properties.isEmoji {
-                return false
-            }
-        }
-        return true
-    }
-    
-    var firstEmoji: String? {
-        let trimmed = self.trimmingCharacters(in: .whitespacesAndNewlines)
-        for scalar in trimmed.unicodeScalars {
-            if scalar.properties.isEmoji {
-                return String(scalar)
-            }
-        }
-        return nil
-    }
-}
+// Duplicate emoji helpers removed; using shared String+Emoji.swift
 
 // MARK: - HiddenEmojiTextField (UIKit bridge)
 private struct HiddenEmojiTextField: UIViewRepresentable {
@@ -1373,11 +1255,7 @@ private struct HiddenEmojiTextField: UIViewRepresentable {
 }
 
 // MARK: - Notification Names
-extension Notification.Name {
-    static let friendShakerNoteAdded = Notification.Name("friendShakerNoteAdded")
-    static let friendShakerEmojiReactionAdded = Notification.Name("friendShakerEmojiReactionAdded")
-    static let friendShakerEmojiReactionRemoved = Notification.Name("friendShakerEmojiReactionRemoved")
-}
+// Notification names moved to shared Notifications.swift
 
 #Preview {
     CommunityView(isMenuPresented: .constant(false))

@@ -142,7 +142,7 @@ struct SearchView: View {
                                 .padding(.bottom, 15)
                                 
                                 ForEach(suggestions) { user in
-                                    UserRowView(user: user, searchService: searchService)
+                                UserRowView(user: user, searchService: searchService)
                                 }
                             }
                         }
@@ -275,7 +275,7 @@ struct UserRowView: View {
     var body: some View {
         HStack(spacing: 15) {
             // Profile Image (URL-aware with fallback, consistent with CommunityView)
-            avatarView()
+            AvatarView(imageURLOrName: user.profileImageName, size: 40)
             
             // User Info
             VStack(alignment: .leading, spacing: 2) {
@@ -359,49 +359,7 @@ struct UserRowView: View {
         }
     }
 
-    // MARK: - Avatar helper (matches FriendCardView logic)
-    @ViewBuilder
-    private func avatarView() -> some View {
-        let size: CGFloat = 40
-        let glyphSize: CGFloat = size * 0.62
-        // Fallback avatar: gray circle + profile glyph + stroke
-        let fallbackAvatar = AnyView(
-            ZStack {
-                Circle()
-                    .fill(AppColors.neutral800)
-                Image("profile")
-                    .renderingMode(.template)
-                    .resizable()
-                    .foregroundColor(AppColors.textWhite)
-                    .frame(width: glyphSize, height: glyphSize)
-                Circle()
-                    .stroke(AppColors.neutral700, lineWidth: 1)
-            }
-            .frame(width: size, height: size)
-        )
-
-        if let url = URL(string: user.profileImageName), user.profileImageName.lowercased().hasPrefix("http") {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .empty:
-                    fallbackAvatar
-                case .success(let image):
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                case .failure:
-                    fallbackAvatar
-                @unknown default:
-                    fallbackAvatar
-                }
-            }
-            .frame(width: size, height: size)
-            .clipShape(Circle())
-        } else {
-            fallbackAvatar
-                .clipShape(Circle())
-        }
-    }
+    // Removed duplicate local avatar helper (use shared AvatarView)
 }
 
 // MARK: - Friend Request Row
@@ -414,7 +372,7 @@ struct FriendRequestRow: View {
     var body: some View {
         HStack(spacing: 15) {
             // Match 40x40 avatar size with URL-aware fallback avatar
-            avatarView()
+            AvatarView(imageURLOrName: profile.avatar_url, size: 40)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(profile.name ?? profile.username ?? "Unknown")
@@ -522,9 +480,7 @@ extension FriendRequestRow {
 }
 
 // MARK: - Notifications
-extension Notification.Name {
-    static let friendRequestsChanged = Notification.Name("friendRequestsChanged")
-}
+// Notification name moved to shared Notifications.swift
 
 #Preview {
     SearchView()

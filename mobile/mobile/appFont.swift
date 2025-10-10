@@ -51,6 +51,7 @@ struct AppFont {
     // Body
     static let body1     = Style(fontName: Family.regular, size: 16, lineHeight: 16 * 1.5, letterSpacing: 0) // 24
     static let body2     = Style(fontName: Family.regular, size: 14, lineHeight: 14 * 1.5, letterSpacing: 0) // 21
+    static let body2Medium = Style(fontName: Family.medium, size: 14, lineHeight: 14 * 1.5, letterSpacing: 0) // 21 (medium)
 
     // Caption
     static let captionL  = Style(fontName: Family.regular, size: 16, lineHeight: 24,       letterSpacing: 0)

@@ -816,7 +816,15 @@ class CommunityService: ObservableObject {
             throw DecodingError.dataCorruptedError(in: container, debugDescription: "Cannot decode date from: \(dateString)")
         }
         
-        return try decoder.decode([NoteRecord].self, from: data)
+        let notes = try decoder.decode([NoteRecord].self, from: data)
+        // Debug logs to verify visibility and RLS behavior
+        let distinctUsers = Set(notes.map { $0.userId })
+        print("📝 getNotesForShaker: shakerId=\(shakerId), fetched=\(notes.count), distinctUsers=\(distinctUsers.count)")
+        if !notes.isEmpty {
+            let firstFew = notes.prefix(5).map { "(user:\($0.userId), text:\($0.noteContent.prefix(24)))" }
+            print("📝 getNotesForShaker sample -> \(firstFew)")
+        }
+        return notes
     }
 
     /// Check if a specific user already has a TEXT note for the given shaker (excluding emoji-only content)
@@ -841,21 +849,9 @@ class CommunityService: ObservableObject {
             return false
         }
         
-        let isEmoji = isEmojiOnly(content)
+        let isEmoji = content.isEmojiOnly
         print("📝 userHasTextNote: content='\(content)', isEmojiOnly=\(isEmoji)")
         return !isEmoji
-    }
-    
-    // Local helper to check if a string is emoji-only (duplicate of UI logic to avoid cross-module deps)
-    private func isEmojiOnly(_ text: String) -> Bool {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return false }
-        for scalar in trimmed.unicodeScalars {
-            if !scalar.properties.isEmoji {
-                return false
-            }
-        }
-        return true
     }
     
     // Note: We intentionally do not persist note emoji into category_emojis.
