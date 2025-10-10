@@ -41,6 +41,7 @@ struct AppFont {
     static let title1    = Style(fontName: Family.bold,   size: 24, lineHeight: 24 * 1.25, letterSpacing: 0)
     static let title2    = Style(fontName: Family.bold,   size: 20, lineHeight: 20 * 1.25, letterSpacing: 0)
     static let title3    = Style(fontName: Family.bold,   size: 18, lineHeight: 18 * 1.25, letterSpacing: 0)
+    static let title3Semibold = Style(fontName: Family.semibold, size: 18, lineHeight: 18 * 1.25, letterSpacing: 0)
 
     // Label
     static let labelL    = Style(fontName: Family.bold,   size: 16, lineHeight: 24,       letterSpacing: 0)
@@ -50,6 +51,7 @@ struct AppFont {
     // Body
     static let body1     = Style(fontName: Family.regular, size: 16, lineHeight: 16 * 1.5, letterSpacing: 0) // 24
     static let body2     = Style(fontName: Family.regular, size: 14, lineHeight: 14 * 1.5, letterSpacing: 0) // 21
+    static let body2Medium = Style(fontName: Family.medium, size: 14, lineHeight: 14 * 1.5, letterSpacing: 0) // 21 (medium)
 
     // Caption
     static let captionL  = Style(fontName: Family.regular, size: 16, lineHeight: 24,       letterSpacing: 0)

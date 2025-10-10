@@ -556,54 +556,70 @@ class CommunityService: ObservableObject {
     
     // MARK: - Likes Functions
     
-    /// Check if user has liked a specific category TODAY (one like per day)
-    func isLiked(categoryId: UUID, userId: UUID) async throws -> Bool {
+    /// Check if user has liked a specific category for a given shaker (day)
+    func isLiked(categoryId: UUID, userId: UUID, shakerId: UUID) async throws -> Bool {
         guard let supabase = supabase else {
             throw NSError(domain: "SupabaseError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Supabase client not initialized"])
         }
-        
+
+        print("🔎 isLiked: user=\(userId), category=\(categoryId), shaker=\(shakerId)")
+        let rows: [LikeRecord] = try await supabase
+            .from("likes")
+            .select("like_id")
+            .eq("user_id", value: userId.uuidString)
+            .eq("category_id", value: categoryId.uuidString)
+            .eq("shaker_id", value: shakerId.uuidString)
+            .execute()
+            .value
+        let liked = !rows.isEmpty
+        print("🔎 isLiked result=\(liked) count=\(rows.count)")
+        return liked
+    }
+
+    
+    /// Like a category for a specific shaker (daily uniqueness enforced via DB on (user_id, category_id, shaker_id))
+    func likeCategory(categoryId: UUID, userId: UUID, shakerId: UUID) async throws {
+        guard let supabase = supabase else {
+            throw NSError(domain: "SupabaseError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Supabase client not initialized"])
+        }
+
         do {
-            let rows: [LikeRecord] = try await supabase
+            try await supabase
                 .from("likes")
-                .select("like_id")
-                .eq("user_id", value: userId.uuidString)
-                .eq("category_id", value: categoryId.uuidString)
+                .insert([
+                    "user_id": userId.uuidString,
+                    "category_id": categoryId.uuidString,
+                    "shaker_id": shakerId.uuidString
+                ])
                 .execute()
-                .value
-            return !rows.isEmpty
+
+            print("💖 likeCategory: inserted like for user=\(userId) category=\(categoryId) shaker=\(shakerId)")
         } catch {
+            if let pg = error as? PostgrestError, pg.code == "23505" {
+                print("🟡 likeCategory: duplicate like detected (treated as success) user=\(userId) category=\(categoryId) shaker=\(shakerId)")
+                return
+            }
+            print("🔴 likeCategory: insert failed - \(error)")
             throw error
         }
     }
-    
-    /// Like a category (once per day)
-    func likeCategory(categoryId: UUID, userId: UUID) async throws {
+
+    func unlikeCategory(categoryId: UUID, userId: UUID, shakerId: UUID) async throws {
         guard let supabase = supabase else {
             throw NSError(domain: "SupabaseError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Supabase client not initialized"])
         }
-        
-        let likeData = [
-            "user_id": userId.uuidString,
-            "category_id": categoryId.uuidString
-        ]
-        let _ = try await supabase
-            .from("likes")
-            .upsert(likeData, onConflict: "user_id,category_id")
-            .execute()
-    }
-    
-    /// Unlike a category (remove today's like only)
-    func unlikeCategory(categoryId: UUID, userId: UUID) async throws {
-        guard let supabase = supabase else {
-            throw NSError(domain: "SupabaseError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Supabase client not initialized"])
-        }
-        let _ = try await supabase
+
+        try await supabase
             .from("likes")
             .delete()
             .eq("user_id", value: userId.uuidString)
             .eq("category_id", value: categoryId.uuidString)
+            .eq("shaker_id", value: shakerId.uuidString)
             .execute()
+
+        print("💔 unlikeCategory: removed like for user=\(userId) category=\(categoryId) shaker=\(shakerId)")
     }
+
     
     /// Get like count for a category
     func getLikeCount(categoryId: UUID) async throws -> Int {
@@ -768,7 +784,15 @@ class CommunityService: ObservableObject {
             throw DecodingError.dataCorruptedError(in: container, debugDescription: "Cannot decode date from: \(dateString)")
         }
         
-        return try decoder.decode([NoteRecord].self, from: data)
+        let notes = try decoder.decode([NoteRecord].self, from: data)
+        // Debug logs to verify visibility and RLS behavior
+        let distinctUsers = Set(notes.map { $0.userId })
+        print("📝 getNotesForShaker: shakerId=\(shakerId), fetched=\(notes.count), distinctUsers=\(distinctUsers.count)")
+        if !notes.isEmpty {
+            let firstFew = notes.prefix(5).map { "(user:\($0.userId), text:\($0.noteContent.prefix(24)))" }
+            print("📝 getNotesForShaker sample -> \(firstFew)")
+        }
+        return notes
     }
 
     /// Check if a specific user already has a TEXT note for the given shaker (excluding emoji-only content)
@@ -789,22 +813,13 @@ class CommunityService: ObservableObject {
         guard let jsonArray = try? JSONSerialization.jsonObject(with: response.data) as? [[String: Any]],
               let first = jsonArray.first,
               let content = first["note_content"] as? String else {
+            print("🔴 userHasTextNote: no note found for user \(userId)")
             return false
         }
         
-        return !isEmojiOnly(content)
-    }
-    
-    // Local helper to check if a string is emoji-only (duplicate of UI logic to avoid cross-module deps)
-    private func isEmojiOnly(_ text: String) -> Bool {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return false }
-        for scalar in trimmed.unicodeScalars {
-            if !scalar.properties.isEmoji {
-                return false
-            }
-        }
-        return true
+        let isEmoji = content.isEmojiOnly
+        print("📝 userHasTextNote: content='\(content)', isEmojiOnly=\(isEmoji)")
+        return !isEmoji
     }
     
     // Note: We intentionally do not persist note emoji into category_emojis.

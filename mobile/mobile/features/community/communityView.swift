@@ -20,11 +20,9 @@ struct CommunityView: View {
     @State private var selectedFriend: Friend? = nil
     @State private var activeMenuFriend: Friend? = nil
     @State private var pendingRequestCount: Int = 0
-    @State private var dropdownAnchorX: CGFloat = 0
-    @State private var dropdownAnchorY: CGFloat = 0
     @State private var enableBadgeTick: Bool = false
     private let badgeTimer = Timer.publish(every: 5, on: .main, in: .common).autoconnect()
-    @State private var isBadgePolling: Bool = false
+    
     
     var body: some View {
         ZStack {
@@ -96,9 +94,9 @@ struct CommunityView: View {
                     } else {
                         // Friends grid
                         LazyVGrid(columns: [
-                            GridItem(.flexible(), spacing: 10),
-                            GridItem(.flexible(), spacing: 10)
-                        ], spacing: 20) {
+                            GridItem(.flexible(), spacing: 16),
+                            GridItem(.flexible(), spacing: 16)
+                        ], spacing: 13) {
                             ForEach(viewModel.friends) { friend in
                                 FriendCardView(
                                     friend: friend, 
@@ -116,7 +114,7 @@ struct CommunityView: View {
                                 )
                             }
                         }
-                        .padding(.horizontal, 20)
+                        .padding(.horizontal, 16)
                         .padding(.top, 12)
                     }
                 }
@@ -200,8 +198,8 @@ struct CommunityView: View {
         .overlay {
             if let menuFriend = activeMenuFriend {
                 ZStack(alignment: .bottom) {
-                    // Blur overlay covering everything including nav bar
-                    Color.black.opacity(0.15)
+                    // Darker, less white-tinted blur overlay covering everything including nav bar
+                    AppColors.neutral1000.opacity(0.6)
                         .background(.ultraThinMaterial)
                         .ignoresSafeArea(.all)
                         .transition(.opacity)
@@ -232,9 +230,7 @@ struct CommunityView: View {
                 .animation(.easeInOut(duration: 0.2), value: activeMenuFriend != nil)
             }
         }
-        .fullScreenCover(isPresented: $showingSearch) {
-            SearchView()
-        }
+        .fullScreenCover(isPresented: $showingSearch) { SearchView() }
         .onAppear {
             Task { await refreshPendingRequests() }
             enableBadgeTick = true
@@ -249,9 +245,7 @@ struct CommunityView: View {
             Task { await refreshPendingRequests() }
         }
         .onDisappear { enableBadgeTick = false }
-        .fullScreenCover(item: $selectedFriend) { friend in
-            FriendDetailView(friend: friend)
-        }
+        .fullScreenCover(item: $selectedFriend) { friend in FriendDetailView(friend: friend) }
     }
     
     private var headerSection: some View {
@@ -305,18 +299,15 @@ struct CommunityView: View {
                             .padding(.vertical, 2)
                             .background(Color.red)
                             .clipShape(Capsule())
-                            .offset(x: 4, y: -4)
+                            .offset(x: 3, y: -3)
                     }
                 }
                 .frame(width: 44, height: 44)
                 .contentShape(Circle())
             }
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, 23)
         .padding(.top, 6)
-        // capture header height
-        .onPreferenceChange(DropdownXPreferenceKey.self) { dropdownAnchorX = $0 }
-        .onPreferenceChange(DropdownYPreferenceKey.self) { dropdownAnchorY = $0 }
         .zIndex(99) // Keep header above scroll content but below dropdown
     }
 
@@ -395,7 +386,7 @@ struct FriendCardView: View {
                 HStack {
                     HStack(spacing: 8) {
                         // Profile Image with fallback (URL or local asset)
-                        avatarView(for: friend)
+                        AvatarView(imageURLOrName: friend.profileImageName, size: 24)
                         // Name
                         Text(friend.name)
                             .foregroundColor(AppColors.textWhite)
@@ -420,12 +411,11 @@ struct FriendCardView: View {
                 }
                 .padding(.horizontal, headerPadX)
                 .padding(.top, headerPadTop)
-                .padding(.bottom, headerPadBottom)
+                .padding(.bottom, 24)
 
                 // Friend's Shaker (emoji garden) — square, with 21px side padding and 19px bottom
                 ShakerView(viewModel: TaskListViewModel(userId: friend.userId))
                     .aspectRatio(1, contentMode: .fit)
-                    .cornerRadius(12)
                     .padding(.horizontal, sidePadding)
                     .padding(.bottom, bottomPadding)
             }
@@ -440,50 +430,7 @@ struct FriendCardView: View {
         }
     }
 
-    // MARK: - Avatar Helper
-    @ViewBuilder
-    private func avatarView(for friend: Friend) -> some View {
-        let size: CGFloat = 24
-        let glyphSize: CGFloat = size * 0.62 // better visual balance inside the circle
-        // Helper producing an Instagram-like default avatar: gray circle + profile asset
-        let fallbackAvatar = AnyView(
-            ZStack {
-                Circle()
-                    .fill(AppColors.neutral800)
-                Image("profile") // asset under Assets.xcassets/Nav/profile.imageset
-                    .renderingMode(.template)
-                    .resizable()
-                    .foregroundColor(AppColors.textWhite)
-                    .frame(width: glyphSize, height: glyphSize)
-                Circle()
-                    .stroke(AppColors.neutral700, lineWidth: 1)
-            }
-            .frame(width: size, height: size)
-        )
-
-        if let url = URL(string: friend.profileImageName), friend.profileImageName.lowercased().hasPrefix("http") {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .empty:
-                    fallbackAvatar
-                case .success(let image):
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                case .failure:
-                    fallbackAvatar
-                @unknown default:
-                    fallbackAvatar
-                }
-            }
-            .frame(width: size, height: size)
-            .clipShape(Circle())
-        } else {
-            // Non-URL value → show default avatar consistently
-            fallbackAvatar
-                .clipShape(Circle())
-        }
-    }
+    // Removed duplicate avatar helper (use shared AvatarView instead)
 }
 
 struct FriendMenuSheet: View {
@@ -582,57 +529,37 @@ struct FriendMenuSheet: View {
         .padding(.bottom, max(16, bottomSafeAreaInset()))
         .padding(.bottom, 0)
         .frame(maxWidth: .infinity, alignment: .top)
-        .background(AppColors.neutral1000.opacity(0.5))
+        .background(Color(red: 32.0/255.0, green: 32.0/255.0, blue: 32.0/255.0).opacity(0.3))
         .clipShape(
             UnevenRoundedRectangle(
-                topLeadingRadius: 16,
+                topLeadingRadius: 24,
                 bottomLeadingRadius: 0,
                 bottomTrailingRadius: 0,
-                topTrailingRadius: 16,
+                topTrailingRadius: 24,
                 style: .circular
             )
         )
-        .overlay(alignment: .top) {
-            // Gradient stroke only along the top edge and its rounded corners
-            GeometryReader { geo in
-                let w = geo.size.width
-                let r: CGFloat = 16
-                Path { p in
-                    p.move(to: CGPoint(x: 0, y: r))
-                    p.addArc(
-                        center: CGPoint(x: r, y: r),
-                        radius: r,
-                        startAngle: .degrees(180),
-                        endAngle: .degrees(270),
-                        clockwise: false
-                    )
-                    p.addLine(to: CGPoint(x: w - r, y: 0))
-                    p.addArc(
-                        center: CGPoint(x: w - r, y: r),
-                        radius: r,
-                        startAngle: .degrees(270),
-                        endAngle: .degrees(360),
-                        clockwise: false
-                    )
-                }
-                .stroke(
-                    LinearGradient(
-                        colors: [
-                            Color("Neutral-400").opacity(0.7),
-                            Color("Neutral-600").opacity(0.7)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .topTrailing
-                    ),
-                    style: StrokeStyle(
-                        lineWidth: 1,
-                        lineCap: .round,
-                        lineJoin: .round
-                    )
-                )
-            }
-            .frame(height: 16)
-        }
+        .overlay(
+            UnevenRoundedRectangle(
+                topLeadingRadius: 24,
+                bottomLeadingRadius: 0,
+                bottomTrailingRadius: 0,
+                topTrailingRadius: 24,
+                style: .circular
+            )
+            .inset(by: -0.7)
+            .stroke(
+                LinearGradient(
+                    colors: [
+                        Color(red: 0xA1/255.0, green: 0xA1/255.0, blue: 0xA1/255.0).opacity(0.7),
+                        Color(red: 0x5E/255.0, green: 0x5E/255.0, blue: 0x5E/255.0).opacity(0.7)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ),
+                lineWidth: 1
+            )
+        )
         .ignoresSafeArea(edges: .bottom)
         
     }
@@ -819,10 +746,13 @@ struct FriendTasksView: View {
               let userId = UUID(uuidString: currentUserId) else { return }
         
         var addedSymbols: Set<String> = []
+        // Resolve today's shaker once for the friend
+        let shakerId = try? await communityService.getCurrentShakerForUser(userId: friend.userId)
+        guard let shakerId else { return }
         for categoryWithTasks in categoriesWithTasks {
             let categoryId = categoryWithTasks.category.id
             do {
-                let liked = try await communityService.isLiked(categoryId: categoryId, userId: userId)
+                let liked = try await communityService.isLiked(categoryId: categoryId, userId: userId, shakerId: shakerId)
                 if liked {
                     let symbol = categoryWithTasks.category.emoji
                     if !addedSymbols.contains(symbol) {
@@ -843,50 +773,7 @@ struct FriendTasksView: View {
         }
     }
     
-    private func friendTaskCategoryView(categoryWithTasks: CategoryWithTasks) -> some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 16)
-                .foregroundColor(AppColors.neutral900)
-            
-            VStack(alignment: .leading, spacing: 20) {
-                // Category header
-                HStack {
-                    Text(categoryWithTasks.category.emoji)
-                        .font(.system(size: 24))
-                    Text(categoryWithTasks.category.name)
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(AppColors.textWhite)
-                    Spacer()
-                    
-                    // Like button for all categories
-                    HeartButton(
-                        categoryId: categoryWithTasks.category.id,
-                        categoryEmoji: categoryWithTasks.category.emoji,
-                        friendUserId: friend.userId
-                    )
-                }
-                
-                // Tasks (read-only)
-                ForEach(categoryWithTasks.tasks) { task in
-                    HStack(spacing: 12) {
-                        // Checkbox (read-only)
-                        Image(task.isCompleted ? "checkboxFilled" : "checkboxEmpty")
-                            .foregroundColor(AppColors.textWhite)
-                        
-                        // Task text
-                        Text(task.title)
-                            .font(.system(size: 16))
-                            .strikethrough(task.isCompleted)
-                            .foregroundColor(AppColors.textWhite)
-                        
-                        Spacer()
-                    }
-                }
-            }
-            .padding(20)
-        }
-        .padding(.vertical, 8)
-    }
+    // Removed unused friendTaskCategoryView (replaced by TaskCategoryCard elsewhere)
 }
 
 // Sheet for leaving a note to friend
@@ -898,7 +785,7 @@ struct LeaveNoteSheet: View {
     @State private var customEmoji: String = ""
     @State private var isEmojiFieldFocused: Bool = false
     
-    private let emojiReactions = ["👍", "💗", "👏", "🔥", "🙏"]
+    private let emojiReactions = ["👍", "💖", "👏", "🔥", "🎉"]
     
     var body: some View {
         ZStack {
@@ -919,7 +806,7 @@ struct LeaveNoteSheet: View {
                             onClose()
                         }) {
                             Image(systemName: "xmark")
-                                .font(.system(size: 12.5, weight: .medium))
+                                .font(.system(size: 15, weight: .medium))
                                 .foregroundColor(AppColors.neutral1000)
                         }
                     }
@@ -929,7 +816,7 @@ struct LeaveNoteSheet: View {
                     
                     // Title
                     Text("Leave a Note for \(friend.name)!")
-                        .appFont(AppFont.title3)
+                        .appFont(AppFont.title3Semibold)
                         .foregroundColor(AppColors.neutral1000)
                         .padding(.horizontal, 21)
                         .padding(.bottom, 20)
@@ -946,20 +833,19 @@ struct LeaveNoteSheet: View {
                                 )
                                 .frame(height: 130)
 
-                            TextEditor(text: $noteText)
-                                .foregroundColor(Color.black)
-                                .font(.system(size: 16))
-                                .padding(16)
-                                .frame(height: 130)
-                                .background(Color.clear)
-                                .scrollContentBackground(.hidden)
+                            InsetTextView(
+                                text: $noteText,
+                                font: .systemFont(ofSize: 16),
+                                insets: UIEdgeInsets(top: 19, left: 17, bottom: 19, right: 17)
+                            )
+                            .frame(height: 130)
 
                             if noteText.isEmpty {
                                 Text("Write a kind word, a cheer, or a sticker 💛")
                                     .foregroundColor(AppColors.neutral600)
                                     .appFont(AppFont.body2)
-                                    .padding(.horizontal, 20)
-                                    .padding(.top, 24)
+                                    .padding(.horizontal, 17)
+                                    .padding(.top, 19)
                                     .allowsHitTesting(false)
                             }
                         }
@@ -969,7 +855,7 @@ struct LeaveNoteSheet: View {
                         VStack(alignment: .leading, spacing: 12) {
                             HStack {
                                 Text("Emoji Reactions")
-                                    .appFont(AppFont.labelL)
+                                    .appFont(AppFont.buttonL)
                                     .foregroundColor(AppColors.neutral1000)
                 Spacer()
                             }
@@ -1002,7 +888,7 @@ struct LeaveNoteSheet: View {
                                             .frame(width: 40, height: 40)
                                         Image(systemName: "plus")
                                             .foregroundColor(.white)
-                                            .font(.system(size: 16, weight: .light))
+                                            .font(.system(size: 18, weight: .light))
                                     }
                                 }
                                 .disabled(isSending)
@@ -1012,7 +898,8 @@ struct LeaveNoteSheet: View {
                             // Hidden UIKit text field to reliably summon keyboard/emoji picker
                             HiddenEmojiTextField(text: $customEmoji, isFirstResponder: $isEmojiFieldFocused)
                                 .frame(width: 1, height: 1)
-                                .opacity(0.01)
+                                .opacity(0.02)
+                                .allowsHitTesting(false)
                                 .onChange(of: customEmoji) { newValue in
                                     guard !isSending else { return }
                                     if let emoji = newValue.firstEmoji, !emoji.isEmpty {
@@ -1049,6 +936,7 @@ struct LeaveNoteSheet: View {
                 // Card color #F1F3EF
                 .background(Color(red: 241.0/255.0, green: 243.0/255.0, blue: 239.0/255.0))
                 .cornerRadius(16)
+                .onTapGesture { dismissKeyboard() }
                 
                 // Green tape overlay - positioned on top of the modal
                 VStack {
@@ -1128,6 +1016,11 @@ struct LeaveNoteSheet: View {
             }
         }
     }
+
+    private func dismissKeyboard() {
+        isEmojiFieldFocused = false
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
     
     private func sendEmojiReaction(_ emoji: String) {
         guard let currentUserId = getUserId(),
@@ -1174,6 +1067,38 @@ struct LeaveNoteSheet: View {
     }
 }
 
+// UITextView with controllable text container insets (fix caret vs placeholder offset)
+private struct InsetTextView: UIViewRepresentable {
+    @Binding var text: String
+    var font: UIFont
+    var insets: UIEdgeInsets
+
+    func makeUIView(context: Context) -> UITextView {
+        let tv = UITextView()
+        tv.delegate = context.coordinator
+        tv.backgroundColor = .clear
+        tv.textContainerInset = insets
+        tv.font = font
+        tv.isScrollEnabled = true
+        tv.textColor = .black
+        return tv
+    }
+
+    func updateUIView(_ uiView: UITextView, context: Context) {
+        if uiView.text != text { uiView.text = text }
+        if uiView.textContainerInset != insets { uiView.textContainerInset = insets }
+        if uiView.font != font { uiView.font = font }
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+    final class Coordinator: NSObject, UITextViewDelegate {
+        var parent: InsetTextView
+        init(_ parent: InsetTextView) { self.parent = parent }
+        func textViewDidChange(_ textView: UITextView) {
+            parent.text = textView.text
+        }
+    }
+}
 // Interactive heart button component
 struct HeartButton: View {
     let categoryId: UUID
@@ -1214,12 +1139,14 @@ struct HeartButton: View {
               let userId = UUID(uuidString: currentUserId) else { return }
         Task {
             do {
-                let liked = try await communityService.isLiked(categoryId: categoryId, userId: userId)
-                await MainActor.run {
-                    self.isLiked = liked
+                guard let shakerId = try await communityService.getCurrentShakerForUser(userId: friendUserId) else {
+                    await MainActor.run { self.isLiked = false }
+                    return
                 }
+                let liked = try await communityService.isLiked(categoryId: categoryId, userId: userId, shakerId: shakerId)
+                await MainActor.run { self.isLiked = liked }
             } catch {
-                // Silently handle errors
+                await MainActor.run { self.isLiked = false }
             }
         }
     }
@@ -1232,20 +1159,30 @@ struct HeartButton: View {
         
         Task {
             do {
-                let willLike = !isLiked
-                if isLiked {
-                    try await communityService.unlikeCategory(categoryId: categoryId, userId: userId)
-                } else {
-                    try await communityService.likeCategory(categoryId: categoryId, userId: userId)
+                let targetLike = !isLiked
+                print("[HeartButton] toggleLike tapped. targetLike=\(targetLike) cat=\(categoryId) friend=\(friendUserId)")
+                guard let shakerId = try await communityService.getCurrentShakerForUser(userId: friendUserId) else {
+                    await MainActor.run {
+                        print("🔴 [HeartButton] no shaker for friend today, aborting like toggle")
+                        self.isLoading = false
+                    }
+                    return
                 }
-                
+                if targetLike {
+                    try await communityService.likeCategory(categoryId: categoryId, userId: userId, shakerId: shakerId)
+                } else {
+                    try await communityService.unlikeCategory(categoryId: categoryId, userId: userId, shakerId: shakerId)
+                }
+
+                // Verify persisted state from DB using shaker-based uniqueness
+                let verified = try await communityService.isLiked(categoryId: categoryId, userId: userId, shakerId: shakerId)
                 await MainActor.run {
+                    print("[HeartButton] post-op verification -> isLiked=\(verified)")
                     withAnimation(.easeInOut(duration: 0.2)) {
-                        self.isLiked.toggle()
+                        self.isLiked = verified
                     }
                     self.isLoading = false
-                    // On like, drop the category emoji as a glowing reaction in the jar
-                    if willLike {
+                    if verified {
                         NotificationCenter.default.post(
                             name: .friendShakerEmojiReactionAdded,
                             object: nil,
@@ -1255,7 +1192,6 @@ struct HeartButton: View {
                             ]
                         )
                     } else {
-                        // On unlike, remove one occurrence of the emoji from the jar
                         NotificationCenter.default.post(
                             name: .friendShakerEmojiReactionRemoved,
                             object: nil,
@@ -1269,7 +1205,7 @@ struct HeartButton: View {
             } catch {
                 await MainActor.run {
                     self.isLoading = false
-                    print("Error toggling like: \(error)")
+                    print("🔴 [HeartButton] toggleLike failed: \(error)")
                 }
             }
         }
@@ -1277,50 +1213,44 @@ struct HeartButton: View {
 }
 
 // MARK: - Emoji Detection Helper
-extension String {
-    var isEmojiOnly: Bool {
-        let trimmed = self.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return false }
-        
-        // Check if string contains only emoji characters
-        for scalar in trimmed.unicodeScalars {
-            if !scalar.properties.isEmoji {
-                return false
-            }
-        }
-        return true
-    }
-    
-    var firstEmoji: String? {
-        let trimmed = self.trimmingCharacters(in: .whitespacesAndNewlines)
-        for scalar in trimmed.unicodeScalars {
-            if scalar.properties.isEmoji {
-                return String(scalar)
-            }
-        }
-        return nil
-    }
-}
+// Duplicate emoji helpers removed; using shared String+Emoji.swift
 
 // MARK: - HiddenEmojiTextField (UIKit bridge)
 private struct HiddenEmojiTextField: UIViewRepresentable {
     @Binding var text: String
     @Binding var isFirstResponder: Bool
 
+    // UITextField subclass that prefers the emoji keyboard when possible
+    private final class EmojiFirstTextField: UITextField {
+        override var textInputContextIdentifier: String? { "" } // enable custom input mode
+        override var textInputMode: UITextInputMode? {
+            for mode in UITextInputMode.activeInputModes {
+                if let lang = mode.primaryLanguage, lang == "emoji" { return mode }
+            }
+            return super.textInputMode
+        }
+    }
+
     func makeUIView(context: Context) -> UITextField {
-        let tf = UITextField(frame: .zero)
+        let tf = EmojiFirstTextField(frame: .zero)
         tf.delegate = context.coordinator
         tf.autocorrectionType = .no
         tf.autocapitalizationType = .none
-        tf.isHidden = true
+        // Important: hidden views cannot become first responder
+        tf.isHidden = false
+        tf.tintColor = .clear // hide caret
         return tf
     }
 
     func updateUIView(_ uiView: UITextField, context: Context) {
         if isFirstResponder && !uiView.isFirstResponder {
-            uiView.becomeFirstResponder()
+            let ok = uiView.becomeFirstResponder()
+            print("[EmojiPicker] becomeFirstResponder -> \(ok)")
+            // Nudge input view to adopt preferred emoji mode immediately
+            DispatchQueue.main.async { uiView.reloadInputViews() }
         } else if !isFirstResponder && uiView.isFirstResponder {
             uiView.resignFirstResponder()
+            print("[EmojiPicker] resignFirstResponder")
         }
     }
 
@@ -1339,11 +1269,7 @@ private struct HiddenEmojiTextField: UIViewRepresentable {
 }
 
 // MARK: - Notification Names
-extension Notification.Name {
-    static let friendShakerNoteAdded = Notification.Name("friendShakerNoteAdded")
-    static let friendShakerEmojiReactionAdded = Notification.Name("friendShakerEmojiReactionAdded")
-    static let friendShakerEmojiReactionRemoved = Notification.Name("friendShakerEmojiReactionRemoved")
-}
+// Notification names moved to shared Notifications.swift
 
 #Preview {
     CommunityView(isMenuPresented: .constant(false))

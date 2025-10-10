@@ -70,8 +70,8 @@ struct SearchView: View {
                             VStack(alignment: .leading, spacing: 0) {
                                 Text("Friend Requests")
                                     .foregroundColor(AppColors.neutral300)
-                                    .appFont(AppFont.labelL)
-                                    .padding(.horizontal, 20)
+                                    .appFont(AppFont.labelS)
+                                    .padding(.horizontal, 16)
                                     .padding(.top, 24)
                                     .padding(.bottom, 14)
 
@@ -99,7 +99,7 @@ struct SearchView: View {
                             Text(errorMessage)
                                 .foregroundColor(Color.red)
                                 .appFont(AppFont.labelL)
-                                .padding(.horizontal, 20)
+                                .padding(.horizontal, 16)
                                 .padding(.top, 40)
                         }
                         
@@ -124,7 +124,7 @@ struct SearchView: View {
                                     .appFont(AppFont.labelM)
                                     .multilineTextAlignment(.center)
                             }
-                            .padding(.horizontal, 20)
+                            .padding(.horizontal, 16)
                             .padding(.top, 60)
                         }
                         
@@ -137,12 +137,12 @@ struct SearchView: View {
                                         .appFont(AppFont.labelS)
                                     Spacer()
                                 }
-                                .padding(.horizontal, 20)
+                                .padding(.horizontal, 16)
                                 .padding(.top, 30)
                                 .padding(.bottom, 15)
                                 
                                 ForEach(suggestions) { user in
-                                    UserRowView(user: user, searchService: searchService)
+                                UserRowView(user: user, searchService: searchService)
                                 }
                             }
                         }
@@ -162,16 +162,16 @@ struct SearchView: View {
     }
     
     private var searchHeader: some View {
-        HStack(spacing: 15) {
+        HStack(spacing: 8) {
             // Search Bar
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
                 Image(systemName: "magnifyingglass")
                     .foregroundColor(AppColors.neutral400)
-                    .font(.system(size: 24))
+                    .font(.system(size: 16))
                 
                 TextField("Search users...", text: $searchText)
                     .foregroundColor(AppColors.neutral600)
-                    .appFont(AppFont.labelL)
+                    .appFont(AppFont.body1)
                     .onChange(of: searchText) { oldValue, newValue in
                         Task {
                             await performSearch()
@@ -181,7 +181,8 @@ struct SearchView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
             .background(AppColors.neutral900)
-            .cornerRadius(25)
+            .cornerRadius(22)
+            .frame(width: 318, height: 44)
             
             // Close Button
             Button(action: {
@@ -189,14 +190,14 @@ struct SearchView: View {
             }) {
                 Image(systemName: "xmark")
                     .foregroundColor(AppColors.neutral400)
-                    .font(.system(size: 18, weight: .medium))
+                    .font(.system(size: 16, weight: .medium))
                     .frame(width: 44, height: 44)
                     .background(
                         Circle().fill(AppColors.neutral900)
                     )
             }
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, 16)
         .padding(.top, 10)
     }
     
@@ -273,23 +274,24 @@ struct UserRowView: View {
     
     var body: some View {
         HStack(spacing: 15) {
-            // Profile Image
-            Image(user.profileImageName)
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-                .frame(width: 50, height: 50)
-                .clipShape(Circle())
+            // Profile Image (URL-aware with fallback, consistent with CommunityView)
+            AvatarView(imageURLOrName: user.profileImageName, size: 40)
             
             // User Info
             VStack(alignment: .leading, spacing: 2) {
-                Text(user.username)
-                    .foregroundColor(AppColors.textWhite)
-                    .appFont(AppFont.labelM)
-                
-                if let mutualFriends = user.mutualFriends {
-                    Text("\(mutualFriends) Mutuals")
-                        .foregroundColor(AppColors.neutral400)
-                        .appFont(AppFont.labelS)
+                HStack(alignment: .center, spacing: 10) {
+                    Text(user.username)
+                        .foregroundColor(AppColors.textWhite)
+                        .appFont(AppFont.labelM)
+                    if let mutualFriends = user.mutualFriends {
+                        Text("\(mutualFriends) Mutuals")
+                            .foregroundColor(AppColors.neutral300)
+                            .appFont(AppFont.captionXS_M)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(AppColors.neutral900)
+                            .cornerRadius(8)
+                }
                 }
             }
             
@@ -309,14 +311,14 @@ struct UserRowView: View {
                     } else {
                         Text(currentStatus.displayText)
                             .foregroundColor(currentStatus.textColor)
-                            .appFont(AppFont.labelS)
+                            .appFont(AppFont.buttonM)
                     }
                 }
-                .frame(minWidth: 80)
+                .frame(minWidth: 80, alignment: .trailing)
             }
             .disabled(isActionLoading)
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, 16)
         .padding(.vertical, 12)
     }
     
@@ -356,6 +358,8 @@ struct UserRowView: View {
             isActionLoading = false
         }
     }
+
+    // Removed duplicate local avatar helper (use shared AvatarView)
 }
 
 // MARK: - Friend Request Row
@@ -367,11 +371,8 @@ struct FriendRequestRow: View {
 
     var body: some View {
         HStack(spacing: 15) {
-            Image(profile.avatar_url ?? "nav-profile1x")
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-                .frame(width: 50, height: 50)
-                .clipShape(Circle())
+            // Match 40x40 avatar size with URL-aware fallback avatar
+            AvatarView(imageURLOrName: profile.avatar_url, size: 40)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(profile.name ?? profile.username ?? "Unknown")
@@ -383,7 +384,7 @@ struct FriendRequestRow: View {
             Button(action: { Task { await decline() } }) {
                 Text("Decline")
                     .foregroundColor(AppColors.textWhite)
-                    .appFont(AppFont.labelS)
+                    .appFont(AppFont.buttonM)
             }
             .disabled(isWorking)
 
@@ -393,12 +394,12 @@ struct FriendRequestRow: View {
                     .appFont(AppFont.labelS)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
-                    .background(AppColors.green500)
-                    .cornerRadius(10)
+                    .background(AppColors.green300)
+                    .cornerRadius(4)
             }
             .disabled(isWorking)
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, 16)
         .padding(.vertical, 12)
     }
 
@@ -431,10 +432,55 @@ struct FriendRequestRow: View {
     }
 }
 
-// MARK: - Notifications
-extension Notification.Name {
-    static let friendRequestsChanged = Notification.Name("friendRequestsChanged")
+// MARK: - FriendRequestRow Avatar helper (matches UserRowView logic)
+extension FriendRequestRow {
+    @ViewBuilder
+    fileprivate func avatarView() -> some View {
+        let size: CGFloat = 40
+        let glyphSize: CGFloat = size * 0.62
+        let fallbackAvatar = AnyView(
+            ZStack {
+                Circle()
+                    .fill(AppColors.neutral800)
+                Image("profile")
+                    .renderingMode(.template)
+                    .resizable()
+                    .foregroundColor(AppColors.textWhite)
+                    .frame(width: glyphSize, height: glyphSize)
+                Circle()
+                    .stroke(AppColors.neutral700, lineWidth: 1)
+            }
+            .frame(width: size, height: size)
+        )
+
+        if let avatar = profile.avatar_url,
+           avatar.lowercased().hasPrefix("http"),
+           let url = URL(string: avatar) {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .empty:
+                    fallbackAvatar
+                case .success(let image):
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                case .failure:
+                    fallbackAvatar
+                @unknown default:
+                    fallbackAvatar
+                }
+            }
+            .frame(width: size, height: size)
+            .clipShape(Circle())
+        } else {
+            fallbackAvatar
+                .clipShape(Circle())
+        }
+    }
 }
+
+// MARK: - Notifications
+// Notification name moved to shared Notifications.swift
 
 #Preview {
     SearchView()
