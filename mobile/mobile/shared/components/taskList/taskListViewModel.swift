@@ -288,11 +288,13 @@ class TaskListViewModel: ObservableObject {
                             .execute()
                             .value
                     case .archived:
+                        let dateStr = formattedDate(taskSelectedDate)
                         tasks = try await client
                             .from("task")
                             .select()
                             .eq("userid", value: userId)
                             .eq("categoryid", value: category.id.uuidString)
+                            .or("iscompleted.eq.false,and(iscompleted.eq.true,completed_date.eq.\(dateStr))")
                             .order("createdat", ascending: true)
                             .execute()
                             .value
@@ -382,20 +384,31 @@ class TaskListViewModel: ObservableObject {
         categoriesWithTasks = categoriesWithTasks
     }
     
+    struct TaskUpdatePayload: Encodable {
+        let iscompleted: Bool
+        let completed_date: String?
+    }
+    
     func updateTaskCompletionStatus(task: TaskListItem) async {
         guard let client = self.client else { return }
         guard let userId = self.userId else { return }
+        
         do {
+            let completedDate: String? = task.isCompleted ? formattedDate(taskSelectedDate) : nil
+            let payload = TaskUpdatePayload(
+                iscompleted: task.isCompleted,
+                completed_date: completedDate
+            )
             try await client
                 .from("task")
-                .update(["iscompleted": task.isCompleted])
+                .update(payload)
                 .eq("taskid", value: task.id)
                 .eq("userid", value: userId)
                 .execute()
 
             updateAllCompleted()
 
-            // Also brings shaker data that will be applied to tracker
+            // Brings shaker data that will be applied to tracker
             try? await trackerViewModel?.fetchShakers()
 
         } catch {

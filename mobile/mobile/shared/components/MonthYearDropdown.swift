@@ -73,7 +73,7 @@ public struct MonthYearDropdown: View {
                 .labelsHidden()
                 .pickerStyle(.wheel)
                 .frame(maxWidth: .infinity, minHeight: 150)
-                
+
                 // Month wheel
                 Picker("Month", selection: Binding(
                     get: { calendar.component(.month, from: anchorMonth) },
@@ -86,7 +86,7 @@ public struct MonthYearDropdown: View {
                     }
                 )) {
                     ForEach(months, id: \.self) { m in
-                        Text(monthName(m))
+                        Text(String(format: "%02d", m))
                             .appFont(AppFont.labelM)
                             .foregroundColor(.white)
                     }
@@ -97,7 +97,7 @@ public struct MonthYearDropdown: View {
             }
             .padding(.horizontal, 6)
         }
-        .frame(height: 170)
+        .frame(height: 160)
         .shadow(radius: 12)
     }
 

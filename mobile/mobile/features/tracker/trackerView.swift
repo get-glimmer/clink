@@ -184,7 +184,7 @@ struct TrackerView: View {
 
             if showMonthDropdown {
                 MonthYearDropdown(anchorMonth: $trackerViewModel.selectedDate)
-                    .frame(width:280)
+                    .frame(width:240)
                     .padding(.leading, 16)
                     .padding(.top, 46)
                     .opacity(showMonthDropdown ? 1 : 0)
