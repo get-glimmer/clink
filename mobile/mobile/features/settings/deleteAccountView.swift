@@ -7,61 +7,66 @@ struct DeleteAccountView: View {
     @State private var text: String = ""
 
     var body: some View {
-        ScrollView {
-            TopNavBar(title: "Delete Account") {
-                dismiss()
-            }
-            
-            VStack(alignment: .leading, spacing: 16) {
+        TopNavBar(title: "Delete Account") {
+            dismiss()
+        }
+        
+        VStack {
+            ScrollView {
                 VStack(alignment: .leading) {
-                    (
-                        Text("Are you sure you want to") +
-                        Text(" delete ").foregroundColor(Color("Red-300")) +
-                        Text("your account?")
-                    )
-                    .appFont(AppFont.title2)
+                    VStack(alignment: .leading) {
+                        (
+                            Text("Are you sure you want to") +
+                            Text(" delete ").foregroundColor(Color("Red-300")) +
+                            Text("your account?")
+                        )
+                        .appFont(AppFont.title2)
+                    }
+                    .padding(.horizontal, 11)
+                    .padding(.top, 33)
+                    
+                    
+                    
+                    VStack (alignment: .leading) {
+                        Text("We're really sorry to see you go..")
+                        Text("Once you confirm, your data will be gone.")
+                    }
+                    .padding(.horizontal, 11)
+                    .padding(.top, 24)
+                
+                    
+                    Text("Please let us know the reason for deleting your account.")
+                        .padding(.horizontal, 11)
+                        .padding(.top, 68)
+                    
+                    TextField("Enter the reason for account deletion.", text: $text)
+                        .padding(.top, 12)
+                        .padding(.leading, 19)
+                        .foregroundStyle(Color("Neutral-600"))
+                        .frame(height: 100, alignment: .topLeading)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(Color("Neutral-600"), lineWidth: 1)
+                        )
                 }
-                .padding(.vertical)
-                
-                
-                
-                VStack (alignment: .leading, spacing: 5) {
-                    Text("We're really sorry to see you go..")
-                    Text("Once you confirm, your data will be gone.")
+                .frame(maxWidth: .infinity, alignment: .leading) // <--- important
+            }
+            Button(role: .destructive) {
+                Task {
+                    await authViewModel.deleteAccount()
+                    dismiss()
                 }
-                
-                Spacer()
-                Spacer()
-                
-                Text("Please let us know the reason for deleting your account.")
-                TextField("Enter the reason for account deletion.", text: $text)
-                    .foregroundStyle(Color("Neutral-600"))
-                    .padding()
-                    .frame(height: 100, alignment: .topLeading)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(Color("Neutral-600"), lineWidth: 1)
-                    )
+            } label: {
+                Text("Delete Account")
+                    .foregroundColor(Color(.white))
+                    .frame(maxWidth: .infinity)
             }
-            .frame(maxWidth: .infinity, alignment: .leading) // <--- important
-            .padding()
+            .frame(width: 361, height: 50, alignment: .center)
+            .background(Color("Red-400"))
+            .cornerRadius(8)
+            .navigationBarBackButtonHidden(true)
         }
-        Button(role: .destructive) {
-            Task {
-                await authViewModel.deleteAccount()
-                dismiss()
-            }
-        } label: {
-            Text("Delete Account")
-                .foregroundColor(Color(.white))
-                .padding(.vertical, 15)
-                .frame(maxWidth: .infinity)
-        }
-        .background(Color("Red-400"))
-        .cornerRadius(10)
-        .padding(.horizontal, 10)
-        .padding(.bottom, 20)
-        .navigationBarBackButtonHidden(true)
+        .padding(.horizontal, 16)
     }
     
 }

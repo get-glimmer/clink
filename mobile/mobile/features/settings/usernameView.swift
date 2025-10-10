@@ -12,34 +12,18 @@ struct UsernameView: View {
     @State private var isSaving = false
 
     var body: some View {
-        VStack(spacing: 24) {
-            // Header
-            HStack {
-                Button { dismiss() } label: {
-                    ZStack {
-                        Circle()
-                            .fill(Color("Neutral-900"))
-                            .frame(width: 40, height: 40)
-                        Image(systemName: "chevron.left")
-                            .foregroundColor(Color("Neutral-400"))
-                            .frame(width: 12, height: 12)
-                    }
-                }
-                Spacer()
-                Text("My Account")
-                    .font(.headline)
-                    .foregroundColor(.white)
-                Spacer()
-                Circle()
-                    .frame(width: 40, height: 40)
-                    .opacity(0)
-            }
-            .padding(.top, 8)
-
+        TopNavBar(title: "My Account") {
+            dismiss()
+        }
+        
+        VStack {
             // Email
             if let email = authViewModel.profile?.email {
                 Text(email)
-                    .font(.headline)
+                    .padding(.leading, 10)
+                    .padding(.top, 24)
+                    .padding(.bottom, 10)
+                    .appFont(AppFont.labelL)
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 
@@ -49,18 +33,23 @@ struct UsernameView: View {
             
 
             // Username input field and confirmation
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading) {
                 Text("Username")
-                    .padding(.leading, 10)
-                    .font(.subheadline)
+                    .padding(.top, 16)
+                    .padding(.bottom, 4)
+                    .padding(.leading, 11)
+                    .appFont(AppFont.labelS)
                     .foregroundColor(Color("Neutral-300"))
 
-                HStack(spacing: 8) {
+                HStack {
                     TextField("Username", text: $username)
-                        .padding()
+                        .frame(width: .infinity, height: 49)
+                        .appFont(AppFont.body1)
+                        .padding(.leading, 18)
                         .background(Color.clear)
-                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color("Neutral-600")))
-                        .cornerRadius(12)
+                        .overlay(RoundedRectangle(cornerRadius: 8)
+                            .inset(by: 0.35)
+                            .stroke(Color("Neutral-600")))
                         .onChange(of: username) {
                             usernameConfirmed = false
                             usernameStatus = nil
@@ -93,21 +82,20 @@ struct UsernameView: View {
                         }
                     } label: {
                         Text("Confirm")
-                            .frame(width: 100, height: 55)
+                            .frame(width: .infinity, height: 50)
                             .foregroundColor(username.isEmpty ? .white : Color("Neutral-900"))
-                            .padding(.horizontal, 16)
+                            .padding(.horizontal, 29)
                             .background(username.isEmpty ? Color("Neutral-800") : Color("Green-300"))
-                            .cornerRadius(12)
+                            .cornerRadius(8)
                     }
                     .disabled(username.isEmpty)
                 }
-                .frame(height: 55)
 
                 if let status = usernameStatus {
                     Text(status)
                         .font(.caption)
                         .foregroundColor(usernameStatusColor)
-                        .padding(.leading, 4)
+                        .padding(.leading, 11)
                 }
             }
             Spacer()
@@ -120,7 +108,7 @@ struct UsernameView: View {
             }
             viewModel.name = authViewModel.profile?.name ?? ""
         }
-        .padding(.horizontal)
+        .padding(.horizontal, 16)
     }
 }
 

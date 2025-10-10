@@ -36,35 +36,27 @@ struct FinishSignupView: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(spacing: 0) {
+        // Custom top navigation bar
+        TopNavBar(title: "Finish signing up") {
+            dismiss()
+        }
+        
+        VStack {
             ScrollView {
-                // Custom top navigation bar
-                TopNavBar(title: "Finish signing up") {
-                    dismiss()
-                }
-                
-                VStack(spacing: 24) {
+                VStack {
                     // Profile avatar picker
                     PhotosPicker(selection: $photoItem, matching: .images) {
                         if let profileImage {
                             Image(uiImage: profileImage)
                                 .resizable()
                                 .scaledToFill()
-                                .frame(width: 100, height: 100)
+                                .frame(width: 84, height: 84)
                                 .clipShape(Circle())
-                                .padding(.top, 20)
                         } else {
-                            ZStack {
-                                Circle()
-                                    .fill(Color.gray.opacity(0.3))
-                                    .frame(width: 100, height: 100)
-                                Image(systemName: "camera.fill")
-                                    .font(.system(size: 30))
-                                    .foregroundColor(Color("Neutral-100"))
-                            }
-                            .padding(.top, 20)
+                            Image("profile_picker")
                         }
                     }
+                    .padding(.top, 49)
                     .onChange(of: photoItem) { _, newItem in
                         Task {
                             if let data = try? await newItem?.loadTransferable(type: Data.self),
@@ -76,32 +68,44 @@ struct FinishSignupView: View {
                     }
 
                     // Full name input field
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading) {
                         Text("Your name")
-                            .padding(.leading, 10)
-                            .font(.subheadline)
+                            .padding(.leading, 11)
+                            .appFont(AppFont.labelS)
                             .foregroundColor(Color("Neutral-300"))
 
                         TextField("Full name", text: $fullName)
-                            .padding()
+                            .padding(.leading, 18)
+                            .appFont(AppFont.body1)
                             .background(Color.clear)
-                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color("Neutral-600")))
-                            .cornerRadius(12)
+                            .frame(maxWidth: .infinity, minHeight: 49)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .inset(by: 0.35)
+                                    .stroke(Color("Neutral-600"), lineWidth: 0.7)
+                            )
                     }
+                    .padding(.top, 23)
+                    
 
                     // Username input field and confirmation
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading) {
                         Text("Username")
-                            .padding(.leading, 10)
-                            .font(.subheadline)
+                            .padding(.leading, 11)
+                            .appFont(AppFont.labelS)
                             .foregroundColor(Color("Neutral-300"))
 
-                        HStack(spacing: 8) {
+                        HStack() {
                             TextField("Username", text: $username)
-                                .padding()
+                                .padding(.leading, 18)
+                                .appFont(AppFont.body1)
                                 .background(Color.clear)
-                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color("Neutral-600")))
-                                .cornerRadius(12)
+                                .frame(maxWidth: .infinity, minHeight: 49)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .inset(by: 0.35)
+                                        .stroke(Color("Neutral-600"), lineWidth: 0.7)
+                                )
                                 .onChange(of: username) {
                                     usernameConfirmed = false
                                     usernameStatus = nil
@@ -115,35 +119,35 @@ struct FinishSignupView: View {
                                         usernameConfirmed = true
                                     } else {
                                         usernameStatus = "The username is already in use."
-                                        usernameStatusColor = .red
+                                        usernameStatusColor = Color("Red- 300")
                                         usernameConfirmed = false
                                     }
                                 }
                             } label: {
                                 Text("Confirm")
-                                    .frame(width: 100, height: 55)
+                                    .frame(width: 119, height: 50)
                                     .foregroundColor(username.isEmpty ? .white : Color("Neutral-900"))
-                                    .padding(.horizontal, 16)
+                                    
                                     .background(username.isEmpty ? Color("Neutral-800") : Color("Green-300"))
-                                    .cornerRadius(12)
+                                    .cornerRadius(8)
                             }
                             .disabled(username.isEmpty)
                         }
-                        .frame(height: 55)
+                        .frame(height: 50)
 
                         if let status = usernameStatus {
                             Text(status)
                                 .font(.caption)
                                 .foregroundColor(usernameStatusColor)
-                                .padding(.leading, 4)
                         }
                     }
+                    .padding(.top, 16)
 
                     // Date of birth picker
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading) {
                         Text("Date of Birth (Optional)")
-                            .padding(.leading, 10)
-                            .font(.subheadline)
+                            .padding(.leading, 11)
+                            .appFont(AppFont.labelS)
                             .foregroundColor(Color("Neutral-300"))
 
                         Button {
@@ -155,17 +159,24 @@ struct FinishSignupView: View {
                                         .foregroundColor(.white)
                                 } else {
                                     Text("Birthdate")
-                                        .foregroundColor(.gray)
+                                        .padding(.leading, 18)
+                                        .appFont(AppFont.body1)
+                                        .foregroundColor(Color("Neutral-600"))
                                 }
                                 Spacer()
-                                Image(systemName: "chevron.down")
+                                Image("down_arrow")
+                                    .padding(.trailing, 12)
                                     .foregroundColor(Color("Neutral-300"))
                             }
-                            .padding()
+                            .frame(height: 49)
+                            .padding(.top, 4)
                             .background(Color.clear)
-                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color("Neutral-600")))
-                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .inset(by: 0.35)
+                                    .stroke(Color("Neutral-600"), lineWidth: 0.7))
                         }
+                        
                         .overlay(alignment: .bottomLeading) {
                             if showChangeDateSheet {
                                 ChangeDateSheet(
@@ -184,12 +195,13 @@ struct FinishSignupView: View {
                         .animation(.easeInOut(duration: 0.25), value: showChangeDateSheet)
 
                         Text("Your birthday won’t be shared with other people who use Clink!.")
-                            .font(.caption2)
-                            .foregroundColor(.gray)
-                            .padding(.horizontal, 4)
+                            .appFont(AppFont.captionXS)
+                            .padding(.top, 8)
+                            .padding(.leading, 7)
+                            .foregroundColor(Color("Neutral-400"))
                     }
+                    .padding(.top, 16)
                 }
-                .padding()
             }
 
             // Continue button
@@ -251,16 +263,25 @@ struct FinishSignupView: View {
                     isLoading = false
                 }
             } label: {
-                Text("Continue")
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background((!usernameConfirmed || fullName.isEmpty) ? Color("Neutral-800") : Color("Green-300"))
-                    .foregroundColor((!usernameConfirmed || fullName.isEmpty) ? .gray : .black)
-                    .cornerRadius(12)
-                    .padding()
+                HStack(alignment: .center, spacing: 10) {
+                    Text("Continue")
+                        .appFont(AppFont.body1)
+                        .foregroundColor((!usernameConfirmed || fullName.isEmpty)
+                                         ? Color("Neutral-600")
+                                         : Color("Neutral-900"))
+                }
+                .padding(.horizontal, 29)
+                .padding(.vertical, 13)
+                .frame(width: 361, alignment: .center)
+                .background((!usernameConfirmed || fullName.isEmpty)
+                            ? Color("Neutral-800")
+                            : Color("Green-300"))
+                .cornerRadius(8)
             }
+            
             .disabled(!usernameConfirmed || fullName.isEmpty)
         }
+        .padding(.horizontal, 16)
         .navigationTitle("")
         .navigationBarBackButtonHidden(true)
     }

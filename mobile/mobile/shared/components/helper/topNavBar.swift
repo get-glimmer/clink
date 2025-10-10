@@ -5,18 +5,11 @@ struct TopNavBar: View {
     var onBack: (() -> Void)?
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack() {
             // Back button
             if let onBack {
                 Button(action: onBack) {
-                    ZStack {
-                        Circle()
-                            .fill(Color("Neutral-900"))
-                            .frame(width: 40, height: 40)
-                        Image(systemName: "chevron.left")
-                            .foregroundColor(Color("Neutral-400"))
-                            .frame(width: 14, height: 14)
-                    }
+                    Image("back_button")
                 }
             } else {
                 // If no back button needed, keep space
@@ -24,20 +17,16 @@ struct TopNavBar: View {
             }
 
             Spacer()
-
             // Title
             Text(title)
                 .appFont(AppFont.title2)
                 .foregroundColor(.white)
-
+            
             Spacer()
-
-            // Balance space on right side
             Color.clear.frame(width: 40, height: 40)
         }
-        .frame(height: 50)
-        .padding(.horizontal)
-        .padding(.top, 10)
+        .padding(.horizontal, 16)
+        .padding(.top, 15)
         .background(Color.black.ignoresSafeArea(edges: .top))
     }
 }
