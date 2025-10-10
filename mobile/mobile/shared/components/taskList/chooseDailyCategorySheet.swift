@@ -42,7 +42,7 @@ struct ChooseDailyCategorySheet: View {
                 DarkBlurView(style: .systemChromeMaterialDark)
                     .ignoresSafeArea()
 
-                Color.black.opacity(0.5)
+                Color.black.opacity(0.7)
                     .ignoresSafeArea()
 
             }

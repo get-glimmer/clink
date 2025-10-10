@@ -21,7 +21,7 @@ struct OptionsSheet: View {
                 DarkBlurView(style: .systemChromeMaterialDark)
                     .ignoresSafeArea()
 
-                Color.black.opacity(0.5)
+                Color.black.opacity(0.7)
                     .ignoresSafeArea()
             }
             .contentShape(Rectangle())
@@ -45,7 +45,7 @@ struct OptionsSheet: View {
                           action: onTapAddCategory)
             }
             .padding(.bottom, 78)
-            .padding(.leading, 36)
+            .padding(.leading, 31)
         }
         .navBarHidden(true)
     }
