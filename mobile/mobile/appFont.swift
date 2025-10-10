@@ -16,7 +16,7 @@ struct AppFont {
         static let bold   = "Figtree-Bold"
         static let medium = "Figtree-Medium"
         static let regular = "Figtree-Regular"
-        static let semibold = "Figtree-Semibold"
+        static let semibold = "Figtree-SemiBold"
     }
 
     // MARK: - Style token (size / lineHeight / letterSpacing / fontName)

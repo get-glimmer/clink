@@ -12,14 +12,14 @@ public struct MonthYearDropdown: View {
     @Binding public var anchorMonth: Date
 
     // Config
-    public var years: [Int] = Array(2010...2035)
+    public var years: [Int] = Array(1950...2035)
     public var months: [Int] = Array(1...12)
 
     // Internals
     private let calendar = Calendar.current
 
     public init(anchorMonth: Binding<Date>,
-                years: [Int] = Array(2010...2035),
+                years: [Int] = Array(1950...2035),
                 months: [Int] = Array(1...12)) {
         self._anchorMonth = anchorMonth
         self.years = years
