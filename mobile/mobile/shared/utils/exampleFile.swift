@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 let hardcodedUserId = "f221d19a-9da8-44eb-b14c-d4a315c23d85"
 let name = "Cicero"
@@ -57,4 +58,18 @@ func formattedDate(_ date: Date) -> String {
     let formatter = DateFormatter()
     formatter.dateFormat = "yyyy-MM-dd"
     return formatter.string(from: date)
+}
+
+extension View {
+    /// Dismisses the keyboard when called.
+    func hideKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
+    
+    /// Dismisses keyboard when background is tapped.
+    func dismissKeyboardOnTap() -> some View {
+        self.onTapGesture {
+            hideKeyboard()
+        }
+    }
 }

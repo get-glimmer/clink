@@ -33,123 +33,128 @@ struct EmailLoginView: View {
     // MARK: - Body
 
     var body: some View {
-        // Custom top navigation bar
-        TopNavBar(title: "Log in") {
-            dismiss()
-        }
-        
-        VStack  {
-            // Email input field
-            VStack(alignment: .leading) {
-                Text("Email")
-                    .appFont(AppFont.labelL)
-                    .foregroundColor(.white)
-                    .padding(.leading, 7)
-                    .padding(.top, 24)
-                
-                TextField("Email address", text: $email)
-                    .keyboardType(.emailAddress)
-                    .textInputAutocapitalization(.never)
-                    .frame(height: 49)
-                    .padding(.leading, 18)
-                    .appFont(AppFont.body1)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color("Neutral-600"), lineWidth: 0.7))
-                    .onChange(of: email) { _, newValue in
-                        email = newValue.lowercased()
-                    }
-            }
-
+        ZStack {
+            Color("Neutral-1000").ignoresSafeArea()
             
-            // Password input field
-            VStack(alignment: .leading) {
-                Text("Password")
-                    .appFont(AppFont.labelL)
-                    .foregroundColor(.white)
-                    .padding(.top, 24)
-                    .padding(.leading, 7)
+            VStack  {
+                TopNavBar(title: "Log in") {
+                    dismiss()
+                }
                 
-                SecureField("Password", text: $password)
-                    .appFont(AppFont.body1)
-                    .frame(height: 49)
-                    .padding(.leading, 18)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color("Neutral-600"), lineWidth: 0.7))
+                // Email input field
+                VStack(alignment: .leading) {
+                    Text("Email")
+                        .appFont(AppFont.labelL)
+                        .foregroundColor(.white)
+                        .padding(.leading, 7)
+                        .padding(.top, 24)
+                    
+                    TextField("Email address", text: $email)
+                        .keyboardType(.emailAddress)
+                        .textInputAutocapitalization(.never)
+                        .frame(height: 49)
+                        .padding(.leading, 18)
+                        .appFont(AppFont.body1)
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color("Neutral-600"), lineWidth: 0.7))
+                        .onChange(of: email) { _, newValue in
+                            email = newValue.lowercased()
+                        }
+                }
                 
-                // Forgot password button
-                Button {
-                    Task {
-                        let success = await authViewModel.resetPassword(for: email)
-                        alertMessage = success
+                
+                // Password input field
+                VStack(alignment: .leading) {
+                    Text("Password")
+                        .appFont(AppFont.labelL)
+                        .foregroundColor(.white)
+                        .padding(.top, 24)
+                        .padding(.leading, 7)
+                    
+                    SecureField("Password", text: $password)
+                        .appFont(AppFont.body1)
+                        .frame(height: 49)
+                        .padding(.leading, 18)
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color("Neutral-600"), lineWidth: 0.7))
+                    
+                    // Forgot password button
+                    Button {
+                        Task {
+                            let success = await authViewModel.resetPassword(for: email)
+                            alertMessage = success
                             ? "Password reset email sent to \(email)"
                             : "Please enter a valid email address."
-                        showAlert = true
+                            showAlert = true
+                        }
+                    } label: {
+                        Text("Forgot your password?")
+                            .underline(true, color: .white)
+                            .font(.caption)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.top, 5)
+                            .padding(.leading, 5)
+                    }
+                }
+                
+                // Error message display
+                if !authViewModel.errorMessage.isEmpty {
+                    Text(authViewModel.errorMessage)
+                        .foregroundColor(.red)
+                        .font(.caption)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 5)
+                }
+                
+                Spacer()
+                
+                // Link to the sign-up view
+                HStack {
+                    Text("Don't have an account?")
+                        .foregroundColor(Color("Neutral-600"))
+                    
+                    Button {
+                        path.append(Screen.emailSignup)
+                    } label: {
+                        Text("Sign up")
+                            .underline(true, color: .white)
+                            .font(.caption)
+                            .foregroundColor(.white)
+                    }
+                }
+                .padding(.bottom, 16)
+                .frame(maxWidth: .infinity, alignment: .center)
+                
+                // Continue button
+                Button {
+                    Task {
+                        isLoading = true
+                        authViewModel.email = email.lowercased()
+                        authViewModel.password = password
+                        await authViewModel.logIn()
+                        isLoading = false
                     }
                 } label: {
-                    Text("Forgot your password?")
-                        .underline(true, color: .white)
-                        .font(.caption)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.top, 5)
-                        .padding(.leading, 5)
+                    Text(isLoading ? "Logging in..." : "Continue")
+                        .appFont(AppFont.buttonL)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(!email.isEmpty && !password.isEmpty ? Color("Green-300") : Color("Neutral-800"))
+                        .foregroundColor(!email.isEmpty && !password.isEmpty ? Color("Neutral-900") : Color("Neutral-600"))
+                        .cornerRadius(12)
                 }
+                .padding(.bottom, 16)
+                .disabled(email.isEmpty || password.isEmpty || isLoading)
             }
-            
-            // Error message display
-            if !authViewModel.errorMessage.isEmpty {
-                Text(authViewModel.errorMessage)
-                    .foregroundColor(.red)
-                    .font(.caption)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 5)
+            .padding(.horizontal, 16)
+            .alert(alertMessage, isPresented: $showAlert) {
+                Button("OK", role: .cancel) { }
             }
-            
-            Spacer()
-            
-            // Link to the sign-up view
-            HStack {
-                Text("Don't have an account?")
-                    .foregroundColor(Color("Neutral-600"))
-                
-                Button {
-                    path.append(Screen.emailSignup)
-                } label: {
-                    Text("Sign up")
-                        .underline(true, color: .white)
-                        .font(.caption)
-                        .foregroundColor(.white)
-                }
-            }
-            .padding(.bottom, 16)
-            .frame(maxWidth: .infinity, alignment: .center)
-            
-            // Continue button
-            Button {
-                Task {
-                    isLoading = true
-                    authViewModel.email = email.lowercased()
-                    authViewModel.password = password
-                    await authViewModel.logIn()
-                    isLoading = false
-                }
-            } label: {
-                Text(isLoading ? "Logging in..." : "Continue")
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 50)
-                    .background(!email.isEmpty && !password.isEmpty ? Color("Green-300") : Color("Neutral-800"))
-                    .foregroundColor(!email.isEmpty && !password.isEmpty ? Color("Neutral-900") : Color("Neutral-600"))
-                    .cornerRadius(12)
-            }
-            .padding(.bottom, 16)
-            .disabled(email.isEmpty || password.isEmpty || isLoading)
+            .navigationTitle("")
+            .navigationBarBackButtonHidden(true)
         }
-        .padding(.horizontal, 16)
-        .alert(alertMessage, isPresented: $showAlert) {
-            Button("OK", role: .cancel) { }
-        }
-    
-        .navigationTitle("")
-        .navigationBarBackButtonHidden(true)
+        .dismissKeyboardOnTap()
     }
+    
     
     
 }
