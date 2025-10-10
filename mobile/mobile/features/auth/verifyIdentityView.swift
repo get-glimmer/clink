@@ -31,91 +31,109 @@ struct VerifyIdentityView: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(spacing: 24) {
-            Text("Log in or Sign up")
-                .appFont(AppFont.title2)
-                .bold()
-                .frame(maxWidth: .infinity)
-                .multilineTextAlignment(.center)
-                .padding(.top, 20)
-            
+        TopNavBar(title: "Log in or Sign up")
+        
+        VStack {
             Text("Phone number")
+                .appFont(AppFont.labelL)
                 .foregroundColor(Color("White"))
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 34)
+                .padding(.leading, 7)
+                .padding(.bottom, 12)
             
             // Country picker and phone number input
-            HStack(spacing: 8) {
+            HStack() {
                 Button {
                     showCountryPicker = true
                 } label: {
                     HStack {
                         Text(selectedCountryFlag)
-                        Image(systemName: "chevron.down")
+                            .appFont(AppFont.title1)
+                            .padding(.leading, 16)
+                        
+                        Image("down_arrow")
                             .foregroundColor(Color("Neutral-300"))
-                            .font(.system(size: 12))
+                            .frame(width: 24, height: 24)
+                            .padding(.trailing, 11)
                     }
-                    .frame(height: 50)
-                    .frame(minWidth: 60)
-                    .padding(.horizontal, 8)
+                    .frame(width: 75, height: 49)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color("Neutral-600"), lineWidth: 1)
+                        RoundedRectangle(cornerRadius: 8)
+                            .inset(by: 0.35)
+                            .stroke(Color("Neutral-600"), lineWidth: 0.7)
                     )
                 }
 
                 TextField(
                     text: $phoneNumber,
                     prompt: Text("Phone number")
-                        .foregroundColor(Color("Neutral-600")) // 👈 placeholder color
+                        .foregroundColor(Color("Neutral-600"))
                 ) {
-                    EmptyView() // no label
+                    EmptyView()
                 }
+                .padding(.leading, 11)
                 .appFont(AppFont.body1)
                 .keyboardType(.phonePad)
-                .foregroundColor(.white) // 👈 user-entered text color
-                .padding()
-                .frame(height: 50)
+                .foregroundColor(.white)
+                .frame(width: 278, height: 49)
                 .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color("Neutral-600"), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 8)
+                        .inset(by: 0.35)
+                        .stroke(Color("Neutral-600"), lineWidth: 0.7)
                 )
                 .onChange(of: phoneNumber) { _, newValue in
                     let sanitized = newValue.filter { "0123456789".contains($0) }
                     if sanitized != newValue { phoneNumber = sanitized }
                 }
-
             }
+            .padding(.bottom, 12)
 
             Text("We’ll call or text to confirm your number. Standard message and data rates apply.")
                 .foregroundColor(Color("Neutral-400"))
+                .frame(width: 347, alignment: .topLeading)
                 .appFont(AppFont.captionXS)
+                .padding(.bottom, 24)
             
-            // Continue button
-            Button {
-                Task { await sendOTP() }
-            } label: {
-                Text("Continue")
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 50)
-                    .background(phoneNumber.isEmpty ? Color("Neutral-800") : Color("Green-300"))
-                    .foregroundColor(phoneNumber.isEmpty ? Color("Neutral-600") : Color("Neutral-900"))
-                    .cornerRadius(12)
+            HStack(alignment: .center, spacing: 10) {
+                // Continue button
+                Button {
+                    Task { await sendOTP() }
+                } label: {
+                    Text("Continue")
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(phoneNumber.isEmpty ? Color("Neutral-800") : Color("Green-300"))
+                        .foregroundColor(phoneNumber.isEmpty ? Color("Neutral-600") : Color("Neutral-900"))
+                        .cornerRadius(12)
+                }
+                .disabled(phoneNumber.isEmpty || isLoading)
             }
-            .disabled(phoneNumber.isEmpty || isLoading)
-
-            // Divider
-            HStack {
+            .padding(.horizontal, 29)
+            .padding(.vertical, 13)
+            .frame(width: 361, height: 50, alignment: .center)
+            .background(Color("Neutral-800"))
+            .cornerRadius(8)
+            .padding(.bottom, 48)
+            
+            HStack(alignment: .center, spacing: 24) {
+                // Divider
                 Rectangle()
-                    .frame(height: 1)
-                    .foregroundColor(Color("Neutral-600"))
+                    .foregroundColor(.clear)
+                    .frame(width: 146, height: 0.5)
+                    .background(Color("Neutral-600"))
                 Text("Or")
+                    .appFont(AppFont.captionM)
                     .foregroundColor(Color("Neutral-400"))
-                    .padding(.horizontal)
                 Rectangle()
-                    .frame(height: 1)
-                    .foregroundColor(Color("Neutral-600"))
+                    .foregroundColor(.clear)
+                    .frame(width: 146, height: 0.5)
+                    .background(Color("Neutral-600"))
             }
-            .padding(.vertical, 10)
+            .padding(0)
+            .frame(width: 361, alignment: .center)
+            .padding(.bottom, 48)
+            
 
             // Social sign-on buttons
             VStack(spacing: 12) {
@@ -145,19 +163,28 @@ struct VerifyIdentityView: View {
 
             Spacer()
             
+            var attributed: AttributedString {
+                var terms = AttributedString("Terms of service")
+                terms.underlineStyle = .single
+
+                var privacy = AttributedString("Privacy Policy")
+                privacy.underlineStyle = .single
+
+                return terms + AttributedString(" and ") + privacy
+            }
             VStack(spacing: 5) {
                 Text("By signing up, you agree to our")
+                    .appFont(AppFont.captionXS)
                     .foregroundColor(Color("Neutral-400"))
-                    .font(.footnote)
                     .multilineTextAlignment(.center)
-                Text("Terms of service and Privacy Policy")
+
+                Text(attributed)
+                    .appFont(AppFont.captionXS)
                     .foregroundColor(Color("Neutral-400"))
-                    .font(.footnote)
                     .multilineTextAlignment(.center)
-                    .padding(.bottom, 5)
             }
         }
-        .padding()
+        .padding(.horizontal, 16)
         .background(Color.black.ignoresSafeArea())
         .sheet(isPresented: $showCountryPicker) {
             CountryPickerView(selectedCode: $selectedCountryCode, selectedFlag: $selectedCountryFlag)
@@ -212,7 +239,7 @@ struct SSOButton: View {
 
     var body: some View {
         Button(action: action) {
-            HStack {
+            HStack(alignment: .center, spacing: 10) {
                 if UIImage(named: icon) != nil {
                     // If the icon exists in Assets (e.g., google_logo)
                     Image(icon)
@@ -224,15 +251,15 @@ struct SSOButton: View {
                     Image(systemName: icon)
                         .foregroundColor(iconColor ?? .black)
                 }
-
                 Text(title)
-                    .bold()
+                    .appFont(AppFont.labelL)
+                    .foregroundColor(Color("Neutral-1000"))
             }
-            .frame(maxWidth: .infinity)
-            .frame(height: 50)
-            .background(color)
-            .foregroundColor(.black) // text color
-            .cornerRadius(12)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .frame(width: 361, alignment: .center)
+            .background(.white)
+            .cornerRadius(8)
         }
     }
 }
@@ -264,7 +291,6 @@ struct CountryPickerView: View {
     ]
 
     // MARK: - Body
-
     var body: some View {
         NavigationStack {
             List(countries, id: \.1) { flag, code in

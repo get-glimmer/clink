@@ -21,7 +21,7 @@ struct ProfileView: View {
     
     var body: some View {
         NavigationStack {
-            VStack(spacing: 20) {
+            VStack {
                 // MARK: - Avatar (tap to change)
                 Button {
                     showImagePicker = true
@@ -52,6 +52,7 @@ struct ProfileView: View {
                             .overlay(Text("No Avatar").appFont(AppFont.body2))
                     }
                 }
+                .padding(.top, 15)
                 .buttonStyle(.plain)
                 .photosPicker(
                     isPresented: $showImagePicker,
@@ -71,13 +72,15 @@ struct ProfileView: View {
                     }
                 }
 
-                VStack(spacing: 4) {
+                VStack() {
                     Text(viewModel.profile?.name ?? "")
+                        .padding(.top, 12)
                         .appFont(AppFont.title2)
                         .bold()
                         .foregroundColor(Color("White"))
                     
                     Text(viewModel.profile?.email ?? "")
+                        .padding(.top, 4)
                         .appFont(AppFont.body2)
                         .foregroundColor(Color("Neutral-300"))
                 }
@@ -89,34 +92,37 @@ struct ProfileView: View {
                     Text("\(count) friends")
                         .appFont(AppFont.body2)
                 }
+                .padding(.bottom, 42.5)
                 
-                Spacer().frame(height: 5)
+//                Spacer().frame(height: 5)
                 
                 // Share App button
                 Button {
                     showShareSheet = true
                 } label: {
                     HStack {
-                        VStack(alignment: .leading, spacing: 4) {
+                        VStack(alignment: .leading) {
                             Text("Get friends to try us :)")
+//                                .padding(.top, 25)
                                 .appFont(AppFont.labelL)
                                 .foregroundColor(.white)
 
-                            Text("Get friends to try us :)")
+                            Text("And get a free sticker!")
                                 .appFont(AppFont.body2)
                                 .foregroundColor(Color("Neutral-400"))
                         }
+                        .padding(.leading, 26)
 
                         Spacer()
 
                         Image(systemName: "chevron.right")
                             .foregroundColor(Color("Neutral-400"))
+                            .padding(.trailing, 16)
                     }
-                    .padding(.horizontal, 16)
                     .frame(maxWidth: .infinity)
                     .frame(height: 100)
                     .background(Color("Neutral-900"))
-                    .cornerRadius(12)
+                    .cornerRadius(16)
                 }
                 .sheet(isPresented: $showShareSheet) {
                     ShareSheet(items: ["Check out this app! Download it here: https://apps.apple.com/app/idYOUR_APP_ID"])
@@ -129,6 +135,8 @@ struct ProfileView: View {
                         .foregroundColor(.white)
                     Spacer()
                 }
+                .padding(.top, 23)
+                .padding(.leading, 6)
                 
                 HStack(spacing: 16) {
                     AppearanceBox(iconName: "circle.righthalf.filled", title: "System", isSelected: selectedAppearance == 0) {
@@ -142,10 +150,9 @@ struct ProfileView: View {
                     }
                     
                 }
-
+                .padding(.top, 15)
                 Spacer()
             }
-            .padding()
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     ZStack {
@@ -157,10 +164,12 @@ struct ProfileView: View {
                             Image("setting")
                                 .foregroundColor(.white)
                         }
+                        
                         .buttonStyle(PlainButtonStyle())
                     }
                 }
             }
+            .padding(.horizontal, 16)
             .task {
                 guard let client = SupabaseClientManager.shared.client else { return }
                 if let session = try? await client.auth.session {

@@ -215,6 +215,7 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
         let margin: CGFloat = 14 * emojiScaleFactor
         let minX = -size.width/2 + margin*2
         let maxX =  size.width/2 - margin*2
+
         // Guard against invalid ranges when scene size is not yet laid out
         let low = min(minX, maxX)
         let high = max(minX, maxX)

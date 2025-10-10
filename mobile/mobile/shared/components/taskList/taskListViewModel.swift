@@ -468,7 +468,8 @@ class TaskListViewModel: ObservableObject {
             title: "",
             isCompleted: false,
             dueDate: taskSelectedDate,
-            isTemporary: true
+            isTemporary: true,
+            privacyStatus: "public"
         )
         
         // Find the category and add the temporary task
@@ -481,7 +482,7 @@ class TaskListViewModel: ObservableObject {
         updateAllCompleted()
     }
     
-    func saveTemporaryTask(task: TaskListItem, newTitle: String) async {
+    func saveTemporaryTask(task: TaskListItem, newTitle: String, isPrivate: Bool) async {
         guard let client = self.client else { return }
         guard let userId = self.userId else { return }
         guard task.isTemporary else { return }
@@ -505,7 +506,8 @@ class TaskListViewModel: ObservableObject {
                 "categoryid": categoryId.uuidString,
                 "userid": userId,
                 "duedate": dateToPostgreSQLString(taskSelectedDate),
-                "tasktitle": newTitle
+                "tasktitle": newTitle,
+                "privacy_status": isPrivate ? "user_only" : "public"
             ]).execute()
             
             // Remove temporary task and refresh from server
