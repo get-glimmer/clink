@@ -191,6 +191,7 @@ struct TrackerView: View {
                     .zIndex(10)
             }
         }
+        .background(.neutral1000)
     }
 }
 

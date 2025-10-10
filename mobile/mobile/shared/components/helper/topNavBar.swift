@@ -25,9 +25,9 @@ struct TopNavBar: View {
             Spacer()
             Color.clear.frame(width: 40, height: 40)
         }
-        .padding(.horizontal, 16)
+        .background(.neutral1000)
+//        .padding(.horizontal, 16)
         .padding(.top, 15)
-        .background(Color.black.ignoresSafeArea(edges: .top))
     }
 }
 
