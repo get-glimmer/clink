@@ -340,7 +340,7 @@ struct TaskListView: View {
         Button {
             editingPrivacyOn[task.id]?.toggle()
         } label: {
-            Image((editingPrivacyOn[task.id] ?? true) ? "privacyOn" : "privacyOff")
+            Image((editingPrivacyOn[task.id] ?? false) ? "privacyOn" : "privacyOff")
                 .accessibilityLabel("Toggle privacy")
         }
         .buttonStyle(.plain)
@@ -357,7 +357,6 @@ struct TaskListView: View {
             viewModel.removeTemporaryTask(task: task)
         }
         editingTexts.removeValue(forKey: task.id)
-        editingPrivacyOn.removeValue(forKey: task.id)
         focusedTaskId = nil
     }
 }
