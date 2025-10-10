@@ -213,7 +213,7 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
         let minX = -size.width/2 + margin*2
         let maxX =  size.width/2 - margin*2
         let spawnX = CGFloat.random(in: minX...maxX)
-        let spawnY =  size.height/2 - margin*2 - lidHeight - margin*(CGFloat.random(in: 2...3))
+        let spawnY =  size.height/2 - margin*2.5 - lidHeight - margin*(CGFloat.random(in: 2...3))
         
         let node = SKLabelNode(fontNamed: "AppleColorEmoji")
         node.text = symbol
