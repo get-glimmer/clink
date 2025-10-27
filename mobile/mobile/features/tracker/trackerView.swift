@@ -55,10 +55,10 @@ struct TrackerView: View {
 
     
     var body: some View {
-        ZStack(alignment: .topLeading) {
+        ZStack() {
             // --- Main content ---
             VStack {
-                Spacer().frame(height: 10)
+//                Spacer().frame(height: 10)
                 
                 // --- Month selector header ---
                 HStack {
@@ -81,21 +81,22 @@ struct TrackerView: View {
                                 .foregroundColor(Color("White"))
                         }
                     }
+                    .padding(.leading, 23)
 
                     Spacer()
 
                     // Prev/Next month
-                    HStack(spacing: 27) {
-                        Button(action: { moveDate(by: -1) }) {
-                            Image(systemName: "chevron.left")
-                                .foregroundColor(Color("Neutral-400"))
-                        }
-                        Button(action: { moveDate(by: 1) }) {
-                            Image(systemName: "chevron.right")
-                                .foregroundColor(Color("Neutral-400"))
-                        }
+                    Button(action: { moveDate(by: -1) }) {
+                        Image(systemName: "chevron.left")
+                            .foregroundColor(Color("Neutral-400"))
                     }
-                    .padding(.trailing, 20)
+                    .padding(.trailing, 16)
+                    
+                    Button(action: { moveDate(by: 1) }) {
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(Color("Neutral-400"))
+                    }
+                    .padding(.trailing, 16)
 
                     // Monthly/Weekly toggle
                     ZStack {
@@ -112,14 +113,15 @@ struct TrackerView: View {
                                 .foregroundColor(Color("White"))
                         }
                     }
+                    .padding(.trailing, 16)
                 }
-                .padding(.horizontal, 16)
+                .padding(.top, 25)
                 .onChange(of: trackerViewModel.selectedDate) {
                     updateTaskSelectedDate(for: trackerViewModel.selectedDate)
                 }
 
                 // --- Calendar grid (unchanged) ---
-                LazyVGrid(columns: columns, spacing: 0) {
+                LazyVGrid(columns: columns, spacing: 12) {
                     // Weekday labels
                     ForEach(weekdaySymbols, id: \.self) { day in
                         Text(day.uppercased())
@@ -147,7 +149,7 @@ struct TrackerView: View {
                                             
                                             Text("\(calendar.component(.day, from: date))")
                                                 .appFont(AppFont.captionXS_M)
-                                                .foregroundColor(Color.black)
+                                                .foregroundColor(Color("Neutral-1000"))
                                             
                                         } else {
                                             Text("\(calendar.component(.day, from: date))")
@@ -155,17 +157,17 @@ struct TrackerView: View {
                                                 .foregroundColor(Color("Neutral-400"))
                                         }
                                     }
-                                    .frame(width: shakerWidth, height: 10)
+                                    
                                 }
                             }
-                            .frame(width: 44, height: 65)
+//                            .frame(width: 44, height: 65)
                         } else {
                             Color.clear.frame(height: 1)
                         }
                     }
                 }
-                .padding(.vertical, 12)
-                .padding(.horizontal, 15)
+                .padding(.top, 23)
+                .padding(.horizontal, 25)
                 .task(id: trackerViewModel.selectedDate) {
                     try? await trackerViewModel.fetchShakers()
                 }

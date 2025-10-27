@@ -160,28 +160,36 @@ struct FinishSignupView: View {
                                 HStack {
                                     if hasSelectedDate {
                                         Text(dateOfBirth, style: .date)
+                                            .appFont(AppFont.body1)
                                             .foregroundColor(.white)
+                                            .padding(.leading, 18)
+                                            .frame(maxHeight: .infinity, alignment: .center)
                                     } else {
                                         Text("Birthdate")
-                                            .padding(.leading, 18)
                                             .appFont(AppFont.body1)
                                             .foregroundColor(Color("Neutral-600"))
+                                            .padding(.leading, 18)
+                                            .frame(maxHeight: .infinity, alignment: .center)
                                     }
+
                                     Spacer()
+
                                     Image("down_arrow")
-                                        .padding(.trailing, 12)
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 24, height: 24)
                                         .foregroundColor(Color("Neutral-300"))
+                                        .padding(.trailing, 12)
+                                        .frame(maxHeight: .infinity, alignment: .center)
                                 }
                                 .frame(height: 49)
-                                .padding(.top, 4)
                                 .background(Color.clear)
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 8)
                                         .inset(by: 0.35)
                                         .stroke(Color("Neutral-600"), lineWidth: 0.7))
                             }
-                            
-                            .overlay(alignment: .bottomLeading) {
+                            .fullScreenCover(isPresented: $showChangeDateSheet) {
                                 if showChangeDateSheet {
                                     ChangeDateSheet(
                                         initialDate: todayDate(),
@@ -190,10 +198,13 @@ struct FinishSignupView: View {
                                             hasSelectedDate = true
                                             showChangeDateSheet = false
                                         },
-                                        onCancel: { showChangeDateSheet = false }
+                                        onCancel: {
+                                            showChangeDateSheet = false
+                                        }
                                     )
                                     .transition(.opacity)
                                     .ignoresSafeArea()
+                                    .zIndex(10)
                                 }
                             }
                             .animation(.easeInOut(duration: 0.25), value: showChangeDateSheet)
@@ -207,7 +218,6 @@ struct FinishSignupView: View {
                         .padding(.top, 16)
                     }
                 }
-                
                 // Continue button
                 Button {
                     Task {
@@ -282,9 +292,9 @@ struct FinishSignupView: View {
                                 : Color("Green-300"))
                     .cornerRadius(8)
                 }
-                
                 .disabled(!usernameConfirmed || fullName.isEmpty)
             }
+            .ignoresSafeArea(.keyboard, edges: .bottom)
             .padding(.horizontal, 16)
             .navigationTitle("")
             .navigationBarBackButtonHidden(true)
