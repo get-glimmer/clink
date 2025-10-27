@@ -200,7 +200,6 @@ struct SettingsView: View {
                     VStack (alignment: .leading,) {
                         Divider()
                             .background(Color("Neutral-600"))
-                            .padding(.horizontal, -16)
                         
                         Button(role: .destructive) {
                             Task {
@@ -220,7 +219,6 @@ struct SettingsView: View {
                         
                         Divider()
                             .background(Color("Neutral-600"))
-                            .padding(.horizontal, -16)
                         
                         NavigationLink(destination: DeleteAccountView()) {
                             HStack {
@@ -236,10 +234,12 @@ struct SettingsView: View {
                         
                         Divider()
                             .background(Color("Neutral-600"))
-                            .padding(.horizontal, -16)
                         
                         Spacer()
+                        
+                        
                     }
+                    
                 }
                 .padding(.horizontal, 16)
             }

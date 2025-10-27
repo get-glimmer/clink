@@ -23,21 +23,12 @@ struct ProfileView: View {
 
     
     var body: some View {
-        VStack {
+        
+            
+        NavigationStack {
             ZStack {
                 Color("Neutral-1000").ignoresSafeArea()
                 VStack {
-                    // MARK: - Setting Icon
-                    HStack {
-                        Spacer() // pushes the icon to the right
-                        NavigationLink(destination: SettingsView().environmentObject(authViewModel)) {
-                            Image("setting")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 44, height: 44)
-                        }
-                    }
-                    
                     // MARK: - Avatar (tap to change)
                     Button {
                         showImagePicker = true
@@ -179,6 +170,22 @@ struct ProfileView: View {
                     }
                     .padding(.top, 15)
                     Spacer()
+                }
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        ZStack {
+                            Circle()
+                                .fill(Color("Neutral-900"))
+                                .frame(width: 44, height: 44)
+                            
+                            NavigationLink(destination: SettingsView().environmentObject(authViewModel)) {
+                                Image("setting")
+                                    .foregroundColor(.white)
+                            }
+                            
+                            .buttonStyle(PlainButtonStyle())
+                        }
+                    }
                 }
                 .padding(.horizontal, 16)
                 .task {

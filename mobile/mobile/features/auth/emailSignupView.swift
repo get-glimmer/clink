@@ -35,7 +35,6 @@ struct EmailSignupView: View {
     var body: some View {
         ZStack {
             Color("Neutral-1000").ignoresSafeArea()
-            
             VStack {
                 // Custom top navigation bar
                 TopNavBar(title: "Sign up") {
@@ -65,13 +64,11 @@ struct EmailSignupView: View {
                                     emailError = nil
                                 }
                             
-                            
                             if let error = emailError {
                                 Text(error)
                                     .appFont(AppFont.captionXS)
                                     .foregroundColor(Color("Red-300"))
-                                    .padding(.horizontal, 7)
-                                    .padding(.top, 8)
+                                    .padding(.leading, 5)
                             }
                         }
                         
@@ -99,12 +96,9 @@ struct EmailSignupView: View {
                                 .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color("Neutral-600"), lineWidth: 0.7))
                                 
                                 Button(action: { showPassword.toggle() }) {
-                                    Image(showPassword ? "myEye-off" : "myEye")
-                                        .resizable()
-                                            .scaledToFit()
-                                            .frame(width: 24, height: 24)
+                                    Image(systemName: showPassword ? "eye.slash" : "eye")
                                         .foregroundColor(Color("Neutral-200"))
-                                        .padding(.trailing, 12)
+                                        .padding()
                                 }
                             }
                             
@@ -114,8 +108,9 @@ struct EmailSignupView: View {
                                 Text("Your password must include the following")
                                     .appFont(AppFont.captionXS)
                                     .foregroundColor(Color("Neutral-100"))
-                                    .padding(.top, 4)
-                                    .padding(.bottom, 6)
+                                    .padding(.top, 8)
+                                    .padding(.bottom, 13)
+                                //                                .padding(.leading, 7)
                                 
                                 passwordRequirementRow("Minimum 8 characters", check: reqs.min8)
                                 passwordRequirementRow("At least one number", check: reqs.number)
@@ -144,7 +139,7 @@ struct EmailSignupView: View {
                         let inUse = await authViewModel.checkEmailInUse(email)
                         
                         if inUse {
-                            emailError = "This email is already in use"
+                            emailError = "Email is already in use"
                         } else {
                             emailError = nil
                             path.append(
@@ -173,7 +168,6 @@ struct EmailSignupView: View {
                 }
                 .disabled(email.isEmpty || !authViewModel.validatePassword(password))
             }
-            .ignoresSafeArea(.keyboard, edges: .bottom)
             .padding(.horizontal, 16)
             .navigationTitle("")
             .navigationBarBackButtonHidden(true)
