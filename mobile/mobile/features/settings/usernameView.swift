@@ -66,7 +66,7 @@ struct UsernameView: View {
                                         try await authViewModel.updateUsername(username)
                                         usernameConfirmed = true
                                         usernameStatus = "Username updated successfully."
-                                        usernameStatusColor = Color("Green-300")
+                                        usernameStatusColor = .green
                                         
                                         // ✅ Auto-dismiss after short delay
                                         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {

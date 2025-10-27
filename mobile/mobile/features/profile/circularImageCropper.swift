@@ -3,7 +3,7 @@ import SwiftUI
 struct CircularImageCropper: View {
     @Binding var image: UIImage?
     @Environment(\.dismiss) var dismiss
-
+    
     @State private var scale: CGFloat = 1.0
     @State private var lastScale: CGFloat = 1.0
     @State private var offset: CGSize = .zero
@@ -15,13 +15,13 @@ struct CircularImageCropper: View {
     var body: some View {
         ZStack {
             Color("Neutral-1000").ignoresSafeArea()
-
+            
             GeometryReader { geo in
                 VStack {
                     TopNavBar(title: "") {
                         dismiss()
                     }
-
+                    
                     ZStack {
                         if let uiImage = image {
                             Image(uiImage: uiImage)
@@ -43,7 +43,7 @@ struct CircularImageCropper: View {
                                             .onEnded { _ in
                                                 lastOffset = offset
                                             },
-
+                                        
                                         // MARK: - Zoom
                                         MagnificationGesture()
                                             .onChanged { value in
@@ -70,10 +70,10 @@ struct CircularImageCropper: View {
                         }
                     }
                     .padding(.top, 120)
-
+                    
                     Spacer()
-
-                    // MARK: - Continue Button
+                    
+                    // MARK: - Continue button
                     HStack {
                         Button {
                             if let baseImage = image {
@@ -96,23 +96,24 @@ struct CircularImageCropper: View {
                                 .foregroundColor(Color("Neutral-900"))
                                 .cornerRadius(8)
                         }
+                        
                     }
                     .padding(.bottom, 36)
                 }
             }
             .padding(.horizontal, 16)
         }
-        .navBarHidden(true)
     }
 
     // MARK: - Limit panning to image edges
     private func clampOffset(in size: CGSize, image: UIImage) {
+        // Image aspect ratio scaling
         let imageAspect = image.size.width / image.size.height
         let containerAspect = size.width / size.height
-
+        
         var imageWidth = size.width
         var imageHeight = size.height
-
+        
         if imageAspect > containerAspect {
             // Image is wider
             imageHeight = size.width / imageAspect
@@ -120,7 +121,7 @@ struct CircularImageCropper: View {
             // Image is taller
             imageWidth = size.height * imageAspect
         }
-
+        
         imageWidth *= scale
         imageHeight *= scale
 
@@ -134,16 +135,18 @@ struct CircularImageCropper: View {
     // MARK: - Render Cropped Circle
     func renderCroppedImage(image: UIImage, size: CGFloat, scale: CGFloat, offset: CGSize) -> UIImage? {
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: size, height: size))
+        
         return renderer.image { context in
             let rect = CGRect(origin: .zero, size: CGSize(width: size, height: size))
+            
             context.cgContext.addEllipse(in: rect)
             context.cgContext.clip()
-
+            
             // Aspect fit logic
             let imgAspect = image.size.width / image.size.height
             var drawWidth = size
             var drawHeight = size
-
+            
             if imgAspect > 1 {
                 // Landscape
                 drawHeight = size / imgAspect
@@ -154,18 +157,21 @@ struct CircularImageCropper: View {
 
             drawWidth *= scale
             drawHeight *= scale
-
+            
             let drawX = (size - drawWidth) / 2 + offset.width
             let drawY = (size - drawHeight) / 2 + offset.height
-
+            
             image.draw(in: CGRect(x: drawX, y: drawY, width: drawWidth, height: drawHeight))
         }
     }
 }
 
+
 struct CircularImageCropper_Previews: PreviewProvider {
     static var previews: some View {
+        // Example placeholder image (replace with one in your Assets)
         let sampleImage = UIImage(systemName: "person.crop.circle.fill")!
+        
         CircularImageCropper(image: .constant(sampleImage))
             .preferredColorScheme(.dark)
     }
