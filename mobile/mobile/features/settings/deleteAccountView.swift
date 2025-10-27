@@ -36,6 +36,8 @@ struct DeleteAccountView: View {
                             Text("We're really sorry to see you go..")
                             Text("Once you confirm, your data will be gone.")
                         }
+                        .appFont(AppFont.body2)
+                        .foregroundStyle(Color("Neutral-300"))
                         .padding(.horizontal, 11)
                         .padding(.top, 24)
                         
@@ -48,12 +50,13 @@ struct DeleteAccountView: View {
                         TextField("Enter the reason for account deletion.", text: $text)
                             .padding(.top, 12)
                             .padding(.leading, 19)
-                            .foregroundStyle(Color("Neutral-600"))
+                            .foregroundColor(.white) // ✅ makes user input text white
                             .frame(height: 100, alignment: .topLeading)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 10)
                                     .stroke(Color("Neutral-600"), lineWidth: 1)
                             )
+
                     }
                     .frame(maxWidth: .infinity, alignment: .leading) // <--- important
                     .padding(.bottom, 205)

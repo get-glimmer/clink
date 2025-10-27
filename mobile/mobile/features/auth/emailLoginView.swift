@@ -77,23 +77,27 @@ struct EmailLoginView: View {
                         .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color("Neutral-600"), lineWidth: 0.7))
                     
                     // Forgot password button
-                    Button {
-                        Task {
-                            let success = await authViewModel.resetPassword(for: email)
-                            alertMessage = success
-                            ? "Password reset email sent to \(email)"
-                            : "Please enter a valid email address."
-                            showAlert = true
+                    HStack {
+                        Button {
+                            Task {
+                                let success = await authViewModel.resetPassword(for: email)
+                                alertMessage = success
+                                    ? "Password reset email sent to \(email)"
+                                    : "Please enter a valid email address."
+                                showAlert = true
+                            }
+                        } label: {
+                            Text("Forgot your password?")
+                                .underline(true, color: .white)
+                                .font(.caption)
+                                .foregroundColor(.white)
+                                // 👇 This keeps the tap area tight around the text
+                                .contentShape(Rectangle())
                         }
-                    } label: {
-                        Text("Forgot your password?")
-                            .underline(true, color: .white)
-                            .font(.caption)
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.top, 5)
-                            .padding(.leading, 5)
+                        Spacer() // Pushes the text to the leading edge
                     }
+                    .padding(.top, 5)
+                    .padding(.leading, 5)
                 }
                 
                 // Error message display
@@ -110,12 +114,14 @@ struct EmailLoginView: View {
                 // Link to the sign-up view
                 HStack {
                     Text("Don't have an account?")
+                        .appFont(AppFont.captionM)
                         .foregroundColor(Color("Neutral-600"))
                     
                     Button {
                         path.append(Screen.emailSignup)
                     } label: {
                         Text("Sign up")
+                            .appFont(AppFont.captionM)
                             .underline(true, color: .white)
                             .font(.caption)
                             .foregroundColor(.white)
@@ -149,14 +155,12 @@ struct EmailLoginView: View {
             .alert(alertMessage, isPresented: $showAlert) {
                 Button("OK", role: .cancel) { }
             }
+            .ignoresSafeArea(.keyboard, edges: .bottom)
             .navigationTitle("")
             .navigationBarBackButtonHidden(true)
         }
         .dismissKeyboardOnTap()
     }
-    
-    
-    
 }
 
 struct EmailLoginView_Previews: PreviewProvider {
