@@ -4,6 +4,7 @@
 <dict>
 	<key>UIAppFonts</key>
 	<array>
+		<string>Figtree-SemiBold.ttf</string>
 		<string>Figtree-Bold.ttf</string>
 		<string>Figtree-Regular.ttf</string>
 		<string>Figtree-Medium.ttf</string>

@@ -1,3 +1,10 @@
+//
+//  addCategorySheet.swift
+//  mobile
+//
+//  Created by 이채린 on 8/20/25.
+//
+
 import SwiftUI
 import MCEmojiPicker
 
@@ -41,15 +48,7 @@ struct AddCategorySheet: View {
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button(action: { dismiss() }) {
-                            ZStack {
-                                Circle()
-                                    .fill(Color("Neutral-900"))
-                                    .frame(width: 44, height: 44)
-                                Image(systemName: "chevron.left")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(Color("Neutral-400"))
-                            }
-                            .contentShape(Circle())
+                            Image("dismissButton")
                         }
                         .buttonStyle(.plain)
                     }
@@ -146,10 +145,8 @@ struct AddCategorySheet: View {
 
                     // Row 1: Visibility
                     HStack {
-                        HStack(spacing: 10) {
-                            Image(systemName: "globe")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(.neutral300)
+                        HStack {
+                            Image("visibility")
                             Text("Visibility")
                                 .appFont(AppFont.labelM)
                                 .foregroundColor(.neutral300)
@@ -162,16 +159,12 @@ struct AddCategorySheet: View {
                                 Button(p.display) { privacy = p }
                             }
                         } label: {
-                            HStack(spacing: 6) {
+                            HStack{
                                 Text(privacy.display)
                                     .appFont(AppFont.body1)
                                     .foregroundColor(Color("White"))
-                                Image(systemName: "chevron.up.chevron.down")
-                                    .font(.footnote)
-                                    .foregroundColor(Color("White"))
+                                Image("chevronUpdown")
                             }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
                         }
                         .menuStyle(.automatic)
                     }
@@ -186,10 +179,8 @@ struct AddCategorySheet: View {
 
                     // Row 2: Type
                     HStack {
-                        HStack(spacing: 10) {
-                            Image(systemName: "rectangle.grid.1x2")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(.neutral300)
+                        HStack {
+                            Image("type")
                             Text("Type")
                                 .appFont(AppFont.labelM)
                                 .foregroundColor(.neutral300)
@@ -199,16 +190,12 @@ struct AddCategorySheet: View {
                             Button("Daily")    { catType = .daily }
                             Button("Archived") { catType = .archived }
                         } label: {
-                            HStack(spacing: 6) {
+                            HStack {
                                 Text(catType == .daily ? "Daily" : "Archived")
                                     .appFont(AppFont.body1)
                                     .foregroundColor(Color("White"))
-                                Image(systemName: "chevron.up.chevron.down")
-                                    .font(.footnote)
-                                    .foregroundColor(Color("White"))
+                                Image("chevronUpdown")
                             }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
                         }
                     }
                     .frame(height: 52)

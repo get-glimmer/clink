@@ -36,67 +36,48 @@ struct FinishSignupView: View {
     // MARK: - Body
 
     var body: some View {
-        // Custom top navigation bar
-        TopNavBar(title: "Finish signing up") {
-            dismiss()
-        }
-        
-        VStack {
-            ScrollView {
-                VStack {
-                    // Profile avatar picker
-                    PhotosPicker(selection: $photoItem, matching: .images) {
-                        if let profileImage {
-                            Image(uiImage: profileImage)
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: 84, height: 84)
-                                .clipShape(Circle())
-                        } else {
-                            Image("profile_picker")
-                        }
-                    }
-                    .padding(.top, 49)
-                    .onChange(of: photoItem) { _, newItem in
-                        Task {
-                            if let data = try? await newItem?.loadTransferable(type: Data.self),
-                               let uiImage = UIImage(data: data) {
-                                profileImage = uiImage
-                                showCropper = true
+        ZStack {
+            Color("Neutral-1000").ignoresSafeArea()
+            
+            VStack {
+                // Custom top navigation bar
+                TopNavBar(title: "Finish signing up") {
+                    dismiss()
+                }
+                
+                ScrollView {
+                    VStack {
+                        // Profile avatar picker
+                        PhotosPicker(selection: $photoItem, matching: .images) {
+                            if let profileImage {
+                                Image(uiImage: profileImage)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 84, height: 84)
+                                    .clipShape(Circle())
+                            } else {
+                                Image("profile_picker")
                             }
                         }
-                    }
-
-                    // Full name input field
-                    VStack(alignment: .leading) {
-                        Text("Your name")
-                            .padding(.leading, 11)
-                            .appFont(AppFont.labelS)
-                            .foregroundColor(Color("Neutral-300"))
-
-                        TextField("Full name", text: $fullName)
-                            .padding(.leading, 18)
-                            .appFont(AppFont.body1)
-                            .background(Color.clear)
-                            .frame(maxWidth: .infinity, minHeight: 49)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .inset(by: 0.35)
-                                    .stroke(Color("Neutral-600"), lineWidth: 0.7)
-                            )
-                    }
-                    .padding(.top, 23)
-                    
-
-                    // Username input field and confirmation
-                    VStack(alignment: .leading) {
-                        Text("Username")
-                            .padding(.leading, 11)
-                            .appFont(AppFont.labelS)
-                            .foregroundColor(Color("Neutral-300"))
-
-                        HStack() {
-                            TextField("Username", text: $username)
+                        .padding(.top, 49)
+                        .onChange(of: photoItem) { _, newItem in
+                            Task {
+                                if let data = try? await newItem?.loadTransferable(type: Data.self),
+                                   let uiImage = UIImage(data: data) {
+                                    profileImage = uiImage
+                                    showCropper = true
+                                }
+                            }
+                        }
+                        
+                        // Full name input field
+                        VStack(alignment: .leading) {
+                            Text("Your name")
+                                .padding(.leading, 11)
+                                .appFont(AppFont.labelS)
+                                .foregroundColor(Color("Neutral-300"))
+                            
+                            TextField("Full name", text: $fullName)
                                 .padding(.leading, 18)
                                 .appFont(AppFont.body1)
                                 .background(Color.clear)
@@ -106,184 +87,221 @@ struct FinishSignupView: View {
                                         .inset(by: 0.35)
                                         .stroke(Color("Neutral-600"), lineWidth: 0.7)
                                 )
-                                .onChange(of: username) {
-                                    usernameConfirmed = false
-                                    usernameStatus = nil
-                                }
-
-                            Button {
-                                Task {
-                                    if await authViewModel.checkUsername(username) {
-                                        usernameStatus = "The username is available."
-                                        usernameStatusColor = .white
-                                        usernameConfirmed = true
-                                    } else {
-                                        usernameStatus = "The username is already in use."
-                                        usernameStatusColor = Color("Red- 300")
+                        }
+                        .padding(.top, 23)
+                        
+                        
+                        // Username input field and confirmation
+                        VStack(alignment: .leading) {
+                            Text("Username")
+                                .padding(.leading, 11)
+                                .appFont(AppFont.labelS)
+                                .foregroundColor(Color("Neutral-300"))
+                            
+                            HStack() {
+                                TextField("Username", text: $username)
+                                    .padding(.leading, 18)
+                                    .appFont(AppFont.body1)
+                                    .background(Color.clear)
+                                    .frame(maxWidth: .infinity, minHeight: 49)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .inset(by: 0.35)
+                                            .stroke(Color("Neutral-600"), lineWidth: 0.7)
+                                    )
+                                    .onChange(of: username) {
                                         usernameConfirmed = false
+                                        usernameStatus = nil
                                     }
-                                }
-                            } label: {
-                                Text("Confirm")
-                                    .frame(width: 119, height: 50)
-                                    .foregroundColor(username.isEmpty ? .white : Color("Neutral-900"))
+                                
+                                Button {
+                                    Task {
+                                        if await authViewModel.checkUsername(username) {
+                                            usernameStatus = "The username is available."
+                                            usernameStatusColor = Color("Neutral-100")
+                                            usernameConfirmed = true
+                                        } else {
+                                            usernameStatus = "The username is already in use."
+                                            usernameStatusColor = Color("Red-300")
+                                            usernameConfirmed = false
+                                        }
+                                    }
+                                } label: {
+                                    Text("Confirm")
+                                        .appFont(AppFont.buttonL)
+                                        .frame(width: 119, height: 50)
+                                        .foregroundColor(username.isEmpty ? .white : Color("Neutral-900"))
                                     
-                                    .background(username.isEmpty ? Color("Neutral-800") : Color("Green-300"))
-                                    .cornerRadius(8)
-                            }
-                            .disabled(username.isEmpty)
-                        }
-                        .frame(height: 50)
-
-                        if let status = usernameStatus {
-                            Text(status)
-                                .font(.caption)
-                                .foregroundColor(usernameStatusColor)
-                        }
-                    }
-                    .padding(.top, 16)
-
-                    // Date of birth picker
-                    VStack(alignment: .leading) {
-                        Text("Date of Birth (Optional)")
-                            .padding(.leading, 11)
-                            .appFont(AppFont.labelS)
-                            .foregroundColor(Color("Neutral-300"))
-
-                        Button {
-                            showChangeDateSheet = true
-                        } label: {
-                            HStack {
-                                if hasSelectedDate {
-                                    Text(dateOfBirth, style: .date)
-                                        .foregroundColor(.white)
-                                } else {
-                                    Text("Birthdate")
-                                        .padding(.leading, 18)
-                                        .appFont(AppFont.body1)
-                                        .foregroundColor(Color("Neutral-600"))
+                                        .background(username.isEmpty ? Color("Neutral-800") : Color("Green-300"))
+                                        .cornerRadius(8)
                                 }
-                                Spacer()
-                                Image("down_arrow")
-                                    .padding(.trailing, 12)
-                                    .foregroundColor(Color("Neutral-300"))
+                                .disabled(username.isEmpty)
                             }
-                            .frame(height: 49)
-                            .padding(.top, 4)
-                            .background(Color.clear)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .inset(by: 0.35)
-                                    .stroke(Color("Neutral-600"), lineWidth: 0.7))
+                            .frame(height: 50)
+                            
+                            if let status = usernameStatus {
+                                Text(status)
+                                    .appFont(AppFont.captionXS)
+                                    .foregroundColor(usernameStatusColor)
+                                    .padding(.leading, 7)
+                                    .padding(.top, 4)
+                            }
+                        }
+                        .padding(.top, 16)
+                        
+                        // Date of birth picker
+                        VStack(alignment: .leading) {
+                            Text("Date of Birth (Optional)")
+                                .padding(.leading, 11)
+                                .appFont(AppFont.labelS)
+                                .foregroundColor(Color("Neutral-300"))
+                            
+                            Button {
+                                showChangeDateSheet = true
+                            } label: {
+                                HStack {
+                                    if hasSelectedDate {
+                                        Text(dateOfBirth, style: .date)
+                                            .appFont(AppFont.body1)
+                                            .foregroundColor(.white)
+                                            .padding(.leading, 18)
+                                            .frame(maxHeight: .infinity, alignment: .center)
+                                    } else {
+                                        Text("Birthdate")
+                                            .appFont(AppFont.body1)
+                                            .foregroundColor(Color("Neutral-600"))
+                                            .padding(.leading, 18)
+                                            .frame(maxHeight: .infinity, alignment: .center)
+                                    }
+
+                                    Spacer()
+
+                                    Image("down_arrow")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 24, height: 24)
+                                        .foregroundColor(Color("Neutral-300"))
+                                        .padding(.trailing, 12)
+                                        .frame(maxHeight: .infinity, alignment: .center)
+                                }
+                                .frame(height: 49)
+                                .background(Color.clear)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .inset(by: 0.35)
+                                        .stroke(Color("Neutral-600"), lineWidth: 0.7))
+                            }
+                            .fullScreenCover(isPresented: $showChangeDateSheet) {
+                                if showChangeDateSheet {
+                                    ChangeDateSheet(
+                                        initialDate: todayDate(),
+                                        onConfirm: { picked in
+                                            dateOfBirth = picked
+                                            hasSelectedDate = true
+                                            showChangeDateSheet = false
+                                        },
+                                        onCancel: {
+                                            showChangeDateSheet = false
+                                        }
+                                    )
+                                    .transition(.opacity)
+                                    .ignoresSafeArea()
+                                    .zIndex(10)
+                                }
+                            }
+                            .animation(.easeInOut(duration: 0.25), value: showChangeDateSheet)
+                            
+                            Text("Your birthday won’t be shared with other people who use Clink!.")
+                                .appFont(AppFont.captionXS)
+                                .padding(.top, 4)
+                                .padding(.leading, 7)
+                                .foregroundColor(Color("Neutral-400"))
+                        }
+                        .padding(.top, 16)
+                    }
+                }
+                // Continue button
+                Button {
+                    Task {
+                        isLoading = true
+                        guard let client = SupabaseClientManager.shared.client else {
+                            print("Supabase client not available.")
+                            isLoading = false
+                            return
                         }
                         
-                        .overlay(alignment: .bottomLeading) {
-                            if showChangeDateSheet {
-                                ChangeDateSheet(
-                                    initialDate: todayDate(),
-                                    onConfirm: { picked in
-                                        dateOfBirth = picked
-                                        hasSelectedDate = true
-                                        showChangeDateSheet = false
-                                    },
-                                    onCancel: { showChangeDateSheet = false }
-                                )
-                                .transition(.opacity)
-                                .ignoresSafeArea()
+                        var finalUserId: String?
+                        var authSuccessful = false
+                        
+                        // --- Part 1: Authenticate and get User ID ---
+                        if let email, let password { // Email signup flow
+                            do {
+                                // Step 1: Create the user in auth.users
+                                let signUpResult = try await client.auth.signUp(email: email, password: password)
+                                
+                                // Step 2: Immediately sign in to establish a session.
+                                // This is the key to creating a seamless login experience.
+                                try await client.auth.signIn(email: email, password: password)
+                                
+                                // If both succeed, get the user ID and mark as successful
+                                finalUserId = signUpResult.user.id.uuidString
+                                authSuccessful = true
+                            } catch {
+                                print("❌ Email signup or sign-in failed:", error.localizedDescription)
+                                authSuccessful = false
                             }
+                        } else if let uid = userId { // Phone signup flow
+                            finalUserId = uid
+                            authSuccessful = true // User is already authenticated in this flow
                         }
-                        .animation(.easeInOut(duration: 0.25), value: showChangeDateSheet)
-
-                        Text("Your birthday won’t be shared with other people who use Clink!.")
-                            .appFont(AppFont.captionXS)
-                            .padding(.top, 8)
-                            .padding(.leading, 7)
-                            .foregroundColor(Color("Neutral-400"))
-                    }
-                    .padding(.top, 16)
-                }
-            }
-
-            // Continue button
-            Button {
-                Task {
-                    isLoading = true
-                    guard let client = SupabaseClientManager.shared.client else {
-                        print("Supabase client not available.")
+                        
+                        // --- Part 2: Save Profile and Transition ---
+                        if authSuccessful, let finalUserId {
+                            // Step 3: Save the profile data (name, username, etc.)
+                            await authViewModel.saveProfile(
+                                userId: finalUserId,
+                                phoneNumber: phoneNumber,
+                                name: fullName,
+                                username: username,
+                                dob: dateOfBirth,
+                                profileImage: profileImage,
+                                email: email
+                            )
+                            
+                            // Step 4: Set isAuthenticated to true. This will trigger the
+                            // view switch in your main AppRouter/ContentView.
+                            authViewModel.isAuthenticated = true
+                        } else {
+                            // Handle the signup failure case. You could show an alert here.
+                            print("Authentication process failed. Staying on the current screen.")
+                        }
+                        
                         isLoading = false
-                        return
                     }
-
-                    var finalUserId: String?
-                    var authSuccessful = false
-
-                    // --- Part 1: Authenticate and get User ID ---
-                    if let email, let password { // Email signup flow
-                        do {
-                            // Step 1: Create the user in auth.users
-                            let signUpResult = try await client.auth.signUp(email: email, password: password)
-                            
-                            // Step 2: Immediately sign in to establish a session.
-                            // This is the key to creating a seamless login experience.
-                            try await client.auth.signIn(email: email, password: password)
-                            
-                            // If both succeed, get the user ID and mark as successful
-                            finalUserId = signUpResult.user.id.uuidString
-                            authSuccessful = true
-                        } catch {
-                            print("❌ Email signup or sign-in failed:", error.localizedDescription)
-                            authSuccessful = false
-                        }
-                    } else if let uid = userId { // Phone signup flow
-                        finalUserId = uid
-                        authSuccessful = true // User is already authenticated in this flow
+                } label: {
+                    HStack(alignment: .center, spacing: 10) {
+                        Text("Continue")
+                            .appFont(AppFont.buttonL)
+                            .foregroundColor((!usernameConfirmed || fullName.isEmpty)
+                                             ? Color("Neutral-600")
+                                             : Color("Neutral-900"))
                     }
-
-                    // --- Part 2: Save Profile and Transition ---
-                    if authSuccessful, let finalUserId {
-                        // Step 3: Save the profile data (name, username, etc.)
-                        await authViewModel.saveProfile(
-                            userId: finalUserId,
-                            phoneNumber: phoneNumber,
-                            name: fullName,
-                            username: username,
-                            dob: dateOfBirth,
-                            profileImage: profileImage,
-                            email: email
-                        )
-                        
-                        // Step 4: Set isAuthenticated to true. This will trigger the
-                        // view switch in your main AppRouter/ContentView.
-                        authViewModel.isAuthenticated = true
-                    } else {
-                        // Handle the signup failure case. You could show an alert here.
-                        print("Authentication process failed. Staying on the current screen.")
-                    }
-
-                    isLoading = false
+                    .padding(.horizontal, 29)
+                    .padding(.vertical, 13)
+                    .frame(width: 361, height: 50, alignment: .center)
+                    .background((!usernameConfirmed || fullName.isEmpty)
+                                ? Color("Neutral-800")
+                                : Color("Green-300"))
+                    .cornerRadius(8)
                 }
-            } label: {
-                HStack(alignment: .center, spacing: 10) {
-                    Text("Continue")
-                        .appFont(AppFont.body1)
-                        .foregroundColor((!usernameConfirmed || fullName.isEmpty)
-                                         ? Color("Neutral-600")
-                                         : Color("Neutral-900"))
-                }
-                .padding(.horizontal, 29)
-                .padding(.vertical, 13)
-                .frame(width: 361, alignment: .center)
-                .background((!usernameConfirmed || fullName.isEmpty)
-                            ? Color("Neutral-800")
-                            : Color("Green-300"))
-                .cornerRadius(8)
+                .disabled(!usernameConfirmed || fullName.isEmpty)
             }
-            
-            .disabled(!usernameConfirmed || fullName.isEmpty)
+            .ignoresSafeArea(.keyboard, edges: .bottom)
+            .padding(.horizontal, 16)
+            .navigationTitle("")
+            .navigationBarBackButtonHidden(true)
         }
-        .padding(.horizontal, 16)
-        .navigationTitle("")
-        .navigationBarBackButtonHidden(true)
+        .dismissKeyboardOnTap()
     }
 }
 

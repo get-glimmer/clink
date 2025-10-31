@@ -33,141 +33,152 @@ struct EmailSignupView: View {
     // MARK: - Body
 
     var body: some View {
-        // Custom top navigation bar
-        TopNavBar(title: "Sign up") {
-            dismiss()
-        }
-        VStack {
-            ScrollView {
-                VStack(alignment: .leading) {
-                    // Email input field
+        ZStack {
+            Color("Neutral-1000").ignoresSafeArea()
+            
+            VStack {
+                // Custom top navigation bar
+                TopNavBar(title: "Sign up") {
+                    dismiss()
+                }
+                
+                ScrollView {
                     VStack(alignment: .leading) {
-                        Text("Email")
-                            .appFont(AppFont.labelL)
-                            .foregroundColor(.white)
-                            .padding(.leading, 7)
-                            .padding(.top, 24)
-                            .padding(.bottom, 8)
-                        
-                        TextField("Email Address", text: $email)
-                            .keyboardType(.emailAddress)
-                            .textInputAutocapitalization(.never)
-                            .frame(height: 49)
-                            .padding(.leading, 18)
-                            .appFont(AppFont.body1)
-                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color("Neutral-600"), lineWidth: 0.7))
-                            .onChange(of: email) { _, newValue in
-                                email = newValue.lowercased()
-                                emailError = nil
+                        // Email input field
+                        VStack(alignment: .leading) {
+                            Text("Email")
+                                .appFont(AppFont.labelL)
+                                .foregroundColor(.white)
+                                .padding(.leading, 7)
+                                .padding(.top, 24)
+                                .padding(.bottom, 8)
+                            
+                            TextField("Email Address", text: $email)
+                                .keyboardType(.emailAddress)
+                                .textInputAutocapitalization(.never)
+                                .frame(height: 49)
+                                .padding(.leading, 18)
+                                .appFont(AppFont.body1)
+                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color("Neutral-600"), lineWidth: 0.7))
+                                .onChange(of: email) { _, newValue in
+                                    email = newValue.lowercased()
+                                    emailError = nil
+                                }
+                            
+                            
+                            if let error = emailError {
+                                Text(error)
+                                    .appFont(AppFont.captionXS)
+                                    .foregroundColor(Color("Red-300"))
+                                    .padding(.horizontal, 7)
+                                    .padding(.top, 8)
                             }
-
-                        if let error = emailError {
-                            Text(error)
-                                .appFont(AppFont.captionXS)
-                                .foregroundColor(Color("Red-300"))
-                                .padding(.leading, 5)
                         }
-                    }
-                    
-                    
-                    // Password input field
-                    VStack(alignment: .leading) {
-                        Text("Password")
-                            .appFont(AppFont.labelL)
-                            .foregroundColor(.white)
-                            .padding(.leading, 7)
-                            .padding(.top, 24)
-                            .padding(.bottom, 8)
                         
-                        ZStack(alignment: .trailing) {
-                            Group {
-                                if showPassword {
-                                    TextField("Password", text: $password)
-                                } else {
-                                    SecureField("Password", text: $password)
+                        
+                        // Password input field
+                        VStack(alignment: .leading) {
+                            Text("Password")
+                                .appFont(AppFont.labelL)
+                                .foregroundColor(.white)
+                                .padding(.leading, 7)
+                                .padding(.top, 24)
+                                .padding(.bottom, 8)
+                            
+                            ZStack(alignment: .trailing) {
+                                Group {
+                                    if showPassword {
+                                        TextField("Password", text: $password)
+                                    } else {
+                                        SecureField("Password", text: $password)
+                                    }
+                                }
+                                .frame(height: 49)
+                                .padding(.leading, 18)
+                                .appFont(AppFont.body1)
+                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color("Neutral-600"), lineWidth: 0.7))
+                                
+                                Button(action: { showPassword.toggle() }) {
+                                    Image(showPassword ? "myEye-off" : "myEye")
+                                        .resizable()
+                                            .scaledToFit()
+                                            .frame(width: 24, height: 24)
+                                        .foregroundColor(Color("Neutral-200"))
+                                        .padding(.trailing, 12)
                                 }
                             }
-                            .frame(height: 49)
-                            .padding(.leading, 18)
-                            .appFont(AppFont.body1)
-                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color("Neutral-600"), lineWidth: 0.7))
                             
-                            Button(action: { showPassword.toggle() }) {
-                                Image(systemName: showPassword ? "eye.slash" : "eye")
-                                    .foregroundColor(Color("Neutral-200"))
-                                    .padding()
+                            // Password requirements display
+                            let reqs = authViewModel.passwordRequirements(password)
+                            VStack(alignment: .leading) {
+                                Text("Your password must include the following")
+                                    .appFont(AppFont.captionXS)
+                                    .foregroundColor(Color("Neutral-100"))
+                                    .padding(.top, 4)
+                                    .padding(.bottom, 6)
+                                
+                                passwordRequirementRow("Minimum 8 characters", check: reqs.min8)
+                                passwordRequirementRow("At least one number", check: reqs.number)
+                                passwordRequirementRow("Upper & lowercase letters", check: reqs.upperLower)
                             }
+                            .padding(.leading, 7)
+                        }
+                    }
+                }
+                
+                
+                // Continue button
+                Button {
+                    guard authViewModel.validatePassword(password) else { return }
+                    guard SupabaseClientManager.shared.client != nil else { return }
+                    
+                    Task {
+                        isLoading = true
+                        
+                        if !authViewModel.validateEmail(email) {
+                            emailError = "Please enter a valid email address"
+                            isLoading = false
+                            return
                         }
                         
-                        // Password requirements display
-                        let reqs = authViewModel.passwordRequirements(password)
-                        VStack(alignment: .leading) {
-                            Text("Your password must include the following")
-                                .appFont(AppFont.captionXS)
-                                .foregroundColor(Color("Neutral-100"))
-                                .padding(.top, 8)
-                                .padding(.bottom, 13)
-//                                .padding(.leading, 7)
-                            
-                            passwordRequirementRow("Minimum 8 characters", check: reqs.min8)
-                            passwordRequirementRow("At least one number", check: reqs.number)
-                            passwordRequirementRow("Upper & lowercase letters", check: reqs.upperLower)
-                        }
-                        .padding(.leading, 7)
-                    }
-                }
-            }
-            
-            
-            // Continue button
-            Button {
-                guard authViewModel.validatePassword(password) else { return }
-                guard SupabaseClientManager.shared.client != nil else { return }
-
-                Task {
-                    isLoading = true
-
-                    if !authViewModel.validateEmail(email) {
-                        emailError = "Please enter a valid email address"
-                        isLoading = false
-                        return
-                    }
-
-                    let inUse = await authViewModel.checkEmailInUse(email)
-
-                    if inUse {
-                        emailError = "Email is already in use"
-                    } else {
-                        emailError = nil
-                        path.append(
-                            Screen.finishSignup(
-                                phoneNumber: nil,
-                                email: email,
-                                password: password,
-                                userId: nil
+                        let inUse = await authViewModel.checkEmailInUse(email)
+                        
+                        if inUse {
+                            emailError = "This email is already in use"
+                        } else {
+                            emailError = nil
+                            path.append(
+                                Screen.finishSignup(
+                                    phoneNumber: nil,
+                                    email: email,
+                                    password: password,
+                                    userId: nil
+                                )
                             )
-                        )
+                        }
+                        isLoading = false
                     }
-                    isLoading = false
+                } label: {
+                    
+                    HStack(alignment: .center, spacing: 10) {
+                        Text("Continue")
+                            .appFont(AppFont.buttonL)
+                            .foregroundColor(!email.isEmpty && authViewModel.validatePassword(password) ? Color("Neutral-900") : Color("Neutral-600"))
+                    }
+                    .padding(.horizontal, 29)
+                    .padding(.vertical, 13)
+                    .frame(width: 361, height: 50, alignment: .center)
+                    .background(!email.isEmpty && authViewModel.validatePassword(password) ? Color("Green-300") : Color("Neutral-800"))
+                    .cornerRadius(8)
                 }
-            } label: {
-                
-                HStack(alignment: .center, spacing: 10) {
-                    Text("Continue")
-                        .appFont(AppFont.body1)
-                        .foregroundColor(!email.isEmpty && authViewModel.validatePassword(password) ? Color("Neutral-900") : Color("Neutral-600"))
-                }
-                .padding(.horizontal, 29)
-                .padding(.vertical, 13)
-                .frame(width: 361, alignment: .center)
-                .background(!email.isEmpty && authViewModel.validatePassword(password) ? Color("Green-300") : Color("Neutral-800"))
-                .cornerRadius(8)
+                .disabled(email.isEmpty || !authViewModel.validatePassword(password))
             }
-            .disabled(email.isEmpty || !authViewModel.validatePassword(password))
+            .ignoresSafeArea(.keyboard, edges: .bottom)
+            .padding(.horizontal, 16)
+            .navigationTitle("")
+            .navigationBarBackButtonHidden(true)
         }
-        .padding(.horizontal, 16)
-        .navigationTitle("")
-        .navigationBarBackButtonHidden(true)
+        .dismissKeyboardOnTap()
     }
 
     // MARK: - Private Methods

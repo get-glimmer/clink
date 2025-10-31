@@ -112,14 +112,8 @@ struct TaskView: View {
                                 showOptionsSheet = true
                             } label: {
                                 ZStack {
-                                    Circle()
-                                        .fill(Color("Neutral-900"))
-                                        .frame(width: 44, height: 44)
-                                    Image(systemName: "ellipsis")
-                                        .font(.system(size: 14))
-                                        .foregroundColor(Color("Neutral-400"))
+                                    Image("optionsButton")
                                 }
-                                .contentShape(Circle())
                             }
                             .buttonStyle(.plain)
                         }
@@ -148,6 +142,7 @@ struct TaskView: View {
                     ScrollView {
                         TaskListView(taskSelectedDate: $selectedDate, viewModel: viewModel)
                             .padding(.bottom, 120)
+                            //.padding(.top, -6) // for grabber hit area
                     }
                     .coordinateSpace(name: "BottomSheetScroll")
                 }

@@ -41,89 +41,98 @@ struct OTPView: View {
     // MARK: - Body
 
     var body: some View {
-        TopNavBar(title: "Verification Code") {
-            dismiss()
-        }
-        
-        VStack {
-            Text("Enter the code we texted you \non \(phoneNumber)")
-                .padding(.top, 82)
-                .multilineTextAlignment(.center)
-                .appFont(AppFont.body1)
-                .foregroundColor(Color("White"))
+        ZStack {
+            Color("Neutral-1000").ignoresSafeArea()
             
-            // OTP input boxes
-            HStack(spacing: 8) {
-                ForEach(0..<6, id: \.self) { index in
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(Color("Neutral-600"), lineWidth: 0.7)
-                            .overlay(
+            
+            VStack {
+                TopNavBar(title: "Verification Code") {
+                    dismiss()
+                }
+                .padding(.leading, 16)
+                
+                VStack {
+                    Text("Enter the code we texted you \non \(phoneNumber)")
+                        .padding(.top, 82)
+                        .multilineTextAlignment(.center)
+                        .appFont(AppFont.body1)
+                        .foregroundColor(Color("White"))
+                    
+                    // OTP input boxes
+                    HStack(spacing: 8) {
+                        ForEach(0..<6, id: \.self) { index in
+                            ZStack {
                                 RoundedRectangle(cornerRadius: 8)
-                                    .inset(by: 0.35)
-                                    .fill(code.count > index ? Color("Green-400") : Color.clear)
-                            )
-                            .frame(width: 50, height: 80)
-                        
-                        if code.count > index {
-                            Text(String(code[code.index(code.startIndex, offsetBy: index)]))
-                                .appFont(AppFont.headlineL)
-                                .foregroundColor(Color("Neutral-1000"))
+                                    .stroke(Color("Neutral-600"), lineWidth: 0.7)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .inset(by: 0.35)
+                                            .fill(code.count > index ? Color("Green-400") : Color.clear)
+                                    )
+                                    .frame(height: 108)
+                                    .frame(maxWidth: .infinity)
+                                
+                                if code.count > index {
+                                    Text(String(code[code.index(code.startIndex, offsetBy: index)]))
+                                        .appFont(AppFont.headlineL)
+                                        .foregroundColor(Color("Neutral-1000"))
+                                }
+                            }
                         }
                     }
+                    .padding(.top, 34)
+                    // Hidden text field for OTP input
+                    .background(
+                        TextField("", text: $code)
+                            .keyboardType(.numberPad)
+                            .textContentType(.oneTimeCode)
+                            .focused($isTextFieldFocused)
+                            .frame(width: 0, height: 0)
+                            .opacity(0.01)
+                            .onChange(of: code) { newValue, oldValue in
+                                if newValue.count > 6 {
+                                    code = String(newValue.prefix(6))
+                                }
+                                if code.count == 6 {
+                                    Task { await verifyOTP() }
+                                }
+                            }
+                    )
+                    .onTapGesture {
+                        isTextFieldFocused = true
+                    }
+                    
+                    if let errorMessage = errorMessage {
+                        Text(errorMessage)
+                            .foregroundColor(.red)
+                            .appFont(AppFont.captionS)
+                    }
+                    
+                    
+                    // Resend code timer
+                    Text(timeRemaining > 0 ? "Resend code in \(timeRemaining)" : "Resend Code")
+                        .padding(.top, 19)
+                        .appFont(AppFont.captionS)
+                        .foregroundColor(timeRemaining > 0 ? Color("Neutral-400") : Color("Green-300"))
+                        .onTapGesture {
+                            if timeRemaining == 0 {
+                                resendCode()
+                            }
+                        }
+                    
+                    Spacer()
+                }
+                .padding(.horizontal, 29)
+            }
+            .background(Color("Neutral-1000"))
+            
+            .onAppear {
+                startTimer()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    isTextFieldFocused = true
                 }
             }
-            .padding(.top, 34)
-            // Hidden text field for OTP input
-            .background(
-                TextField("", text: $code)
-                    .keyboardType(.numberPad)
-                    .textContentType(.oneTimeCode)
-                    .focused($isTextFieldFocused)
-                    .frame(width: 0, height: 0)
-                    .opacity(0.01)
-                    .onChange(of: code) { newValue, oldValue in
-                        if newValue.count > 6 {
-                            code = String(newValue.prefix(6))
-                        }
-                        if code.count == 6 {
-                            Task { await verifyOTP() }
-                        }
-                    }
-            )
-            .onTapGesture {
-                isTextFieldFocused = true
-            }
-            
-            if let errorMessage = errorMessage {
-                Text(errorMessage)
-                    .foregroundColor(.red)
-                    .appFont(AppFont.captionS)
-            }
-            
-            
-            // Resend code timer
-            Text(timeRemaining > 0 ? "Resend code in \(timeRemaining)" : "Resend Code")
-                .padding(.top, 19)
-                .appFont(AppFont.captionS)
-                .foregroundColor(timeRemaining > 0 ? Color("Neutral-400") : Color("Green-300"))
-                .onTapGesture {
-                    if timeRemaining == 0 {
-                        resendCode()
-                    }
-                }
-            
-            Spacer()
         }
-        .background(Color("Neutral-1000"))
-        .padding(.horizontal, 29)
-        .onAppear {
-            startTimer()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                isTextFieldFocused = true
-            }
-        }
-//        .navigationTitle("")
         .navigationBarBackButtonHidden(true)
     }
     

@@ -33,14 +33,7 @@ struct CategoriesSheet: View {
             // --- Header ---
             HStack {
                 Button(action: { dismiss() }) {
-                    ZStack {
-                        Circle()
-                            .fill(Color("Neutral-900"))
-                            .frame(width: 44, height: 44)
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 14))
-                            .foregroundColor(Color("Neutral-400"))
-                    }
+                    Image("dismissButton")
                 }
                 Spacer()
                 Text("Categories")
@@ -48,17 +41,10 @@ struct CategoriesSheet: View {
                     .foregroundColor(.white)
                 Spacer()
                 Button(action: { showAddCategorySheet = true }) {
-                    ZStack {
-                        Circle()
-                            .fill(Color("Neutral-900"))
-                            .frame(width: 44, height: 44)
-                        Image(systemName: "plus")
-                            .font(.system(size: 16))
-                            .foregroundColor(Color("Neutral-400"))
-                    }
+                    Image("addButton")
                 }
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, 16)
             .padding(.top, 12)
             .padding(.bottom, 14)
             
@@ -69,6 +55,7 @@ struct CategoriesSheet: View {
                     Text("Daily Task")
                         .appFont(AppFont.labelS)
                         .foregroundColor(Color("Neutral-300"))
+                        .padding(.leading, 4)
                 ) {
                     ForEach(dailyCategories, id: \.id) { catWithTasks in
                         categoryRow(cat: catWithTasks.category)
@@ -92,6 +79,7 @@ struct CategoriesSheet: View {
                     Text("Archived Task")
                         .appFont(AppFont.labelS)
                         .foregroundColor(Color("Neutral-300"))
+                        .padding(.leading, 4)
                 ) {
                     ForEach(archivedCategories, id: \.id) { catWithTasks in
                         categoryRow(cat: catWithTasks.category)
@@ -192,6 +180,7 @@ struct CategoriesSheet: View {
                 Image("threeLines")
                     .padding(.leading, 12)
             }
+            .padding(.horizontal, 4)
             // --- Divider ---
             Divider()
                 .frame(width: 361)

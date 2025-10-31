@@ -55,16 +55,13 @@ struct TrackerView: View {
 
     
     var body: some View {
-        ZStack(alignment: .topLeading) {
-            // --- Main content ---
+        ZStack() {
             VStack {
-                Spacer().frame(height: 10)
-                
                 // --- Month selector header ---
                 HStack {
                     // Month text + chevron (toggle dropdown)
                     Button(action: {
-                        withAnimation(.easeInOut(duration: 0.18)) { // fast animation
+                        withAnimation(.easeInOut(duration: 0.18)) {
                             showMonthDropdown.toggle()
                         }
                     }) {
@@ -72,7 +69,6 @@ struct TrackerView: View {
                             Text(formattedMonthYear(trackerViewModel.selectedMonth))
                                 .appFont(AppFont.title3)
                                 .foregroundColor(Color("White"))
-                                .padding(.leading, 5)
 
                             Image(systemName: showMonthDropdown ? "chevron.up" : "chevron.down")
                                 .resizable()
@@ -81,25 +77,26 @@ struct TrackerView: View {
                                 .foregroundColor(Color("White"))
                         }
                     }
+                    .padding(.leading, 23)
 
                     Spacer()
 
                     // Prev/Next month
-                    HStack(spacing: 27) {
-                        Button(action: { moveDate(by: -1) }) {
-                            Image(systemName: "chevron.left")
-                                .foregroundColor(Color("Neutral-400"))
-                        }
-                        Button(action: { moveDate(by: 1) }) {
-                            Image(systemName: "chevron.right")
-                                .foregroundColor(Color("Neutral-400"))
-                        }
+                    Button(action: { moveDate(by: -1) }) {
+                        Image(systemName: "chevron.left")
+                            .foregroundColor(Color("Neutral-400"))
                     }
-                    .padding(.trailing, 20)
+                    .padding(.trailing, 16)
+                    
+                    Button(action: { moveDate(by: 1) }) {
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(Color("Neutral-400"))
+                    }
+                    .padding(.trailing, 16)
 
                     // Monthly/Weekly toggle
                     ZStack {
-                        RoundedRectangle(cornerRadius: 15)
+                        RoundedRectangle(cornerRadius: 24)
                             .fill(Color("Neutral-900"))
                             .frame(width: 47, height: 30)
 
@@ -112,14 +109,15 @@ struct TrackerView: View {
                                 .foregroundColor(Color("White"))
                         }
                     }
+                    .padding(.trailing, 16)
                 }
-                .padding(.horizontal, 16)
+                .padding(.top, 25)
                 .onChange(of: trackerViewModel.selectedDate) {
                     updateTaskSelectedDate(for: trackerViewModel.selectedDate)
                 }
 
                 // --- Calendar grid (unchanged) ---
-                LazyVGrid(columns: columns, spacing: 0) {
+                LazyVGrid(columns: columns, spacing: 12) {
                     // Weekday labels
                     ForEach(weekdaySymbols, id: \.self) { day in
                         Text(day.uppercased())
@@ -147,7 +145,7 @@ struct TrackerView: View {
                                             
                                             Text("\(calendar.component(.day, from: date))")
                                                 .appFont(AppFont.captionXS_M)
-                                                .foregroundColor(Color.black)
+                                                .foregroundColor(Color("Neutral-1000"))
                                             
                                         } else {
                                             Text("\(calendar.component(.day, from: date))")
@@ -155,17 +153,16 @@ struct TrackerView: View {
                                                 .foregroundColor(Color("Neutral-400"))
                                         }
                                     }
-                                    .frame(width: shakerWidth, height: 10)
+                                    
                                 }
                             }
-                            .frame(width: 44, height: 65)
                         } else {
                             Color.clear.frame(height: 1)
                         }
                     }
                 }
-                .padding(.vertical, 12)
-                .padding(.horizontal, 15)
+                .padding(.top, 23)
+                .padding(.horizontal, 16)
                 .task(id: trackerViewModel.selectedDate) {
                     try? await trackerViewModel.fetchShakers()
                 }
@@ -184,13 +181,16 @@ struct TrackerView: View {
 
             if showMonthDropdown {
                 MonthYearDropdown(anchorMonth: $trackerViewModel.selectedDate)
-                    .padding(.horizontal, 16)
+                    .frame(width:240)
+                    .padding(.leading, 16)
                     .padding(.top, 46)
                     .opacity(showMonthDropdown ? 1 : 0)
                     .allowsHitTesting(showMonthDropdown)
                     .zIndex(10)
             }
+            
         }
+        .background(.neutral1000)
     }
 }
 

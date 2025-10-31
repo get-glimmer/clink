@@ -22,10 +22,10 @@ struct EditRoutineSheet: View {
     @State private var showFromPicker = false
     @State private var showToPicker   = false
 
-    @State private var multiDates = Set<DateComponents>()  // for monthly
+    @State private var multiDates = Set<DateComponents>()
 
     // Calendar tuning (same as Add)
-    private let kMonthPadH: CGFloat = 10
+    private let kMonthPadH: CGFloat = 9
     private let kMonthPadV: CGFloat = 10
     private let kMonthScale: CGFloat = 0.92
 
@@ -54,6 +54,7 @@ struct EditRoutineSheet: View {
     @State private var isDeleting = false
     @State private var errorMessage: String?
 
+    // MARK: - init
     init(routine: RoutineItem, viewModel: TaskListViewModel) {
         self.routine = routine
         self._viewModel = ObservedObject(initialValue: viewModel)
@@ -64,7 +65,7 @@ struct EditRoutineSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 24) {
+                VStack {
                     titleSection
                     durationSection
                     repeatSection
@@ -76,19 +77,13 @@ struct EditRoutineSheet: View {
                             .padding(.horizontal, 16)
                     }
                 }
-                .padding(.top, 12)
-                .padding(.bottom, 120)
             }
+            .navigationBarTitleDisplayMode(.inline)
             .navigationTitle("")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(action: { dismiss() }) {
-                        ZStack {
-                            Circle().fill(Color("Neutral-900")).frame(width: 44, height: 44)
-                            Image(systemName: "chevron.left")
-                                .font(.system(size: 14))
-                                .foregroundColor(Color("Neutral-400"))
-                        }
+                        Image("dismissButton")
                     }
                     .buttonStyle(.plain)
                 }
@@ -125,13 +120,13 @@ struct EditRoutineSheet: View {
         .padding(.top, 12)
     }
 
-    // MARK: - Sections
+    // MARK: - title section
     private var titleSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Title")
                 .appFont(AppFont.labelS)
                 .foregroundColor(Color("Neutral-300"))
-                .padding(.horizontal, 8)
+                .padding(.leading, 8)
 
             TextField("Write a title...", text: $titleText)
                 .appFont(AppFont.body1)
@@ -146,8 +141,10 @@ struct EditRoutineSheet: View {
                 )
         }
         .padding(.horizontal, 16)
+        .padding(.top, 24)
     }
 
+    // MARK: - duration section
     private var durationSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Duration")
@@ -157,7 +154,9 @@ struct EditRoutineSheet: View {
 
             VStack(spacing: 0) {
                 durationRow(title: "From",
-                            value: startDate.map { mdY($0) } ?? "None") {
+                            value: startDate.map { mdY($0) } ?? "None",
+                            isExpanded: showFromPicker
+                ) {
                     withAnimation {
                         showFromPicker.toggle()
                         if showFromPicker { showToPicker = false }
@@ -174,17 +173,20 @@ struct EditRoutineSheet: View {
                         lowerBound: nil,
                         upperBound: endDate
                     )
+                    .padding(.bottom, 16)
                 }
 
                 innerDivider
 
-                durationRow(title: "To",
-                            value: endDate.map { mdY($0) } ?? "None") {
-                    withAnimation {
-                        showToPicker.toggle()
-                        if showToPicker { showFromPicker = false }
-                    }
+            durationRow(title: "To",
+                        value: startDate.map { mdY($0) } ?? "None",
+                        isExpanded: showToPicker
+            ){
+                withAnimation {
+                    showToPicker.toggle()
+                    if showToPicker { showFromPicker = false }
                 }
+            }
 
                 if showToPicker {
                     innerDivider
@@ -196,6 +198,7 @@ struct EditRoutineSheet: View {
                         lowerBound: startDate,
                         upperBound: nil
                     )
+                    .padding(.bottom, 16)
                 }
             }
             .background(
@@ -204,8 +207,10 @@ struct EditRoutineSheet: View {
             )
         }
         .padding(.horizontal, 16)
+        .padding(.top, 16)
     }
 
+    // MARK: - repeat section
     private var repeatSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Repeat")
@@ -215,10 +220,8 @@ struct EditRoutineSheet: View {
 
             VStack(spacing: 0) {
                 HStack {
-                    HStack(spacing: 10) {
-                        Image(systemName: "clock")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(Color("Neutral-300"))
+                    HStack {
+                        Image("repeat")
                         Text("Repeat")
                             .appFont(AppFont.labelM)
                             .foregroundColor(Color("Neutral-300"))
@@ -238,16 +241,12 @@ struct EditRoutineSheet: View {
                             Text(repeatType.display)
                                 .appFont(AppFont.body1)
                                 .foregroundColor(.white)
-                            Image(systemName: "chevron.up.chevron.down")
-                                .font(.footnote)
-                                .foregroundColor(Color("Neutral-300"))
+                            Image("chevronUpdown")
                         }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
                     }
                 }
                 .frame(height: 52)
-                .padding(.horizontal, 12)
+                .padding(.horizontal, 11)
 
                 if repeatType == .weekly {
                     innerDivider
@@ -265,15 +264,19 @@ struct EditRoutineSheet: View {
             )
         }
         .padding(.horizontal, 16)
+        .padding(.top, 16)
     }
 
     // MARK: - Parts
-    private func durationRow(title: String, value: String, onTap: @escaping () -> Void) -> some View {
+private func durationRow(
+    title: String,
+    value: String,
+    isExpanded: Bool,
+    onTap: @escaping () -> Void
+) -> some View {
         HStack {
             HStack(spacing: 10) {
-                Image(systemName: "calendar")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(Color("Neutral-300"))
+                Image("duration")
                 Text(title)
                     .appFont(AppFont.labelM)
                     .foregroundColor(Color("Neutral-300"))
@@ -282,9 +285,7 @@ struct EditRoutineSheet: View {
             Text(value)
                 .appFont(AppFont.body1)
                 .foregroundColor(.white)
-            Image(systemName: "chevron.right")
-                .font(.system(size: 14))
-                .foregroundColor(Color("Neutral-300"))
+            Image(isExpanded ? "chevronDown" : "chevronRight")
         }
         .frame(height: 52)
         .padding(.horizontal, 12)
@@ -313,35 +314,20 @@ struct EditRoutineSheet: View {
                     }
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 10)
+        .padding(.top, 20)
+        .padding(.bottom, 21)
     }
 
     @ViewBuilder
     private var monthlyPickerInsideBox: some View {
-        if #available(iOS 16.0, *) {
-            VStack(spacing: 0) {
-                MultiDatePicker("", selection: $multiDates)
-                    .tint(Color("Green-300"))
-                    .labelsHidden()
-                    .onChange(of: multiDates) { newVal in
-                        monthlyDays = Set(newVal.compactMap { $0.day })
-                    }
-                    .onAppear {
-                        if multiDates.isEmpty {
-                            let base = monthCursor
-                            let cal = Calendar.current
-                            let y = cal.component(.year, from: base)
-                            let m = cal.component(.month, from: base)
-                            multiDates = Set(monthlyDays.map { DateComponents(year: y, month: m, day: $0) })
-                        }
-                    }
-                    .scaleEffect(kMonthScale, anchor: .top)
-                    .padding(.horizontal, kMonthPadH)
-                    .padding(.vertical, kMonthPadV)
-            }
-            .padding(.bottom, -6)
+        VStack(spacing: 0) {
+            CustomCalendarMulti(
+                monthAnchor: $monthCursor,
+                selectedDays: $monthlyDays
+            )
         }
+        .padding(.bottom, 16)
     }
 
     // MARK: - Seed from existing routine
