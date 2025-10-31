@@ -53,7 +53,7 @@ struct UsernameView: View {
                             .background(Color.clear)
                             .overlay(RoundedRectangle(cornerRadius: 8)
                                 .inset(by: 0.35)
-                                .stroke(Color("Neutral-600")))
+                                .stroke(Color("Neutral-600"), lineWidth: 0.7))
                             .onChange(of: username) {
                                 usernameConfirmed = false
                                 usernameStatus = nil

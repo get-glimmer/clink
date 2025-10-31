@@ -48,7 +48,7 @@ struct SettingsView: View {
                                     .foregroundStyle(Color(.white))
                                 Spacer()
                                 Image(systemName: "chevron.right")
-                                    .foregroundColor(.gray)
+                                    .foregroundColor(Color("Neutral-400"))
                             }
                             .padding(.leading, 18)
                             .padding(.trailing, 16)

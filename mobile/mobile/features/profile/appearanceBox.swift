@@ -13,20 +13,21 @@ struct AppearanceBox: View {
         } label: {
             VStack {
                 HStack {
-                    Image(systemName: iconName)
+                    Image(iconName)
                         .resizable()
                         .frame(width: 24, height: 24)
+                        .padding(.leading, 12)
+                        .padding(.top, 13)
                         .foregroundColor(isSelected ? .white : Color("Neutral-600"))
                     Spacer()
                 }
-                .padding(.leading, 12)
-                .padding(.top, 13)
+                
                 
                 Spacer()
                 
                 HStack {
                     Text(title)
-                        .appFont(AppFont.captionM)
+                        .appFont(AppFont.buttonL)
                         .foregroundColor(isSelected ? .white : Color("Neutral-600"))
                     Spacer()
                 }
@@ -54,9 +55,9 @@ struct AppearanceBox_Previews: PreviewProvider {
             Color.black.ignoresSafeArea()
             
             HStack(spacing: 16) {
-                AppearanceBox(iconName: "circle.righthalf.filled", title: "System", isSelected: false) {}
-                AppearanceBox(iconName: "sun.max", title: "Light", isSelected: false) {}
-                AppearanceBox(iconName: "moon.fill", title: "Dark", isSelected: true) {}
+                AppearanceBox(iconName: "System", title: "System", isSelected: false) {}
+                AppearanceBox(iconName: "Light", title: "Light", isSelected: false) {}
+                AppearanceBox(iconName: "Dark", title: "Dark", isSelected: true) {}
             }
         }
         .previewLayout(.sizeThatFits)

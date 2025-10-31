@@ -118,11 +118,11 @@ struct FinishSignupView: View {
                                     Task {
                                         if await authViewModel.checkUsername(username) {
                                             usernameStatus = "The username is available."
-                                            usernameStatusColor = .white
+                                            usernameStatusColor = Color("Neutral-100")
                                             usernameConfirmed = true
                                         } else {
                                             usernameStatus = "The username is already in use."
-                                            usernameStatusColor = Color("Red- 300")
+                                            usernameStatusColor = Color("Red-300")
                                             usernameConfirmed = false
                                         }
                                     }
@@ -141,8 +141,10 @@ struct FinishSignupView: View {
                             
                             if let status = usernameStatus {
                                 Text(status)
-                                    .font(.caption)
+                                    .appFont(AppFont.captionXS)
                                     .foregroundColor(usernameStatusColor)
+                                    .padding(.leading, 7)
+                                    .padding(.top, 4)
                             }
                         }
                         .padding(.top, 16)
@@ -211,7 +213,7 @@ struct FinishSignupView: View {
                             
                             Text("Your birthday won’t be shared with other people who use Clink!.")
                                 .appFont(AppFont.captionXS)
-                                .padding(.top, 8)
+                                .padding(.top, 4)
                                 .padding(.leading, 7)
                                 .foregroundColor(Color("Neutral-400"))
                         }
@@ -279,14 +281,14 @@ struct FinishSignupView: View {
                 } label: {
                     HStack(alignment: .center, spacing: 10) {
                         Text("Continue")
-                            .appFont(AppFont.body1)
+                            .appFont(AppFont.buttonL)
                             .foregroundColor((!usernameConfirmed || fullName.isEmpty)
                                              ? Color("Neutral-600")
                                              : Color("Neutral-900"))
                     }
                     .padding(.horizontal, 29)
                     .padding(.vertical, 13)
-                    .frame(width: 361, alignment: .center)
+                    .frame(width: 361, height: 50, alignment: .center)
                     .background((!usernameConfirmed || fullName.isEmpty)
                                 ? Color("Neutral-800")
                                 : Color("Green-300"))
