@@ -34,164 +34,161 @@ struct VerifyIdentityView: View {
         ZStack {
             Color("Neutral-1000").ignoresSafeArea()
             
-            ScrollView(showsIndicators: false) {
-                VStack {
-                    TopNavBar(title: "Log in or Sign up")
-                    
-                    Text("Phone number")
-                        .appFont(AppFont.labelL)
-                        .foregroundColor(Color("White"))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.top, 34)
-                        .padding(.leading, 7)
-                        .padding(.bottom, 12)
-                    
-                    // Country picker and phone number input
-                    HStack() {
-                        Button {
-                            showCountryPicker = true
-                        } label: {
-                            HStack {
-                                Text(selectedCountryFlag)
-                                    .appFont(AppFont.title1)
-                                    .padding(.leading, 16)
-                                
-                                Image("down_arrow")
-                                    .foregroundColor(Color("Neutral-300"))
-                                    .frame(width: 24, height: 24)
-                                    .padding(.trailing, 11)
+            VStack{
+                ScrollView(showsIndicators: false) {
+                    VStack {
+                        TopNavBar(title: "Log in or Sign up")
+                        
+                        Text("Phone number")
+                            .appFont(AppFont.labelL)
+                            .foregroundColor(Color("White"))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.top, 34)
+                            .padding(.leading, 7)
+                            .padding(.bottom, 12)
+                        
+                        // Country picker and phone number input
+                        HStack() {
+                            Button {
+                                showCountryPicker = true
+                            } label: {
+                                HStack {
+//                                    Spacer()
+                                    Text(selectedCountryFlag)
+                                        .appFont(AppFont.title1)
+                                        .padding(.leading, 16)
+                                    
+                                    Image("down_arrow")
+                                        .resizable()
+                                        .frame(width: 24, height: 24)
+                                        .padding(.trailing, 11)
+//                                    Spacer()
+                                }
+                                .frame(width: 75, height: 49)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .inset(by: 0.35)
+                                        .stroke(Color("Neutral-600"), lineWidth: 0.7)
+                                )
                             }
-                            .frame(width: 75, height: 49)
-                            .overlay(
+                            
+                            TextField(
+                                text: $phoneNumber,
+                                prompt: Text("Phone number")
+                                    .foregroundColor(Color("Neutral-600"))
+                            ) {
+                                EmptyView()
+                            }
+                            .padding(.leading, 11)
+                            .appFont(AppFont.body1)
+                            .keyboardType(.phonePad)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 50)
+                            .background(
                                 RoundedRectangle(cornerRadius: 8)
                                     .inset(by: 0.35)
                                     .stroke(Color("Neutral-600"), lineWidth: 0.7)
                             )
+                            .onChange(of: phoneNumber) { _, newValue in
+                                let sanitized = newValue.filter { "0123456789".contains($0) }
+                                if sanitized != newValue { phoneNumber = sanitized }
+                            }
                         }
+                        .padding(.bottom, 12)
                         
-                        TextField(
-                            text: $phoneNumber,
-                            prompt: Text("Phone number")
-                                .foregroundColor(Color("Neutral-600"))
-                        ) {
-                            EmptyView()
-                        }
-                        .padding(.leading, 11)
-                        .appFont(AppFont.body1)
-                        .keyboardType(.phonePad)
-                        .foregroundColor(.white)
-                        .frame(width: 278, height: 49)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .inset(by: 0.35)
-                                .stroke(Color("Neutral-600"), lineWidth: 0.7)
-                        )
-                        .onChange(of: phoneNumber) { _, newValue in
-                            let sanitized = newValue.filter { "0123456789".contains($0) }
-                            if sanitized != newValue { phoneNumber = sanitized }
-                        }
-                    }
-                    .padding(.bottom, 12)
-                    
-                    Text("We’ll call or text to confirm your number. Standard message and data rates apply.")
-                        .foregroundColor(Color("Neutral-400"))
-                        .frame(width: 347, alignment: .topLeading)
-                        .appFont(AppFont.captionXS)
-                        .padding(.bottom, 24)
-                    
-                    HStack(alignment: .center, spacing: 10) {
+                        Text("We’ll call or text to confirm your number. Standard message and data rates apply.")
+                            .foregroundColor(Color("Neutral-400"))
+//                            .frame(maxWidth: .infinity)
+                            .appFont(AppFont.captionXS)
+                            .padding(.bottom, 24)
+                        
                         // Continue button
                         Button {
                             Task { await sendOTP() }
                         } label: {
                             Text("Continue")
                                 .appFont(AppFont.buttonL)
-                                .frame(width: 361)
+                                .frame(maxWidth: .infinity)
                                 .frame(height: 50)
                                 .background(phoneNumber.isEmpty ? Color("Neutral-800") : Color("Green-300"))
                                 .foregroundColor(phoneNumber.isEmpty ? Color("Neutral-600") : Color("Neutral-900"))
                                 .cornerRadius(12)
                         }
                         .disabled(phoneNumber.isEmpty || isLoading)
-                    }
-                    .padding(.horizontal, 29)
-                    .padding(.vertical, 13)
-                    .frame(width: 361, height: 50, alignment: .center)
-                    .cornerRadius(8)
-                    .padding(.bottom, 48)
-                    
-                    HStack(alignment: .center, spacing: 24) {
-                        // Divider
-                        Rectangle()
-                            .foregroundColor(.clear)
-                            .frame(width: 146, height: 0.5)
-                            .background(Color("Neutral-600"))
-                        Text("Or")
-                            .appFont(AppFont.captionM)
-                            .foregroundColor(Color("Neutral-400"))
-                        Rectangle()
-                            .foregroundColor(.clear)
-                            .frame(width: 146, height: 0.5)
-                            .background(Color("Neutral-600"))
-                    }
-                    .padding(0)
-                    .frame(width: 361, alignment: .center)
-                    .padding(.bottom, 48)
-                    
-                    
-                    // Social sign-on buttons
-                    VStack(spacing: 12) {
-                        // Google → custom logo image in Assets
-                        SSOButton(title: "Continue with Google",
-                                  color: Color("White"),
-                                  icon: "google") {
-                            print("Google pressed")
+                        .cornerRadius(8)
+                        .padding(.bottom, 48)
+                        
+                        HStack(alignment: .center, spacing: 24) {
+                            // Divider
+                            Rectangle()
+                                .foregroundColor(.clear)
+                                .frame(width: 146, height: 0.5)
+                                .background(Color("Neutral-600"))
+                            Text("Or")
+                                .appFont(AppFont.captionM)
+                                .foregroundColor(Color("Neutral-400"))
+                            Rectangle()
+                                .foregroundColor(.clear)
+                                .frame(width: 146, height: 0.5)
+                                .background(Color("Neutral-600"))
                         }
+                        .padding(0)
+                        .frame(width: 361, alignment: .center)
+                        .padding(.bottom, 48)
                         
-                        // Apple → still SF Symbol
-                        SSOButton(title: "Continue with Apple",
-                                  color: Color("White"),
-                                  icon: "apple.logo") {
-                            print("Apple pressed")
+                        // Social sign-on buttons
+                        VStack(spacing: 12) {
+                            // Google → custom logo image in Assets
+                            SSOButton(title: "Continue with Google",
+                                      color: Color("White"),
+                                      icon: "google") {
+                                print("Google pressed")
+                            }
+                            
+                            // Apple → still SF Symbol
+                            SSOButton(title: "Continue with Apple",
+                                      color: Color("White"),
+                                      icon: "apple.logo") {
+                                print("Apple pressed")
+                            }
+                            
+                            // Email → SF Symbol with black color
+                            SSOButton(title: "Continue with Email",
+                                      color: Color("White"),
+                                      icon: "email") {
+                                path.append(Screen.emailLogin)
+                            }
                         }
-                        
-                        // Email → SF Symbol with black color
-                        SSOButton(title: "Continue with Email",
-                                  color: Color("White"),
-                                  icon: "email") {
-                            path.append(Screen.emailLogin)
-                        }
+                        Spacer()
                     }
-                    
-                    
-                    
-                    Spacer()
-                    
-                    var attributed: AttributedString {
-                        var terms = AttributedString("Terms of service")
-                        terms.underlineStyle = .single
-                        
-                        var privacy = AttributedString("Privacy Policy")
-                        privacy.underlineStyle = .single
-                        
-                        return terms + AttributedString(" and ") + privacy
-                    }
-                    VStack(spacing: 5) {
-                        Text("By signing up, you agree to our")
-                            .appFont(AppFont.captionXS)
-                            .foregroundColor(Color("Neutral-400"))
-                            .multilineTextAlignment(.center)
-                        
-                        Text(attributed)
-                            .appFont(AppFont.captionXS)
-                            .foregroundColor(Color("Neutral-400"))
-                            .multilineTextAlignment(.center)
+                    .padding(.horizontal, 16)
+                    .sheet(isPresented: $showCountryPicker) {
+                        CountryPickerView(selectedCode: $selectedCountryCode, selectedFlag: $selectedCountryFlag)
                     }
                 }
-                .padding(.horizontal, 16)
-                .sheet(isPresented: $showCountryPicker) {
-                    CountryPickerView(selectedCode: $selectedCountryCode, selectedFlag: $selectedCountryFlag)
+                var attributed: AttributedString {
+                    var terms = AttributedString("Terms of service")
+                    terms.underlineStyle = .single
+                    
+                    var privacy = AttributedString("Privacy Policy")
+                    privacy.underlineStyle = .single
+                    
+                    return terms + AttributedString(" and ") + privacy
                 }
+                
+                VStack(spacing: 5) {
+                    Text("By signing up, you agree to our")
+                        .appFont(AppFont.captionXS)
+                        .foregroundColor(Color("Neutral-400"))
+                        .multilineTextAlignment(.center)
+                    
+                    Text(attributed)
+                        .appFont(AppFont.captionXS)
+                        .foregroundColor(Color("Neutral-400"))
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.bottom, 15.85)
             }
             .ignoresSafeArea(.keyboard, edges: .bottom)
         }
@@ -264,7 +261,8 @@ struct SSOButton: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .frame(width: 361, alignment: .center)
+            .frame(maxWidth: .infinity)
+            .frame(height: 48)
             .background(.white)
             .cornerRadius(8)
         }
@@ -306,7 +304,6 @@ struct CountryPickerView: View {
                     Text(code)
                     Spacer()
                 }
-                .padding()
                 .background(Color.clear)
                 .foregroundColor(.white)
                 .contentShape(Rectangle())

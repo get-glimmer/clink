@@ -56,15 +56,12 @@ struct TrackerView: View {
     
     var body: some View {
         ZStack() {
-            // --- Main content ---
             VStack {
-//                Spacer().frame(height: 10)
-                
                 // --- Month selector header ---
                 HStack {
                     // Month text + chevron (toggle dropdown)
                     Button(action: {
-                        withAnimation(.easeInOut(duration: 0.18)) { // fast animation
+                        withAnimation(.easeInOut(duration: 0.18)) {
                             showMonthDropdown.toggle()
                         }
                     }) {
@@ -72,7 +69,6 @@ struct TrackerView: View {
                             Text(formattedMonthYear(trackerViewModel.selectedMonth))
                                 .appFont(AppFont.title3)
                                 .foregroundColor(Color("White"))
-                                .padding(.leading, 5)
 
                             Image(systemName: showMonthDropdown ? "chevron.up" : "chevron.down")
                                 .resizable()
@@ -100,7 +96,7 @@ struct TrackerView: View {
 
                     // Monthly/Weekly toggle
                     ZStack {
-                        RoundedRectangle(cornerRadius: 15)
+                        RoundedRectangle(cornerRadius: 24)
                             .fill(Color("Neutral-900"))
                             .frame(width: 47, height: 30)
 
@@ -160,14 +156,13 @@ struct TrackerView: View {
                                     
                                 }
                             }
-//                            .frame(width: 44, height: 65)
                         } else {
                             Color.clear.frame(height: 1)
                         }
                     }
                 }
                 .padding(.top, 23)
-                .padding(.horizontal, 25)
+                .padding(.horizontal, 16)
                 .task(id: trackerViewModel.selectedDate) {
                     try? await trackerViewModel.fetchShakers()
                 }

@@ -23,7 +23,7 @@ struct ProfileView: View {
 
     
     var body: some View {
-        VStack {
+        NavigationStack {
             ZStack {
                 Color("Neutral-1000").ignoresSafeArea()
                 VStack {
@@ -131,6 +131,7 @@ struct ProfileView: View {
                             VStack(alignment: .leading) {
                                 Text("Get friends to try us :)")
                                 //                                .padding(.top, 25)
+                                    .padding(.bottom, 1)
                                     .appFont(AppFont.labelL)
                                     .foregroundColor(.white)
                                 
@@ -142,7 +143,9 @@ struct ProfileView: View {
                             
                             Spacer()
                             
-                            Image(systemName: "chevron.right")
+                            Image("arrow_right")
+                                .resizable()
+                                .frame(width: 24, height: 24)
                                 .foregroundColor(Color("Neutral-400"))
                                 .padding(.trailing, 16)
                         }
@@ -166,13 +169,13 @@ struct ProfileView: View {
                     .padding(.leading, 6)
                     
                     HStack(spacing: 16) {
-                        AppearanceBox(iconName: "circle.righthalf.filled", title: "System", isSelected: selectedAppearance == 0) {
+                        AppearanceBox(iconName: "System", title: "System", isSelected: selectedAppearance == 0) {
                             selectedAppearance = 0
                         }
-                        AppearanceBox(iconName: "sun.max", title: "Light", isSelected: selectedAppearance == 1) {
+                        AppearanceBox(iconName: "Light", title: "Light", isSelected: selectedAppearance == 1) {
                             selectedAppearance = 1
                         }
-                        AppearanceBox(iconName: "moon.fill", title: "Dark", isSelected: selectedAppearance == 2) {
+                        AppearanceBox(iconName: "Dark", title: "Dark", isSelected: selectedAppearance == 2) {
                             selectedAppearance = 2
                         }
                         

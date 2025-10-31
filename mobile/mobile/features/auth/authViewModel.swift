@@ -417,8 +417,6 @@ class AuthViewModel: ObservableObject {
         print("✅ Username updated in AuthViewModel: \(self.profile?.username ?? "nil")")
     }
 
-
-
     /**
      * Loads the current user's profile.
      */

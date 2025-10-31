@@ -167,7 +167,7 @@ struct EmailSignupView: View {
                     }
                     .padding(.horizontal, 29)
                     .padding(.vertical, 13)
-                    .frame(width: 361, alignment: .center)
+                    .frame(width: 361, height: 50, alignment: .center)
                     .background(!email.isEmpty && authViewModel.validatePassword(password) ? Color("Green-300") : Color("Neutral-800"))
                     .cornerRadius(8)
                 }
