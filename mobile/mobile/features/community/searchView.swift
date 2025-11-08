@@ -316,6 +316,7 @@ struct UserRowView: View {
                 }
                 .frame(minWidth: 80, alignment: .trailing)
             }
+            .padding(.trailing, 10)
             .disabled(isActionLoading)
         }
         .padding(.horizontal, 16)

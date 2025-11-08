@@ -38,7 +38,9 @@ struct FriendDetailView: View {
                         } else {
                             ShakerView(
                                 viewModel: friendTaskViewModel,
-                                onNoteEmojiTapped: { showNotesPopup() }
+                                onNoteTapped: { note in
+                                    showNotesPopup(note)
+                                }
                             )
                                 .frame(width: shakerSide, height: shakerSide)
                                 .frame(maxWidth: 275)
@@ -118,16 +120,20 @@ struct FriendDetailView: View {
         .overlay {
             if showingNoteSheet {
                 ZStack(alignment: .center) {
-                    // Blur overlay covering entire screen
-                    Color.black.opacity(0.15)
-                        .background(.ultraThinMaterial)
-                        .ignoresSafeArea(.all)
-                        .transition(.opacity)
-                        .onTapGesture {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                showingNoteSheet = false
-                            }
+                    // Dark blur overlay covering entire screen
+                    ZStack {
+                        DarkBlurView(style: .systemUltraThinMaterialDark)
+                            .ignoresSafeArea()
+                        Color.black.opacity(0.6)
+                            .ignoresSafeArea()
+                    }
+                    .contentShape(Rectangle())
+                    .transition(.opacity)
+                    .onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            showingNoteSheet = false
                         }
+                    }
 
                     // Centered note composer
                     LeaveNoteSheet(friend: friend, onClose: { showingNoteSheet = false })
@@ -140,7 +146,14 @@ struct FriendDetailView: View {
             }
         }
         .fullScreenCover(isPresented: $showingNotesPopup) {
-            NotesPopupView(friend: friend)
+            NotesPopupView(
+                friend: friend,
+                initialNoteId: selectedNoteId,
+                initialNoteContent: selectedNoteContent,
+                initialNote: selectedNote,
+                date: friendTaskViewModel.taskSelectedDate
+            )
+            .id(selectedNoteId ?? UUID())
         }
         .onReceive(NotificationCenter.default.publisher(for: .friendShakerNoteAdded)) { notification in
             if let friendUserId = notification.userInfo?["friendUserId"] as? String,
@@ -216,9 +229,9 @@ struct FriendDetailView: View {
                     Button(action: {
                         isFavorite.toggle()
                         if isFavorite {
-                            communityViewModel.addFriendToFavorites(named: friend.name)
+                            communityViewModel.addFriendToFavoritesById(friendId: friend.userId)
                         } else {
-                            communityViewModel.removeFriendFromFavorites(named: friend.name)
+                            communityViewModel.removeFriendFromFavoritesById(friendId: friend.userId)
                         }
                     }) {
                         Group {
@@ -250,7 +263,7 @@ struct FriendDetailView: View {
         Button(action: { showingNoteSheet = true }) {
             Text("Leave a Note")
                 .foregroundColor(AppColors.neutral1000)
-                .appFont(AppFont.labelL)
+                .appFont(AppFont.title3Semibold)
                 .lineLimit(1)
                 .padding(.horizontal, 36)
                 .padding(.vertical, 14)
@@ -264,9 +277,14 @@ struct FriendDetailView: View {
         )
     }
     
-    private func showNotesPopup() {
-        // Only show popup when there are notes (emoji or text)
-        if hasAnyNotes { showingNotesPopup = true }
+    @State private var selectedNoteId: UUID? = nil
+    @State private var selectedNoteContent: String? = nil
+    @State private var selectedNote: NoteRecord? = nil
+    private func showNotesPopup(_ note: NoteRecord) {
+        selectedNoteId = note.id
+        selectedNoteContent = note.noteContent
+        selectedNote = note
+        showingNotesPopup = true
     }
     
     private func checkIfUserLeftTextNote() async {

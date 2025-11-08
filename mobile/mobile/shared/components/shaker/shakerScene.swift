@@ -170,7 +170,7 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
 
     // Force-settle all marbles to the bottom (useful for small preview tiles)
     func settleAllToBottom() {
-        let radius: CGFloat = 25.6
+        let radius: CGFloat = 25.6 * emojiScaleFactor
         let floor = computedFloorY + radius + 1
         for (_, node) in marbles {
             if node.position.y > floor {
@@ -200,7 +200,7 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
         
         let node = SKLabelNode(fontNamed: "AppleColorEmoji")
         node.text = symbol
-        node.fontSize = 54 * emojiScaleFactor
+        node.fontSize = 54 * emojiScaleFactor // base 54pt; preview scales down
         node.verticalAlignmentMode = .center
         node.position = CGPoint(x: spawnX, y: spawnY)
         node.zPosition = 50
@@ -224,7 +224,7 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
         
         let node = SKLabelNode(fontNamed: "AppleColorEmoji")
         node.text = symbol
-        node.fontSize = 54 * emojiScaleFactor // match regular size; no enlargement
+        node.fontSize = 54 * emojiScaleFactor // match regular size; preview uses smaller scale
         node.verticalAlignmentMode = .center
         node.position = CGPoint(x: spawnX, y: spawnY)
         node.zPosition = 55 // Higher than regular emojis
@@ -313,7 +313,7 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
     
     // MARK: - Helpers
     private func makeBody() -> SKPhysicsBody {
-        let body = SKPhysicsBody(circleOfRadius: 25.6)
+        let body = SKPhysicsBody(circleOfRadius: 25.6 * emojiScaleFactor)
         body.usesPreciseCollisionDetection = true
         body.restitution = 0.1
         body.friction = 0.9

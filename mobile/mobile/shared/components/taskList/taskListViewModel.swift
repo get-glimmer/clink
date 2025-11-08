@@ -271,7 +271,6 @@ class TaskListViewModel: ObservableObject {
                 } catch {
                     print("[Routine] ensure_routine_tasks failed:", error)
                 }
-
                 // 3) task fetch
                 var result: [CategoryWithTasks] = []
                 for category in categories {
