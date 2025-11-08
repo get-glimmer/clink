@@ -198,17 +198,21 @@ struct CommunityView: View {
         .overlay {
             if let menuFriend = activeMenuFriend {
                 ZStack(alignment: .bottom) {
-                    // Darker, less white-tinted blur overlay covering everything including nav bar
-                    AppColors.neutral1000.opacity(0.6)
-                        .background(.ultraThinMaterial)
-                        .ignoresSafeArea(.all)
-                        .transition(.opacity)
-                        .onTapGesture {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                activeMenuFriend = nil
-                                isMenuPresented = false
-                            }
+                    // Dark blur overlay (match Task OptionsSheet look & feel)
+                    ZStack {
+                        DarkBlurView(style: .systemChromeMaterialDark)
+                            .ignoresSafeArea()
+                        Color.black.opacity(0.7)
+                            .ignoresSafeArea()
+                    }
+                    .contentShape(Rectangle())
+                    .transition(.opacity)
+                    .onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            activeMenuFriend = nil
+                            isMenuPresented = false
                         }
+                    }
 
                     // Bottom sheet menu
                     FriendMenuSheet(
@@ -448,18 +452,18 @@ struct FriendMenuSheet: View {
                     handleContent
                 } else {
                     RoundedRectangle(cornerRadius: 2)
-                        .fill(AppColors.neutral600)
+                        .fill(Color(UIColor(hex: "373636")!))
                         .frame(width: 44, height: 3)
                 }
             }
-            .padding(.top, 12)
-            .padding(.bottom, 32)
+            .padding(.top, 10)
+            .padding(.bottom, 17)
         
         // Friend name
         Text(friend.name)
             .foregroundColor(AppColors.textWhite)
             .appText(AppFont.title3)
-            .padding(.bottom, 24)
+            .padding(.bottom, 18)
         
         // Divider line
         Rectangle()
@@ -467,7 +471,7 @@ struct FriendMenuSheet: View {
             .frame(maxWidth: .infinity)
             .frame(height: 1)
             .padding(.horizontal, 16)
-            .padding(.bottom, 24)
+            .padding(.bottom, 22)
         
                     // Menu options
             VStack(spacing: 24) {
@@ -495,7 +499,7 @@ struct FriendMenuSheet: View {
                         
                         Spacer()
                     }
-                                                .padding(.horizontal, 28)
+                                                .padding(.horizontal, 26)
                 }
                 
                 // Favorites option (add or remove based on current status)
@@ -522,12 +526,12 @@ struct FriendMenuSheet: View {
                         
                         Spacer()
                     }
-                                                .padding(.horizontal, 28)
+                                                .padding(.horizontal, 26)
                 }
             }
         }
         // Add safe-area aware internal padding so content is not clipped by the home indicator
-        .padding(.bottom, max(16, bottomSafeAreaInset()))
+        .padding(.bottom, max(53, bottomSafeAreaInset()))
         .padding(.bottom, 0)
         .frame(maxWidth: .infinity, alignment: .top)
         .background(Color(red: 32.0/255.0, green: 32.0/255.0, blue: 32.0/255.0).opacity(0.3))

@@ -19,6 +19,7 @@ struct ShakerView: View {
     
     // Optional callbacks
     var onNoteEmojiTapped: (() -> Void)? = nil
+    var onNoteTapped: ((NoteRecord) -> Void)? = nil
     
     // SpriteKit scene
     @State private var scene = ShakerScene(size: .zero)
@@ -88,7 +89,10 @@ struct ShakerView: View {
                 if !isPreviewMode && !stickyLayouts.isEmpty {
                     StickyNotesLayer(
                         layouts: currentPageLayouts(),
-                        containerSize: jarSize
+                        containerSize: jarSize,
+                        onTap: { layout in
+                            onNoteTapped?(layout.note)
+                        }
                     )
                     .frame(width: jarSize.width, height: jarSize.height)
                     .contentShape(Rectangle())
@@ -109,6 +113,8 @@ struct ShakerView: View {
 
                 // --- Sticky Notes paging arrow (right) ---
                 if !isPreviewMode && stickyLayouts.count > 5 && stickyPage == 0 {
+                    // Center Y of jar excluding the lid height
+                    let arrowCenterY = jarSize.height * (0.5 + (lidHeightRatio / 2))
                     Button(action: {
                         withAnimation(.easeInOut(duration: 0.2)) {
                             stickyPage = 1 // same as swiping right-to-left
@@ -128,11 +134,13 @@ struct ShakerView: View {
                     }
                     .buttonStyle(PlainButtonStyle())
                     .contentShape(Circle())
-                    .position(x: jarSize.width - 22, y: jarSize.height / 2 + 50)
+                    .position(x: jarSize.width - 22, y: arrowCenterY)
                 }
 
                 // --- Sticky Notes paging arrow (left) ---
                 if !isPreviewMode && stickyLayouts.count > 5 && stickyPage == 1 {
+                    // Center Y of jar excluding the lid height
+                    let arrowCenterY = jarSize.height * (0.5 + (lidHeightRatio / 2))
                     Button(action: {
                         withAnimation(.easeInOut(duration: 0.2)) {
                             stickyPage = 0 // same as swiping left-to-right
@@ -141,7 +149,7 @@ struct ShakerView: View {
                         ZStack {
                             Circle()
                                 .fill(Color.white.opacity(0.7))
-                                .frame(width: 20, height: 20)
+                                .frame(width: 28, height: 28)
                                 .overlay(
                                     Circle().stroke(Color.white, lineWidth: 1)
                                 )
@@ -152,7 +160,7 @@ struct ShakerView: View {
                     }
                     .buttonStyle(PlainButtonStyle())
                     .contentShape(Circle())
-                    .position(x: 22, y: jarSize.height / 2 + 50)
+                    .position(x: 22, y: arrowCenterY)
                 }
             }
             // Center the jar inside available space (preview tiles especially)
@@ -540,6 +548,7 @@ private struct StickyLayout: Identifiable {
 private struct StickyNotesLayer: View {
     let layouts: [StickyLayout]
     let containerSize: CGSize
+    let onTap: ((StickyLayout) -> Void)?
     private let colors: [Color] = [
         Color(red: 1.00, green: 0.96, blue: 0.66), // yellow
         Color(red: 1.00, green: 0.89, blue: 0.74), // peach
@@ -571,6 +580,10 @@ private struct StickyNotesLayer: View {
                 .shadow(color: Color.black.opacity(0.15), radius: 4, x: 0, y: 3)
                 .rotationEffect(.degrees(item.rotation))
                 .position(item.position)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    onTap?(item)
+                }
             }
         }
     }
