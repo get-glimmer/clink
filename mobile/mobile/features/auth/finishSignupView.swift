@@ -286,21 +286,21 @@ struct FinishSignupView: View {
                                 // Step 1: Create the user in auth.users
                                 let signUpResult = try await client.auth.signUp(email: email, password: password)
                                 
-                                // Step 3: Notify the user
-                                await MainActor.run {
-                                    isLoading = false
-                                    // Show alert or navigate to login
-                                    showVerificationAlert = true
-                                }
-                                // Give SwiftUI a moment to catch the alert state before returning
-                                try? await Task.sleep(nanoseconds: 300_000_000)
-//                                return  // Stop here — don’t auto sign in
+                                // Step 2: Immediately sign in to establish a session.
+                                // This is the key to creating a seamless login experience.
+                                try await client.auth.signIn(email: email, password: password)
+                                
+                                // If both succeed, get the user ID and mark as successful
+                                finalUserId = signUpResult.user.id.uuidString
+                                authSuccessful = true
                             } catch {
-                                print("❌ Email signup failed:", error.localizedDescription)
+                                print("❌ Email signup or sign-in failed:", error.localizedDescription)
                                 authSuccessful = false
                             }
+                        } else if let uid = userId { // Phone signup flow
+                            finalUserId = uid
+                            authSuccessful = true // User is already authenticated in this flow
                         }
-
                         
                         // --- Part 2: Save Profile and Transition ---
                         if authSuccessful, let finalUserId {
@@ -311,7 +311,7 @@ struct FinishSignupView: View {
                                 name: fullName,
                                 username: username,
                                 dob: dateOfBirth,
-                                profileImage: profileImage,
+                                profileImage: selectedImage,
                                 email: email
                             )
                             

@@ -169,6 +169,8 @@ class AuthViewModel: ObservableObject {
                 .upsert(input)
                 .execute()
 
+            print("✅ Profile saved successfully before verification")
+            
             // Reload the profile
             await loadProfile()
         } catch {
