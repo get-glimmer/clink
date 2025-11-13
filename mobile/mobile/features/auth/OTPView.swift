@@ -104,14 +104,15 @@ struct OTPView: View {
                     
                     if let errorMessage = errorMessage {
                         Text(errorMessage)
-                            .foregroundColor(.red)
+                            .foregroundColor(Color("Red-300"))
                             .appFont(AppFont.captionS)
+                            .padding(.top, 10)
                     }
                     
                     
                     // Resend code timer
                     Text(timeRemaining > 0 ? "Resend code in \(timeRemaining)" : "Resend Code")
-                        .padding(.top, 19)
+                        .padding(.top, 14)
                         .appFont(AppFont.captionS)
                         .foregroundColor(timeRemaining > 0 ? Color("Neutral-400") : Color("Green-300"))
                         .onTapGesture {
@@ -133,6 +134,7 @@ struct OTPView: View {
                 }
             }
         }
+        .dismissKeyboardOnTap()
         .navigationBarBackButtonHidden(true)
     }
     

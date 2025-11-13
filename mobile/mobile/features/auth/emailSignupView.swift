@@ -51,7 +51,7 @@ struct EmailSignupView: View {
                                 .foregroundColor(.white)
                                 .padding(.leading, 7)
                                 .padding(.top, 24)
-                                .padding(.bottom, 8)
+                                .padding(.bottom, 6)
                             
                             TextField("Email Address", text: $email)
                                 .keyboardType(.emailAddress)
@@ -65,13 +65,12 @@ struct EmailSignupView: View {
                                     emailError = nil
                                 }
                             
-                            
                             if let error = emailError {
                                 Text(error)
                                     .appFont(AppFont.captionXS)
                                     .foregroundColor(Color("Red-300"))
-                                    .padding(.horizontal, 7)
-                                    .padding(.top, 8)
+                                    .padding(.leading, 7)
+                                    .padding(.top, 2)
                             }
                         }
                         
@@ -83,7 +82,7 @@ struct EmailSignupView: View {
                                 .foregroundColor(.white)
                                 .padding(.leading, 7)
                                 .padding(.top, 24)
-                                .padding(.bottom, 8)
+                                .padding(.bottom, 6)
                             
                             ZStack(alignment: .trailing) {
                                 Group {
@@ -159,7 +158,6 @@ struct EmailSignupView: View {
                         isLoading = false
                     }
                 } label: {
-                    
                     HStack(alignment: .center, spacing: 10) {
                         Text("Continue")
                             .appFont(AppFont.buttonL)
@@ -171,6 +169,7 @@ struct EmailSignupView: View {
                     .background(!email.isEmpty && authViewModel.validatePassword(password) ? Color("Green-300") : Color("Neutral-800"))
                     .cornerRadius(8)
                 }
+                .padding(.bottom, 16)
                 .disabled(email.isEmpty || !authViewModel.validatePassword(password))
             }
             .ignoresSafeArea(.keyboard, edges: .bottom)

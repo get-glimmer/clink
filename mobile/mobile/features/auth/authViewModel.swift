@@ -40,6 +40,8 @@ class AuthViewModel: ObservableObject {
 
     /// The color associated with the email status message.
     @Published var emailStatusColor: Color = .white
+    
+    @Published var shouldResetLoginFlow = false
 
     /// The Supabase client instance.
     private let client = SupabaseClientManager.shared.client

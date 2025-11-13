@@ -63,6 +63,9 @@ class TaskListViewModel: ObservableObject {
             .map { $0.category }
             .filter { $0.type == .daily }
     }
+    
+    
+
 
     // MARK: - init
     init(userId: String?, date: Date = todayDate()) {

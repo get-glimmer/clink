@@ -103,10 +103,11 @@ struct EmailLoginView: View {
                 // Error message display
                 if !authViewModel.errorMessage.isEmpty {
                     Text(authViewModel.errorMessage)
-                        .foregroundColor(.red)
+                        .foregroundColor(Color("Red-300"))
                         .font(.caption)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 5)
+                        .padding(.top, 3)
                 }
                 
                 Spacer()
