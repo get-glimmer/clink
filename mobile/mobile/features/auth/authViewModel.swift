@@ -40,6 +40,8 @@ class AuthViewModel: ObservableObject {
 
     /// The color associated with the email status message.
     @Published var emailStatusColor: Color = .white
+    
+    @Published var shouldResetLoginFlow = false
 
     /// The Supabase client instance.
     private let client = SupabaseClientManager.shared.client
@@ -167,8 +169,16 @@ class AuthViewModel: ObservableObject {
                 .upsert(input)
                 .execute()
 
+            print("✅ Profile saved successfully before verification")
+            
             // Reload the profile
-            await loadProfile()
+//            await loadProfile()
+            
+            // Only authenticate if caller wants it
+            if affectAuthState {
+                self.isAuthenticated = true
+            }
+
         } catch {
             print("❌ Error saving profile:", error.localizedDescription)
         }

@@ -14,7 +14,7 @@ struct VerifyIdentityView: View {
     @State private var phoneNumber: String = ""
 
     /// The flag of the selected country.
-    @State private var selectedCountryFlag: String = "🇺🇸"
+    @State private var selectedCountryFlag: String = "America_Flag"
 
     /// The code of the selected country.
     @State private var selectedCountryCode: String = "+1"
@@ -35,7 +35,7 @@ struct VerifyIdentityView: View {
             Color("Neutral-1000").ignoresSafeArea()
             
             VStack{
-                ScrollView(showsIndicators: false) {
+                VStack {
                     VStack {
                         TopNavBar(title: "Log in or Sign up")
                         
@@ -53,16 +53,14 @@ struct VerifyIdentityView: View {
                                 showCountryPicker = true
                             } label: {
                                 HStack {
-//                                    Spacer()
-                                    Text(selectedCountryFlag)
+                                    Spacer()
+                                    Image(selectedCountryFlag)
                                         .appFont(AppFont.title1)
-                                        .padding(.leading, 16)
-                                    
+
                                     Image("down_arrow")
                                         .resizable()
                                         .frame(width: 24, height: 24)
-                                        .padding(.trailing, 11)
-//                                    Spacer()
+                                    Spacer()
                                 }
                                 .frame(width: 75, height: 49)
                                 .overlay(
@@ -99,9 +97,11 @@ struct VerifyIdentityView: View {
                         
                         Text("We’ll call or text to confirm your number. Standard message and data rates apply.")
                             .foregroundColor(Color("Neutral-400"))
+                            .frame(maxWidth: .infinity, alignment: .leading)
 //                            .frame(maxWidth: .infinity)
                             .appFont(AppFont.captionXS)
                             .padding(.bottom, 24)
+                            .padding(.leading, 8)   // 이렇게 되면 완벽히 center 아님
                         
                         // Continue button
                         Button {
@@ -113,7 +113,7 @@ struct VerifyIdentityView: View {
                                 .frame(height: 50)
                                 .background(phoneNumber.isEmpty ? Color("Neutral-800") : Color("Green-300"))
                                 .foregroundColor(phoneNumber.isEmpty ? Color("Neutral-600") : Color("Neutral-900"))
-                                .cornerRadius(12)
+                                .cornerRadius(8)
                         }
                         .disabled(phoneNumber.isEmpty || isLoading)
                         .cornerRadius(8)
@@ -276,48 +276,43 @@ struct SSOButton: View {
  * A view for picking a country code.
  */
 struct CountryPickerView: View {
-    // MARK: - Environment and Bindings
-
-    /// The presentation mode of the view.
     @Environment(\.dismiss) var dismiss
-
-    /// The selected country code.
     @Binding var selectedCode: String
-
-    /// The flag of the selected country.
     @Binding var selectedFlag: String
-
-    // MARK: - Properties
-
-    /// A list of countries with their flags and codes.
+    
+    // Use image asset names instead of emoji
     let countries = [
-        ("🇰🇷", "+82"),
-        ("🇺🇸", "+1"),
+        ("America_Flag", "+1"),
     ]
-
-    // MARK: - Body
+    
     var body: some View {
         NavigationStack {
-            List(countries, id: \.1) { flag, code in
-                HStack {
-                    Text(flag)
+            List(countries, id: \.1) { flagImage, code in
+                HStack(spacing: 12) {
+                    Image(flagImage)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 28, height: 20)
                     Text(code)
+                        .foregroundColor(.white)
                     Spacer()
                 }
-                .background(Color.clear)
-                .foregroundColor(.white)
                 .contentShape(Rectangle())
                 .onTapGesture {
                     selectedCode = code
-                    selectedFlag = flag
+                    selectedFlag = flagImage
                     dismiss()
                 }
             }
-            .navigationTitle("Select Country")
+            .listRowBackground(Color.clear)
+            .scrollContentBackground(.hidden)
             .background(Color.black.ignoresSafeArea())
+            .navigationTitle("Select Country")
+            .navigationBarTitleDisplayMode(.inline)
         }
     }
 }
+
 
 // MARK: - Previews
 

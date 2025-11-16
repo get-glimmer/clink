@@ -33,7 +33,7 @@ struct SettingsView: View {
                             Spacer()
                         }
                         .padding(.top, 20)
-                        .padding(.bottom, 10)
+                        .padding(.bottom, 6)
                         .padding(.leading, 10)
                         
                         Divider()
@@ -65,12 +65,13 @@ struct SettingsView: View {
                             Spacer()
                         }
                         .padding(.top, 24)
-                        .padding(.bottom, 10)
+                        .padding(.bottom, 6)
                         .padding(.leading, 10)
                         
                         Divider()
                         
                         Toggle("Notification 01", isOn: $notif1)
+                            .padding(.vertical, 5)
                             .padding(.leading, 18)
                             .padding(.trailing, 12)
                             .tint(Color("Green-300"))
@@ -80,6 +81,7 @@ struct SettingsView: View {
                         Divider()
                         
                         Toggle("Notification 02", isOn: $notif2)
+                            .padding(.vertical, 5)
                             .padding(.leading, 18)
                             .padding(.trailing, 12)
                             .tint(Color("Green-300"))
@@ -89,6 +91,7 @@ struct SettingsView: View {
                         Divider()
                         
                         Toggle("Notification 03", isOn: $notif3)
+                            .padding(.vertical, 5)
                             .padding(.leading, 18)
                             .padding(.trailing, 12)
                             .tint(Color("Green-300"))
@@ -103,7 +106,7 @@ struct SettingsView: View {
                         HStack {
                             Text("Privacy & Security")
                                 .padding(.top, 24)
-                                .padding(.bottom, 10)
+                                .padding(.bottom, 6)
                                 .padding(.leading, 10)
                                 .appFont(AppFont.labelL)
                                 .foregroundColor(.white)
@@ -135,7 +138,7 @@ struct SettingsView: View {
                         HStack {
                             Text("Help & Support")
                                 .padding(.top, 24)
-                                .padding(.bottom, 10)
+                                .padding(.bottom, 6)
                                 .padding(.leading, 10)
                                 .appFont(AppFont.labelL)
                                 .foregroundColor(.white)

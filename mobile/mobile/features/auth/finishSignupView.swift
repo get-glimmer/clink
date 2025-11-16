@@ -31,6 +31,15 @@ struct FinishSignupView: View {
     @State private var usernameStatusColor: Color = .white
     @State private var hasSelectedDate = false
     @State private var showCropper = false
+    
+    // Photo picker state
+    @State private var showImagePicker = false
+    @State private var selectedItem: PhotosPickerItem? = nil
+    @State private var selectedImage: UIImage? = nil   // Optimistic UI
+    
+    @State private var showVerificationAlert = false
+    @State private var navigateBackToLogin = false
+
 
 
     // MARK: - Body
@@ -48,26 +57,64 @@ struct FinishSignupView: View {
                 ScrollView {
                     VStack {
                         // Profile avatar picker
-                        PhotosPicker(selection: $photoItem, matching: .images) {
-                            if let profileImage {
-                                Image(uiImage: profileImage)
+                        Button {
+                            showImagePicker = true
+                        } label: {
+                            if let selectedImage = selectedImage {
+                                Image(uiImage: selectedImage)
                                     .resizable()
                                     .scaledToFill()
-                                    .frame(width: 84, height: 84)
+                                    .frame(width: 100, height: 100)
                                     .clipShape(Circle())
+                            } else if let avatar = authViewModel.profile?.avatar_url,
+                                      let url = URL(string: "\(avatar)?t=\(Date().timeIntervalSince1970)") {
+                                AsyncImage(url: url) { image in
+                                    image.resizable()
+                                        .scaledToFill()
+                                        .frame(width: 100, height: 100)
+                                        .clipShape(Circle())
+                                } placeholder: {
+                                    Circle()
+                                        .fill(Color.gray.opacity(0.3))
+                                        .frame(width: 100, height: 100)
+                                        .overlay(Text("No Avatar"))
+                                }
                             } else {
-                                Image("profile_picker")
+                                Circle()
+                                    .fill(Color.gray.opacity(0.3))
+                                    .frame(width: 100, height: 100)
+                                    .overlay(Text("No Avatar").appFont(AppFont.body2))
                             }
                         }
-                        .padding(.top, 49)
-                        .onChange(of: photoItem) { _, newItem in
+                        .padding(.top, 47)
+                        .buttonStyle(.plain)
+                        .photosPicker(
+                            isPresented: $showImagePicker,
+                            selection: $selectedItem,
+                            matching: .images
+                        )
+                        .onChange(of: selectedItem) { newItem in
                             Task {
                                 if let data = try? await newItem?.loadTransferable(type: Data.self),
-                                   let uiImage = UIImage(data: data) {
-                                    profileImage = uiImage
-                                    showCropper = true
+                                   let image = UIImage(data: data) {
+                                    selectedImage = image
+                                    showCropper = true  // 👈 add this
                                 }
+                                // ✅ Reset selection so user can reselect the same photo later
+                                selectedItem = nil
                             }
+                        }
+                        .sheet(isPresented: $showCropper) {
+                            CircularImageCropper(image: $selectedImage)
+                                .onDisappear {
+                                    Task {
+                                        if let selectedImage = selectedImage,
+                                           let session = try? await SupabaseClientManager.shared.client?.auth.session {
+                                            let userId = session.user.id.uuidString
+                                            await authViewModel.updateAvatar(userId: userId, profileImage: selectedImage)
+                                        }
+                                    }
+                                }
                         }
                         
                         // Full name input field
@@ -223,59 +270,43 @@ struct FinishSignupView: View {
                 // Continue button
                 Button {
                     Task {
+                        print("👉 [Continue] Button tapped")
                         isLoading = true
-                        guard let client = SupabaseClientManager.shared.client else {
-                            print("Supabase client not available.")
-                            isLoading = false
-                            return
-                        }
+                        guard let client = SupabaseClientManager.shared.client else { return }
+
+                        // 1) Create the auth user but DO NOT log them in
+                        guard let email, let password else { return }
                         
-                        var finalUserId: String?
-                        var authSuccessful = false
+                        print("📨 [Continue] Attempting signUp with email: \(email)")
                         
-                        // --- Part 1: Authenticate and get User ID ---
-                        if let email, let password { // Email signup flow
-                            do {
-                                // Step 1: Create the user in auth.users
-                                let signUpResult = try await client.auth.signUp(email: email, password: password)
-                                
-                                // Step 2: Immediately sign in to establish a session.
-                                // This is the key to creating a seamless login experience.
-                                try await client.auth.signIn(email: email, password: password)
-                                
-                                // If both succeed, get the user ID and mark as successful
-                                finalUserId = signUpResult.user.id.uuidString
-                                authSuccessful = true
-                            } catch {
-                                print("❌ Email signup or sign-in failed:", error.localizedDescription)
-                                authSuccessful = false
-                            }
-                        } else if let uid = userId { // Phone signup flow
-                            finalUserId = uid
-                            authSuccessful = true // User is already authenticated in this flow
-                        }
-                        
-                        // --- Part 2: Save Profile and Transition ---
-                        if authSuccessful, let finalUserId {
-                            // Step 3: Save the profile data (name, username, etc.)
+                        do {
+                            let result = try await client.auth.signUp(email: email, password: password)
+                            print("✅ [Continue] signUp() succeeded")
+                            
+                            let userId = result.user.id.uuidString
+                            
+                            print("📤 [Continue] Saving profile now...")
+                            // 2) Save the profile but do NOT authenticate
                             await authViewModel.saveProfile(
-                                userId: finalUserId,
+                                userId: userId,
                                 phoneNumber: phoneNumber,
                                 name: fullName,
                                 username: username,
                                 dob: dateOfBirth,
-                                profileImage: profileImage,
-                                email: email
+                                profileImage: selectedImage,
+                                email: email,
+                                affectAuthState: false   // 👈 important
                             )
                             
-                            // Step 4: Set isAuthenticated to true. This will trigger the
-                            // view switch in your main AppRouter/ContentView.
-                            authViewModel.isAuthenticated = true
-                        } else {
-                            // Handle the signup failure case. You could show an alert here.
-                            print("Authentication process failed. Staying on the current screen.")
+                            // 3) Tell user to verify email
+                            print("📩 [Continue] Setting showVerificationAlert = true")
+                            showVerificationAlert = true
+
+                        } catch {
+                            print("❌ Signup failed:", error.localizedDescription)
                         }
-                        
+
+                        print("🔚 [Continue] Done executing Continue button logic")
                         isLoading = false
                     }
                 } label: {
@@ -295,12 +326,30 @@ struct FinishSignupView: View {
                     .cornerRadius(8)
                 }
                 .disabled(!usernameConfirmed || fullName.isEmpty)
+                .padding(.bottom, 16)
             }
             .ignoresSafeArea(.keyboard, edges: .bottom)
             .padding(.horizontal, 16)
             .navigationTitle("")
             .navigationBarBackButtonHidden(true)
         }
+        .alert("Check your email", isPresented: $showVerificationAlert) {
+            Button("OK") {
+                navigateBackToLogin = true
+            }
+        } message: {
+            print("🛎️ [Alert] Attempting to display alert now…")
+            return Text("A verification link has been sent to \(email ?? "your email"). Please verify your account before logging in.")
+
+        }
+        .onChange(of: navigateBackToLogin) { yes in
+            if yes {
+                authViewModel.shouldResetLoginFlow = true
+            }
+        }
+
+
+
         .dismissKeyboardOnTap()
     }
 }

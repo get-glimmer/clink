@@ -37,6 +37,7 @@ struct ProfileView: View {
                                 .frame(width: 44, height: 44)
                         }
                     }
+                    .padding(.top, 15)
                     
                     // MARK: - Avatar (tap to change)
                     Button {
@@ -82,6 +83,8 @@ struct ProfileView: View {
                                 selectedImage = image
                                 showCropper = true  // 👈 add this
                             }
+                            // ✅ Reset selection so user can reselect the same photo later
+                            selectedItem = nil
                         }
                     }
                     .sheet(isPresented: $showCropper) {
@@ -97,8 +100,6 @@ struct ProfileView: View {
                             }
                     }
                     
-                    
-                    
                     VStack() {
                         Text(viewModel.profile?.name ?? "")
                             .padding(.top, 12)
@@ -107,10 +108,11 @@ struct ProfileView: View {
                             .foregroundColor(Color("White"))
                         
                         Text(viewModel.profile?.email ?? "")
-                            .padding(.top, 4)
+                            .padding(.top, 2)
                             .appFont(AppFont.body2)
                             .foregroundColor(Color("Neutral-300"))
                     }
+                    .padding(.bottom, 10)
                     
                     HStack {
                         let count = viewModel.profile?.friendsCount ?? 0
@@ -119,7 +121,7 @@ struct ProfileView: View {
                         Text("\(count) friends")
                             .appFont(AppFont.body2)
                     }
-                    .padding(.bottom, 42.5)
+                    .padding(.bottom, 40)
                     
                     //                Spacer().frame(height: 5)
                     
@@ -150,7 +152,7 @@ struct ProfileView: View {
                                 .padding(.trailing, 16)
                         }
                         .frame(maxWidth: .infinity)
-                        .frame(height: 100)
+                        .frame(height: 106)
                         .background(Color("Neutral-900"))
                         .cornerRadius(16)
                     }
