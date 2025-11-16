@@ -108,7 +108,7 @@ struct ProfileView: View {
                             .foregroundColor(Color("White"))
                         
                         Text(viewModel.profile?.email ?? "")
-                            .padding(.top, 2)
+                            .padding(.top, 1)
                             .appFont(AppFont.body2)
                             .foregroundColor(Color("Neutral-300"))
                     }
@@ -170,12 +170,13 @@ struct ProfileView: View {
                     .padding(.top, 23)
                     .padding(.leading, 6)
                     
+                    // 활성화 시킬려면 selectedAppearance == 각자 값이여야됨
                     HStack(spacing: 16) {
                         AppearanceBox(iconName: "System", title: "System", isSelected: selectedAppearance == 0) {
-                            selectedAppearance = 0
+                            selectedAppearance = 2
                         }
                         AppearanceBox(iconName: "Light", title: "Light", isSelected: selectedAppearance == 1) {
-                            selectedAppearance = 1
+                            selectedAppearance = 2
                         }
                         AppearanceBox(iconName: "Dark", title: "Dark", isSelected: selectedAppearance == 2) {
                             selectedAppearance = 2

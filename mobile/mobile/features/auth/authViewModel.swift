@@ -42,6 +42,16 @@ class AuthViewModel: ObservableObject {
     @Published var emailStatusColor: Color = .white
     
     @Published var shouldResetLoginFlow = false
+    
+    
+    @Published var tempFullName: String?
+    @Published var tempUsername: String?
+    @Published var tempDOB: Date?
+    @Published var tempProfileImage: UIImage?
+    @Published var tempPhoneNumber: String?
+    @Published var tempEmail: String?
+
+    
 
     /// The Supabase client instance.
     private let client = SupabaseClientManager.shared.client
@@ -272,9 +282,32 @@ class AuthViewModel: ObservableObject {
         guard let client = self.client else { return }
         do {
             try await client.auth.signIn(email: email, password: password)
+
+            let session = try await client.auth.session
+            let uid = session.user.id.uuidString
+
+            // Save profile with stored values from FinishSignupView
+            await saveProfile(
+                userId: uid,
+                phoneNumber: tempPhoneNumber,
+                name: tempFullName,
+                username: tempUsername,
+                dob: tempDOB,
+                profileImage: tempProfileImage,
+                email: tempEmail,
+                affectAuthState: true
+            )
+
+            // Clear temp fields after saving
+            tempFullName = nil
+            tempUsername = nil
+            tempDOB = nil
+            tempProfileImage = nil
+            tempPhoneNumber = nil
+            tempEmail = nil
+
             await loadProfile()
             isAuthenticated = true
-            errorMessage = ""
         } catch {
             isAuthenticated = false
             errorMessage = "Invalid email or password"

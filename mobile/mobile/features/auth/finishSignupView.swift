@@ -286,17 +286,13 @@ struct FinishSignupView: View {
                             let userId = result.user.id.uuidString
                             
                             print("📤 [Continue] Saving profile now...")
-                            // 2) Save the profile but do NOT authenticate
-                            await authViewModel.saveProfile(
-                                userId: userId,
-                                phoneNumber: phoneNumber,
-                                name: fullName,
-                                username: username,
-                                dob: dateOfBirth,
-                                profileImage: selectedImage,
-                                email: email,
-                                affectAuthState: false   // 👈 important
-                            )
+                            authViewModel.tempFullName = fullName
+                            authViewModel.tempUsername = username
+                            authViewModel.tempDOB = dateOfBirth
+                            authViewModel.tempProfileImage = selectedImage
+                            authViewModel.tempPhoneNumber = phoneNumber
+                            authViewModel.tempEmail = email
+
                             
                             // 3) Tell user to verify email
                             print("📩 [Continue] Setting showVerificationAlert = true")
