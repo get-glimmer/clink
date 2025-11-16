@@ -172,7 +172,13 @@ class AuthViewModel: ObservableObject {
             print("✅ Profile saved successfully before verification")
             
             // Reload the profile
-            await loadProfile()
+//            await loadProfile()
+            
+            // Only authenticate if caller wants it
+            if affectAuthState {
+                self.isAuthenticated = true
+            }
+
         } catch {
             print("❌ Error saving profile:", error.localizedDescription)
         }

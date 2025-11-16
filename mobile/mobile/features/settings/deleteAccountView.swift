@@ -10,8 +10,6 @@ struct DeleteAccountView: View {
         ZStack {
             Color("Neutral-1000").ignoresSafeArea()
             
-            
-            
             VStack {
                 TopNavBar(title: "Delete Account") {
                     dismiss()
@@ -68,6 +66,7 @@ struct DeleteAccountView: View {
                         }
                     } label: {
                         Text("Delete Account")
+                            .appFont(AppFont.buttonL)
                             .foregroundColor(Color(.white))
                             .frame(maxWidth: .infinity)
                     }

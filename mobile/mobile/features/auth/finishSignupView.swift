@@ -270,59 +270,43 @@ struct FinishSignupView: View {
                 // Continue button
                 Button {
                     Task {
+                        print("👉 [Continue] Button tapped")
                         isLoading = true
-                        guard let client = SupabaseClientManager.shared.client else {
-                            print("Supabase client not available.")
-                            isLoading = false
-                            return
-                        }
+                        guard let client = SupabaseClientManager.shared.client else { return }
+
+                        // 1) Create the auth user but DO NOT log them in
+                        guard let email, let password else { return }
                         
-                        var finalUserId: String?
-                        var authSuccessful = false
+                        print("📨 [Continue] Attempting signUp with email: \(email)")
                         
-                        // --- Part 1: Authenticate and get User ID ---
-                        if let email, let password { // Email signup flow
-                            do {
-                                // Step 1: Create the user in auth.users
-                                let signUpResult = try await client.auth.signUp(email: email, password: password)
-                                
-                                // Step 2: Immediately sign in to establish a session.
-                                // This is the key to creating a seamless login experience.
-                                try await client.auth.signIn(email: email, password: password)
-                                
-                                // If both succeed, get the user ID and mark as successful
-                                finalUserId = signUpResult.user.id.uuidString
-                                authSuccessful = true
-                            } catch {
-                                print("❌ Email signup or sign-in failed:", error.localizedDescription)
-                                authSuccessful = false
-                            }
-                        } else if let uid = userId { // Phone signup flow
-                            finalUserId = uid
-                            authSuccessful = true // User is already authenticated in this flow
-                        }
-                        
-                        // --- Part 2: Save Profile and Transition ---
-                        if authSuccessful, let finalUserId {
-                            // Step 3: Save the profile data (name, username, etc.)
+                        do {
+                            let result = try await client.auth.signUp(email: email, password: password)
+                            print("✅ [Continue] signUp() succeeded")
+                            
+                            let userId = result.user.id.uuidString
+                            
+                            print("📤 [Continue] Saving profile now...")
+                            // 2) Save the profile but do NOT authenticate
                             await authViewModel.saveProfile(
-                                userId: finalUserId,
+                                userId: userId,
                                 phoneNumber: phoneNumber,
                                 name: fullName,
                                 username: username,
                                 dob: dateOfBirth,
                                 profileImage: selectedImage,
-                                email: email
+                                email: email,
+                                affectAuthState: false   // 👈 important
                             )
                             
-                            // Step 4: Set isAuthenticated to true. This will trigger the
-                            // view switch in your main AppRouter/ContentView.
-                            authViewModel.isAuthenticated = true
-                        } else {
-                            // Handle the signup failure case. You could show an alert here.
-                            print("Authentication process failed. Staying on the current screen.")
+                            // 3) Tell user to verify email
+                            print("📩 [Continue] Setting showVerificationAlert = true")
+                            showVerificationAlert = true
+
+                        } catch {
+                            print("❌ Signup failed:", error.localizedDescription)
                         }
-                        
+
+                        print("🔚 [Continue] Done executing Continue button logic")
                         isLoading = false
                     }
                 } label: {
@@ -351,12 +335,19 @@ struct FinishSignupView: View {
         }
         .alert("Check your email", isPresented: $showVerificationAlert) {
             Button("OK") {
-                print("[FinishSignupView] setting authViewModel.shouldResetLoginFlow = true")
-                authViewModel.shouldResetLoginFlow = true
+                navigateBackToLogin = true
             }
         } message: {
-            Text("A verification link has been sent to \(email ?? "your email"). Please verify your account before logging in.")
+            print("🛎️ [Alert] Attempting to display alert now…")
+            return Text("A verification link has been sent to \(email ?? "your email"). Please verify your account before logging in.")
+
         }
+        .onChange(of: navigateBackToLogin) { yes in
+            if yes {
+                authViewModel.shouldResetLoginFlow = true
+            }
+        }
+
 
 
         .dismissKeyboardOnTap()
