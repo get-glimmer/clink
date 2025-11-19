@@ -38,6 +38,7 @@ struct FriendDetailView: View {
                         } else {
                             ShakerView(
                                 viewModel: friendTaskViewModel,
+                                forceFullMode: true,
                                 onNoteTapped: { note in
                                     showNotesPopup(note)
                                 }
