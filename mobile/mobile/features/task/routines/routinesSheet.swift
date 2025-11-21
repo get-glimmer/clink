@@ -211,7 +211,6 @@ private func statusBadge(for r: RoutineItem) -> some View {
 
     return Text(label)
         .appFont(AppFont.labelS)
-//        .foregroundStyle(.white)
         .foregroundColor(Color("Neutral-1000"))
         .padding(.horizontal, 10)
         .padding(.vertical, 4)
