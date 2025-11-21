@@ -206,12 +206,13 @@ private func statusBadge(for r: RoutineItem) -> some View {
         color = Color("Red-300")
     } else {
         label = "In Progress"
-        color = Color("Green-400")
+        color = Color("Green-300")
     }
 
     return Text(label)
         .appFont(AppFont.labelS)
-        .foregroundStyle(.white)
+//        .foregroundStyle(.white)
+        .foregroundColor(Color("Neutral-1000"))
         .padding(.horizontal, 10)
         .padding(.vertical, 4)
         .background(Capsule().fill(color))
