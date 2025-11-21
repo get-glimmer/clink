@@ -165,9 +165,12 @@ struct SearchView: View {
         HStack(spacing: 8) {
             // Search Bar
             HStack(spacing: 10) {
-                Image(systemName: "magnifyingglass")
+                Image("magnifying_glass")
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
                     .foregroundColor(AppColors.neutral400)
-                    .font(.system(size: 16))
+                    .frame(width: 16, height: 16)
                 
                 TextField("Search users...", text: $searchText)
                     .foregroundColor(AppColors.neutral600)
@@ -188,9 +191,12 @@ struct SearchView: View {
             Button(action: {
                 dismiss()
             }) {
-                Image(systemName: "xmark")
+                Image("xmark")
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
                     .foregroundColor(AppColors.neutral400)
-                    .font(.system(size: 16, weight: .medium))
+                    .frame(width: 16, height: 16)
                     .frame(width: 44, height: 44)
                     .background(
                         Circle().fill(AppColors.neutral900)

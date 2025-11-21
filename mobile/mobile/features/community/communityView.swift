@@ -290,9 +290,12 @@ struct CommunityView: View {
                 ZStack { // center contents
                     Circle()
                         .fill(AppColors.neutral900)
-                    Image(systemName: "magnifyingglass")
-                        .foregroundColor(AppColors.textWhite)
-                        .font(.system(size: 20))
+                    Image("magnifying_glass")
+                        .renderingMode(.template)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 16, height: 16)
+                        .foregroundColor(AppColors.neutral400)
                 }
                 .overlay(alignment: .topTrailing) {
                     if pendingRequestCount > 0 {
@@ -810,8 +813,11 @@ struct LeaveNoteSheet: View {
                         Button(action: {
                             onClose()
                         }) {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 15, weight: .medium))
+                            Image("xmark")
+                                .renderingMode(.template)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 15, height: 15)
                                 .foregroundColor(AppColors.neutral1000)
                         }
                     }

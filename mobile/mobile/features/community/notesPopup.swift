@@ -42,9 +42,12 @@ struct NotesPopupView: View {
                         HStack {
                             Spacer()
                             Button(action: { dismiss() }) {
-                                Image(systemName: "xmark")
-                                    .font(.system(size: 27, weight: .light))
+                                Image("xmark")
+                                    .renderingMode(.template)
+                                    .resizable()
+                                    .scaledToFit()
                                     .foregroundColor(AppColors.neutral400)
+                                    .frame(width: 27, height: 27)
                                     .frame(width: 44, height: 44)
                             }
                             .padding(.top, 30)
