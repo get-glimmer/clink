@@ -16,6 +16,7 @@ struct ShakerView: View {
     
     // externally tell this view whether it is actually visible/active
     var isActive: Bool = true
+    let forceFullMode: Bool
     
     // Optional callbacks
     var onNoteEmojiTapped: (() -> Void)? = nil
@@ -173,7 +174,7 @@ struct ShakerView: View {
                 // Wire note tap callback (if provided)
                 scene.onNotesEmojiTapped = onNoteEmojiTapped
                 // If height is small (preview), scale emoji down and use constant gravity (no device motion)
-                let isPreview = jarSize.height <= 150
+                let isPreview = !forceFullMode && jarSize.height <= 150
                 isPreviewMode = isPreview
                 // Preview emoji ~24pt (base is 54pt → scale ≈ 24/54)
                 scene.setEmojiScale(isPreview ? (24.0 / 54.0) : 1.0)
@@ -214,24 +215,24 @@ struct ShakerView: View {
                 scene.setMotionEnabled(false) // for performance
                 scene.setHapticsEnabled(false)
             }
-            .onChange(of: geo.size) { _ in
-                // On size changes (preview tiles) ensure marbles snap to floor
-                let isPreview = min(geo.size.width, geo.size.height) <= 300
-            // Update preview mode so overlays (sticky notes/arrows) hide when small
-            isPreviewMode = isPreview
-            // Keep emoji small in preview (~24pt)
-            scene.setEmojiScale(isPreview ? (24.0 / 54.0) : 1.0)
-            scene.setMotionEnabled(!isPreview)
-            scene.setHapticsEnabled(!isPreview && isActive)
-            if isPreview {
+            .onChange(of: geo.size) { newSize in
+                let side = min(newSize.width, newSize.height)
+                let isPreview = !forceFullMode && side <= 150
+
+                // Update preview mode so overlays (sticky notes/arrows) hide when small
+                isPreviewMode = isPreview
+
+                if isPreview {
+                    // Only for really tiny tiles (feed-style small jars)
                     scene.settleAllToBottom()
                 }
-                // Regenerate sticky layouts for the new jar size
-                let side = min(geo.size.width, geo.size.height)
+
+                // Regenerate sticky layouts for new size
                 let jarSize = CGSize(width: side, height: side)
                 lastJarSize = jarSize
                 regenerateLayoutsForSize(jarSize)
             }
+
         }
         .onReceive(viewModel.$categoriesWithTasks) { _ in
             syncWithTasks()

@@ -419,7 +419,7 @@ struct FriendCardView: View {
                 .padding(.bottom, 24)
 
                 // Friend's Shaker (emoji garden) — square, with 21px side padding and 19px bottom
-                ShakerView(viewModel: TaskListViewModel(userId: friend.userId))
+                ShakerView(viewModel: TaskListViewModel(userId: friend.userId), forceFullMode: false)
                     .aspectRatio(1, contentMode: .fit)
                     .padding(.horizontal, sidePadding)
                     .padding(.bottom, bottomPadding)

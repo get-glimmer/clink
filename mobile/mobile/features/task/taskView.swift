@@ -3,6 +3,7 @@ import SwiftUI
 
 struct TaskView: View {
     @StateObject private var viewModel: TaskListViewModel
+    @State private var shakerRefreshId = UUID()
     @State private var sheetProgress: CGFloat = 0
     @State private var showingNotesPopup: Bool = false
     
@@ -123,11 +124,13 @@ struct TaskView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.trailing, 16)
                     }
+                    .padding(.top, 12)
 
                     //MARK: - shaker
                     ShakerView(
                         viewModel: viewModel,
                         isActive: shakerIsActive,
+                        forceFullMode: true,  
                         onNoteTapped: { note in
                             selectedNoteId = note.id
                             selectedNoteContent = note.noteContent
@@ -135,6 +138,7 @@ struct TaskView: View {
                             showingNotesPopup = true
                         }
                     )
+                    .id(shakerRefreshId)
                         .frame(width: shakerSide, height: shakerSide)
                         .frame(maxWidth: 275)
                         .padding(.top, 16)
@@ -190,6 +194,8 @@ struct TaskView: View {
         .background(.neutral1000)
         .ignoresSafeArea(edges: .bottom)
         .onAppear {
+            sheetProgress = 0
+            shakerRefreshId = UUID()
             viewModel.fetchCategoriesAndTasks()
             viewModel.taskSelectedDate = selectedDate
         }

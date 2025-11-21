@@ -23,6 +23,12 @@ struct BottomSheet<Content: View>: View {
     @GestureState private var dragOffset: CGFloat = 0
     
     private let epsilon: CGFloat = 0.5
+    
+    
+    // Snap animations
+    private let snapUpAnimation   = Animation.spring(response: 0.7, dampingFraction: 0.9, blendDuration: 0.15)
+    private let snapDownAnimation = Animation.spring(response: 0.5, dampingFraction: 0.9, blendDuration: 0.10)
+
 
     var body: some View {
         GeometryReader { geo in
@@ -56,11 +62,22 @@ struct BottomSheet<Content: View>: View {
                     progress = (currentHeight - collapsed) / (expanded - collapsed)
                 }
             
+            let outsideDragGesture = DragGesture(minimumDistance: 10)
+                 .onEnded { value in
+                     if value.translation.height > 24 {
+                         withAnimation(self.snapDownAnimation) {
+                             currentHeight = collapsed
+                             progress = 0
+                         }
+                     }
+                 }
+            // Layout
             ZStack(alignment: .top) {
                 Color.clear
                     .frame(height: outsideTapAreaHeight)
                     .contentShape(Rectangle())
                     .allowsHitTesting(currentHeight > collapsed + 0.1)
+                    .gesture(outsideDragGesture)
                     .onTapGesture {
                         withAnimation(.spring(response: 0.5, dampingFraction: 0.9, blendDuration: 0.10)) {
                             currentHeight = collapsed
