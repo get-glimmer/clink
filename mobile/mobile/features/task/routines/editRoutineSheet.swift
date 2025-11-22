@@ -179,7 +179,7 @@ struct EditRoutineSheet: View {
                 innerDivider
 
             durationRow(title: "To",
-                        value: startDate.map { mdY($0) } ?? "None",
+                        value: endDate.map { mdY($0) } ?? "None",
                         isExpanded: showToPicker
             ){
                 withAnimation {
