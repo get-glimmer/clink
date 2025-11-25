@@ -9,5 +9,7 @@
 		<string>Figtree-Regular.ttf</string>
 		<string>Figtree-Medium.ttf</string>
 	</array>
+	<key>UILaunchStoryboardName</key>
+	<string>Launch Screen</string>
 </dict>
 </plist>
