@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		347452402E558BC800589856 /* MCEmojiPicker in Frameworks */ = {isa = PBXBuildFile; productRef = 3474523F2E558BC800589856 /* MCEmojiPicker */; };
 		347452422E558BC800589856 /* MCEmojiPickerJSON in Frameworks */ = {isa = PBXBuildFile; productRef = 347452412E558BC800589856 /* MCEmojiPickerJSON */; };
+		43B3C1832ED566C1001D71CD /* Config.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = 43B3C1822ED566C1001D71CD /* Config.xcconfig */; };
 		B45C9A322E14D95C00E01F99 /* Auth in Frameworks */ = {isa = PBXBuildFile; productRef = B45C9A312E14D95C00E01F99 /* Auth */; };
 		B45C9A342E14D95C00E01F99 /* Functions in Frameworks */ = {isa = PBXBuildFile; productRef = B45C9A332E14D95C00E01F99 /* Functions */; };
 		B45C9A362E14D95C00E01F99 /* PostgREST in Frameworks */ = {isa = PBXBuildFile; productRef = B45C9A352E14D95C00E01F99 /* PostgREST */; };
@@ -35,6 +36,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		43B3C1822ED566C1001D71CD /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 		B443470C2DFD212E00644724 /* mobile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = mobile.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B44347192DFD212F00644724 /* mobileTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = mobileTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B44347232DFD212F00644724 /* mobileUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = mobileUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -123,6 +125,7 @@
 		B44347032DFD212E00644724 = {
 			isa = PBXGroup;
 			children = (
+				43B3C1822ED566C1001D71CD /* Config.xcconfig */,
 				B443470E2DFD212E00644724 /* mobile */,
 				B443471C2DFD212F00644724 /* mobileTests */,
 				B44347262DFD212F00644724 /* mobileUITests */,
@@ -280,6 +283,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				43B3C1832ED566C1001D71CD /* Config.xcconfig in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -463,7 +467,9 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = X8UHS755YR;
+
+				DEVELOPMENT_TEAM = 26NN77H972;
+
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = mobile/Info.plist;
@@ -479,11 +485,11 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.seeun.clink12;
+				PRODUCT_BUNDLE_IDENTIFIER = com.seeun.clink;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -494,7 +500,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = X8UHS755YR;
+				DEVELOPMENT_TEAM = 26NN77H972;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = mobile/Info.plist;
@@ -510,11 +516,11 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.seeun.clink12;
+				PRODUCT_BUNDLE_IDENTIFIER = com.seeun.clink;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
