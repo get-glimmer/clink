@@ -9,7 +9,9 @@
 		<string>Figtree-Regular.ttf</string>
 		<string>Figtree-Medium.ttf</string>
 	</array>
-	<key>UILaunchStoryboardName</key>
-	<string>Launch Screen</string>
+	<key>supabase_public_key</key>
+	<string>$(SUPABASE_PUBLIC_KEY)</string>
+	<key>supabase_url_key</key>
+	<string>$(SUPABASE_URL_KEY)</string>
 </dict>
 </plist>

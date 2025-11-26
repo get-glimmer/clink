@@ -8,16 +8,18 @@ class SupabaseClientManager {
     private init() {}
 
     func initialize() {
-        // Try environment variables first, then fallback to Info.plist
-        let url = ProcessInfo.processInfo.environment["SUPABASE_URL_KEY"] ??
-                  Bundle.main.object(forInfoDictionaryKey: "SUPABASE_URL_KEY") as? String
-        let anonKey = ProcessInfo.processInfo.environment["SUPABASE_PUBLIC_KEY"] ??
-                      Bundle.main.object(forInfoDictionaryKey: "SUPABASE_PUBLIC_KEY") as? String
+        // Prefer Info.plist values via AppConfig; fall back to scheme env vars for local dev
+        let url = AppConfig.supabaseUrl.isEmpty
+            ? (ProcessInfo.processInfo.environment["SUPABASE_URL_KEY"] ?? "")
+            : AppConfig.supabaseUrl
+        let anonKey = AppConfig.supabaseAnonKey.isEmpty
+            ? (ProcessInfo.processInfo.environment["SUPABASE_PUBLIC_KEY"] ?? "")
+            : AppConfig.supabaseAnonKey
 
-        guard let url = url, let anonKey = anonKey else {
-            print("Supabase keys not found in environment or Info.plist")
+        guard !url.isEmpty, !anonKey.isEmpty, let supabaseURL = URL(string: url) else {
+            print("Supabase keys not found or invalid. Ensure Build Settings have SUPABASE_URL_KEY and SUPABASE_PUBLIC_KEY.")
             return
         }
-        client = SupabaseClient(supabaseURL: URL(string: url)!, supabaseKey: anonKey)
+        client = SupabaseClient(supabaseURL: supabaseURL, supabaseKey: anonKey)
     }
 }

@@ -312,7 +312,7 @@ struct CommunityView: View {
             }
         }
         .padding(.horizontal, 23)
-        .padding(.top, 6)
+        .padding(.top, 12)
         .zIndex(99) // Keep header above scroll content but below dropdown
     }
 
