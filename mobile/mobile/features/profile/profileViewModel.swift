@@ -26,7 +26,7 @@ class ProfileViewModel: ObservableObject {
             let friendsResponse = try await client
                 .from("friends")
                 .select("user_id", head: false, count: .exact)
-                .eq("user_id", value: uuid)
+                .or("user_id.eq.\(uuid),friend_id.eq.\(uuid)")
                 .eq("status", value: "accepted")
                 .execute()
             
