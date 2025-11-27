@@ -17,6 +17,8 @@ struct ShakerView: View {
     // externally tell this view whether it is actually visible/active
     var isActive: Bool = true
     let forceFullMode: Bool
+    // control sticky-notes visibility from parent (e.g., when shaker shrinks)
+    var showStickyNotes: Bool = true
     
     // Optional callbacks
     var onNoteEmojiTapped: (() -> Void)? = nil
@@ -39,6 +41,9 @@ struct ShakerView: View {
     @State private var stickyLayouts: [StickyLayout] = []
     @State private var stickyPage: Int = 0 // 0: first 5, 1: next 5
     @State private var lastJarSize: CGSize = .zero
+    // Actual visibility (supports delayed appear, instant disappear)
+    @State private var stickyNotesActuallyVisible: Bool = true
+    @State private var pendingShowWorkItem: DispatchWorkItem? = nil
     
     // Lid visuals
     @State private var lidColors: [Color] = [.black, .gray]
@@ -87,7 +92,7 @@ struct ShakerView: View {
                     .frame(width: jarSize.width, height: jarSize.height)
                 
                 // --- Sticky Notes (text notes) overlay ---
-                if !isPreviewMode && !stickyLayouts.isEmpty {
+                if !isPreviewMode && stickyNotesActuallyVisible && !stickyLayouts.isEmpty {
                     StickyNotesLayer(
                         layouts: currentPageLayouts(),
                         containerSize: jarSize,
@@ -238,6 +243,28 @@ struct ShakerView: View {
             syncWithTasks()
             // Also reflect already-liked categories as glowing emojis when data arrives/changes
             Task { await addLikedCategoryEmojisToShaker() }
+        }
+        .onAppear {
+            // initialize actual visibility based on control flag
+            stickyNotesActuallyVisible = showStickyNotes
+        }
+        .onChange(of: showStickyNotes) { value in
+            // Cancel any pending delayed show
+            pendingShowWorkItem?.cancel()
+            pendingShowWorkItem = nil
+            if value {
+                // Delay the appearance slightly
+                let work = DispatchWorkItem { stickyNotesActuallyVisible = true }
+                pendingShowWorkItem = work
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: work)
+            } else {
+                // Disappear immediately
+                var tx = Transaction()
+                tx.disablesAnimations = true
+                withTransaction(tx) {
+                    stickyNotesActuallyVisible = false
+                }
+            }
         }
         .onChange(of: viewModel.emojiForDate) { _ in syncWithTasks()
             // isAllCompleted 였다면 이모지 변경에 따라 기존 뚜껑색 변경 유도.
@@ -511,8 +538,9 @@ struct ShakerView: View {
             do {
                 // Resolve today's shaker for the owner
                 guard let shakerId = try await service.getCurrentShakerForUser(userId: owner, date: viewModel.taskSelectedDate) else { continue }
-                let liked = try await service.isLiked(categoryId: categoryId, userId: userUUID, shakerId: shakerId)
-                if liked {
+                // Show reaction emoji if ANY user liked this category on this shaker (not just the current user)
+                let hasAnyLike = try await service.anyLikesForCategoryOnShaker(categoryId: categoryId, shakerId: shakerId)
+                if hasAnyLike {
                     let symbol = categoryWithTasks.category.emoji
                     if !added.contains(symbol) && !scene.hasReactionEmoji(symbol) {
                         added.insert(symbol)

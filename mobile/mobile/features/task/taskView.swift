@@ -130,7 +130,8 @@ struct TaskView: View {
                     ShakerView(
                         viewModel: viewModel,
                         isActive: shakerIsActive,
-                        forceFullMode: true,  
+                        forceFullMode: true,
+                        showStickyNotes: (sheetProgress == 0),
                         onNoteTapped: { note in
                             selectedNoteId = note.id
                             selectedNoteContent = note.noteContent
@@ -277,6 +278,7 @@ private struct SelfNotesPopupView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var communityService = CommunityService()
     @State private var currentIndex: Int = 0
+    @State private var authorNames: [UUID: String] = [:]
 
     var body: some View {
         ZStack {
@@ -361,6 +363,12 @@ private struct SelfNotesPopupView: View {
                                     Spacer(minLength: 0)
                                 }
                                 Spacer()
+                                HStack {
+                                    Spacer()
+                                    Text("– \(authorNames[note.userId] ?? "Someone")")
+                                        .font(.system(size: 16, weight: .semibold))
+                                        .foregroundColor(.black.opacity(0.6))
+                                }
                             }
                             .padding(.horizontal, 24)
                             .padding(.vertical, 22)
@@ -451,12 +459,40 @@ private struct SelfNotesPopupView: View {
                         currentIndex = 0
                         isLoading = false
                     }
+                    // Load author display names for the notes shown
+                    let userIds = loaded.filter { !$0.noteContent.isEmojiOnly }.map { $0.userId }
+                    await loadAuthorNames(for: userIds)
                 } else {
                     await MainActor.run { notes = []; isLoading = false }
                 }
             } catch {
                 await MainActor.run { notes = []; isLoading = false }
             }
+        }
+    }
+    
+    // Load display names for note authors (same behavior as friend notes popup)
+    private func loadAuthorNames(for userIds: [UUID]) async {
+        guard let client = SupabaseClientManager.shared.client else { return }
+        let unique = Array(Set(userIds))
+        guard !unique.isEmpty else { return }
+        struct Row: Decodable { let id: String; let name: String? }
+        do {
+            let rows: [Row] = try await client
+                .from("profiles")
+                .select("id,name")
+                .in("id", value: unique.map { $0.uuidString })
+                .execute()
+                .value
+            var map: [UUID: String] = [:]
+            for r in rows {
+                if let uuid = UUID(uuidString: r.id), let name = r.name {
+                    map[uuid] = name
+                }
+            }
+            await MainActor.run { authorNames.merge(map) { _, new in new } }
+        } catch {
+            // ignore lookup failures
         }
     }
 }

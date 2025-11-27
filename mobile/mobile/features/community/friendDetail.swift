@@ -39,6 +39,7 @@ struct FriendDetailView: View {
                             ShakerView(
                                 viewModel: friendTaskViewModel,
                                 forceFullMode: true,
+                                showStickyNotes: (sheetProgress == 0),
                                 onNoteTapped: { note in
                                     showNotesPopup(note)
                                 }
@@ -47,7 +48,7 @@ struct FriendDetailView: View {
                                 .frame(maxWidth: 275)
                                 .overlay(
                                     Group {
-                                        if !hasAnyNotes && friendTaskViewModel.hasAnyTasks && scale >= 0.8 {
+                                        if !hasLeftTextNote && friendTaskViewModel.hasAnyTasks && scale >= 0.8 {
                                             VStack {
                                                 Spacer().frame(height: shakerSide * 0.3)
                                                 leaveNoteButton

@@ -696,6 +696,23 @@ class CommunityService: ObservableObject {
         return rows.count
     }
     
+    /// Check if there exists at least one like for a category on a specific shaker (any user).
+    func anyLikesForCategoryOnShaker(categoryId: UUID, shakerId: UUID) async throws -> Bool {
+        guard let supabase = supabase else {
+            throw NSError(domain: "SupabaseError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Supabase client not initialized"])
+        }
+        struct Row: Decodable { let like_id: String }
+        let rows: [Row] = try await supabase
+            .from("likes")
+            .select("like_id")
+            .eq("category_id", value: categoryId.uuidString)
+            .eq("shaker_id", value: shakerId.uuidString)
+            .limit(1)
+            .execute()
+            .value
+        return rows.first != nil
+    }
+    
     // MARK: - Notes Functions
     
     /// Get friend's current shaker ID for today

@@ -110,22 +110,20 @@ class UserSearchService: ObservableObject {
                 .execute()
                 .value
             
-            // Get friendship status and mutual friends for each profile
-            var searchResults: [UserSearchResult] = []
+            // Batch compute friendship status and mutual friend counts to avoid N+1 queries
+            let targetIds = profiles.map { $0.id }
+            async let statusMapAsync = getFriendshipStatusMap(for: targetIds)
+            async let mutualMapAsync = getMutualFriendsCountMap(for: targetIds)
+            let statusMap = await statusMapAsync
+            let mutualMap = await mutualMapAsync
             
-            for profile in profiles {
-                let friendshipStatus = await getFriendshipStatus(with: profile.id)
-                let mutualFriendsCount = await getMutualFriendsCount(with: profile.id)
-                
-                let result = UserSearchResult(
+            return profiles.map { profile in
+                UserSearchResult(
                     profile: profile,
-                    mutualFriendsCount: mutualFriendsCount,
-                    friendshipStatus: friendshipStatus
+                    mutualFriendsCount: mutualMap[profile.id] ?? 0,
+                    friendshipStatus: statusMap[profile.id] ?? .none
                 )
-                searchResults.append(result)
             }
-            
-            return searchResults
             
         } catch {
             throw error
@@ -140,52 +138,80 @@ class UserSearchService: ObservableObject {
         }
         
         do {
-            // Fetch all relationships that involve me (either direction)
-            let relations: [FriendRelation] = try await supabase
+            // 1) Fetch outgoing requested relations (I requested them)
+            struct RequestedRow: Decodable { let friend_id: String }
+            let requestedRows: [RequestedRow] = try await supabase
                 .from("friends")
-                .select()
-                .or("user_id.eq.\(currentUserId),friend_id.eq.\(currentUserId)")
+                .select("friend_id")
+                .eq("user_id", value: currentUserId)
+                .eq("status", value: "requested")
                 .execute()
                 .value
-            // Build an exclusion set for users already connected with me in any of these states
-            let excludedStatuses: Set<String> = ["accepted", "requested", "blocked"]
-            var excludedUserIds: Set<String> = []
-            for rel in relations {
-                if excludedStatuses.contains(rel.status.lowercased()) {
-                    let other = (rel.user_id == currentUserId) ? rel.friend_id : rel.user_id
-                    excludedUserIds.insert(other)
-                }
+            let requestedIds: [String] = requestedRows.map { $0.friend_id }
+            
+            // Fetch their profiles
+            var requestedProfiles: [UserProfile] = []
+            if !requestedIds.isEmpty {
+                requestedProfiles = try await supabase
+                    .from("profiles")
+                    .select()
+                    .in("id", values: requestedIds)
+                    .execute()
+                    .value
             }
-
-            // Get all users except current user first, then filter out related users in Swift
-            let allProfiles: [UserProfile] = try await supabase
-                .from("profiles")
-                .select()
-                .neq("id", value: currentUserId)
-                .order("created_at", ascending: false)
-                .limit(50) // Get more to filter later
-                .execute()
-                .value
             
-            // Filter out any users who are already related (requested, blocked, accepted)
-            let profiles = allProfiles.filter { profile in
-                !excludedUserIds.contains(profile.id)
-            }.prefix(10) // Limit to 10 after filtering
-            
+            // Build requested suggestions (these should appear first)
             var suggestions: [UserSearchResult] = []
-            
-            // For demo purposes, just return users without requiring mutual friends
-            for profile in profiles {
+            for profile in requestedProfiles {
                 let mutualFriendsCount = await getMutualFriendsCount(with: profile.id)
                 let result = UserSearchResult(
                     profile: profile,
                     mutualFriendsCount: mutualFriendsCount,
-                    friendshipStatus: .none
+                    friendshipStatus: .requested
                 )
                 suggestions.append(result)
             }
             
-            return suggestions.sorted { $0.mutualFriendsCount > $1.mutualFriendsCount }
+            // 2) Fill remaining slots with users who are not friends and not requested yet
+            let remainingCapacity = max(0, 7 - suggestions.count)
+            if remainingCapacity > 0 {
+                // Create a pool of recent users excluding me and already requested
+                let poolProfiles: [UserProfile] = try await supabase
+                    .from("profiles")
+                    .select()
+                    .neq("id", value: currentUserId)
+                    .order("created_at", ascending: false)
+                    .limit(80)
+                    .execute()
+                    .value
+                
+                var noneStatusCandidates: [UserSearchResult] = []
+                for profile in poolProfiles {
+                    if requestedIds.contains(profile.id) { continue }
+                    
+                    let friendshipStatus = await getFriendshipStatus(with: profile.id)
+                    // Exclude friends and any requested relationship (incoming/outgoing)
+                    guard friendshipStatus == .none else { continue }
+                    
+                    let mutualFriendsCount = await getMutualFriendsCount(with: profile.id)
+                    noneStatusCandidates.append(
+                        UserSearchResult(
+                            profile: profile,
+                            mutualFriendsCount: mutualFriendsCount,
+                            friendshipStatus: .none
+                        )
+                    )
+                }
+                
+                // Sort by mutuals descending and take remaining capacity
+                let fillers = noneStatusCandidates
+                    .sorted { $0.mutualFriendsCount > $1.mutualFriendsCount }
+                    .prefix(remainingCapacity)
+                suggestions.append(contentsOf: fillers)
+            }
+            
+            // Cap to 7 total
+            return Array(suggestions.prefix(7))
         } catch {
             throw error
         }
@@ -295,6 +321,130 @@ class UserSearchService: ObservableObject {
             
         } catch {
             return 0
+        }
+    }
+    
+    // MARK: - Bulk helpers to reduce query round-trips
+    private func getFriendshipStatusMap(for targetIds: [String]) async -> [String: FriendshipStatus] {
+        guard let supabase = supabase,
+              let currentUserId = currentUserId,
+              !targetIds.isEmpty else {
+            return [:]
+        }
+        do {
+            async let outgoingAsync: [FriendRelation] = supabase
+                .from("friends")
+                .select()
+                .eq("user_id", value: currentUserId)
+                .in("friend_id", values: targetIds)
+                .execute()
+                .value
+            
+            async let incomingAsync: [FriendRelation] = supabase
+                .from("friends")
+                .select()
+                .eq("friend_id", value: currentUserId)
+                .in("user_id", values: targetIds)
+                .execute()
+                .value
+            
+            let outgoing = try await outgoingAsync
+            let incoming = try await incomingAsync
+            let all = outgoing + incoming
+            
+            var map: [String: FriendshipStatus] = [:]
+            for rel in all {
+                let otherId = (rel.user_id == currentUserId) ? rel.friend_id : rel.user_id
+                let statusLower = rel.status.lowercased()
+                let newStatus: FriendshipStatus
+                if statusLower == "accepted" { newStatus = .accepted }
+                else if statusLower == "requested" { newStatus = .requested }
+                else if statusLower == "blocked" { newStatus = .blocked }
+                else { continue }
+                
+                // Prioritize accepted > requested > blocked
+                if let existing = map[otherId] {
+                    switch (existing, newStatus) {
+                    case (.accepted, _):
+                        continue
+                    case (.requested, .accepted),
+                         (.blocked, .accepted),
+                         (.blocked, .requested):
+                        map[otherId] = newStatus
+                    default:
+                        continue
+                    }
+                } else {
+                    map[otherId] = newStatus
+                }
+            }
+            return map
+        } catch {
+            return [:]
+        }
+    }
+    
+    private func getMutualFriendsCountMap(for targetIds: [String]) async -> [String: Int] {
+        guard let supabase = supabase,
+              let currentUserId = currentUserId,
+              !targetIds.isEmpty else {
+            return [:]
+        }
+        do {
+            // My accepted friends (both directions), in parallel
+            async let myOutgoingAsync: [FriendRelation] = supabase
+                .from("friends")
+                .select()
+                .eq("status", value: "accepted")
+                .eq("user_id", value: currentUserId)
+                .execute()
+                .value
+            async let myIncomingAsync: [FriendRelation] = supabase
+                .from("friends")
+                .select()
+                .eq("status", value: "accepted")
+                .eq("friend_id", value: currentUserId)
+                .execute()
+                .value
+            
+            // Accepted relations involving any of the target users, in parallel
+            async let targetOutgoingAsync: [FriendRelation] = supabase
+                .from("friends")
+                .select()
+                .eq("status", value: "accepted")
+                .in("user_id", values: targetIds)
+                .execute()
+                .value
+            async let targetIncomingAsync: [FriendRelation] = supabase
+                .from("friends")
+                .select()
+                .eq("status", value: "accepted")
+                .in("friend_id", values: targetIds)
+                .execute()
+                .value
+            
+            let (myOutgoing, myIncoming, targetOutgoing, targetIncoming) = try await (myOutgoingAsync, myIncomingAsync, targetOutgoingAsync, targetIncomingAsync)
+            
+            var myFriendIds: Set<String> = Set(myOutgoing.map { $0.friend_id })
+            myFriendIds.formUnion(myIncoming.map { $0.user_id })
+            
+            // Build map of each target's accepted friends
+            var targetFriendIdsMap: [String: Set<String>] = [:]
+            for rel in targetOutgoing {
+                targetFriendIdsMap[rel.user_id, default: []].insert(rel.friend_id)
+            }
+            for rel in targetIncoming {
+                targetFriendIdsMap[rel.friend_id, default: []].insert(rel.user_id)
+            }
+            
+            var counts: [String: Int] = [:]
+            for id in targetIds {
+                let theirSet = targetFriendIdsMap[id] ?? []
+                counts[id] = myFriendIds.intersection(theirSet).count
+            }
+            return counts
+        } catch {
+            return [:]
         }
     }
     

@@ -28,7 +28,7 @@ enum UserStatus {
         case .requested:
             return "Requested"
         case .following:
-            return "Following"
+            return "Friend"
         }
     }
     
@@ -173,9 +173,8 @@ struct SearchView: View {
                     .foregroundColor(AppColors.neutral600)
                     .appFont(AppFont.body1)
                     .onChange(of: searchText) { oldValue, newValue in
-                        Task {
-                            await performSearch()
-                        }
+                        // Debounce input to reduce network calls
+                        debounceSearch()
                     }
             }
             .padding(.horizontal, 16)
@@ -199,6 +198,19 @@ struct SearchView: View {
         }
         .padding(.horizontal, 16)
         .padding(.top, 10)
+    }
+    
+    @State private var debounceTask: Task<Void, Never>?
+    
+    private func debounceSearch() {
+        debounceTask?.cancel()
+        let currentQuery = searchText
+        debounceTask = Task {
+            try? await Task.sleep(nanoseconds: 300_000_000) // 300ms
+            if !Task.isCancelled, currentQuery == searchText {
+                await performSearch()
+            }
+        }
     }
     
     private func loadSuggestions() {
