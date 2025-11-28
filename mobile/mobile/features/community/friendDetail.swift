@@ -168,7 +168,10 @@ struct FriendDetailView: View {
         .onReceive(NotificationCenter.default.publisher(for: .friendShakerEmojiReactionAdded)) { notification in
             if let fid = notification.userInfo?["friendUserId"] as? String,
                fid == friend.userId {
-                Task { await refreshHasAnyNotes() }
+                Task {
+                    await checkIfUserLeftTextNote()
+                    await refreshHasAnyNotes()
+                }
             }
         }
         // On reaction removal, recompute from DB to decide if any notes remain
@@ -299,8 +302,9 @@ struct FriendDetailView: View {
         do {
             if let shakerId = try await CommunityService().getCurrentShakerForUser(userId: friend.userId) {
                 print("🟢 checkIfUserLeftTextNote: shakerId=\(shakerId)")
-                let has = try await CommunityService().userHasTextNote(shakerId: shakerId, userId: userId)
-                print("🟢 checkIfUserLeftTextNote: userHasTextNote=\(has)")
+                // Treat ANY note (text OR emoji OR both) as having left a note
+                let has = try await CommunityService().userHasAnyNote(shakerId: shakerId, userId: userId)
+                print("🟢 checkIfUserLeftTextNote: userHasAnyNote=\(has)")
                 await MainActor.run {
                     self.hasLeftTextNote = has
                     print("🟢 checkIfUserLeftTextNote: updated hasLeftTextNote to \(has)")

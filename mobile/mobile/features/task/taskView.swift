@@ -364,6 +364,12 @@ private struct SelfNotesPopupView: View {
                                 }
                                 Spacer()
                                 HStack {
+                                    // Emoji bottom-left when present
+                                    if let emoji = note.noteEmoji, !emoji.isEmpty {
+                                        Text(emoji)
+                                            .font(.system(size: 60))
+                                            .frame(width: 60, height: 60, alignment: .leading)
+                                    }
                                     Spacer()
                                     Text("– \(authorNames[note.userId] ?? "Someone")")
                                         .font(.system(size: 16, weight: .semibold))
@@ -453,14 +459,16 @@ private struct SelfNotesPopupView: View {
                     // Load more to ensure the selected note is included
                     let loaded = try await communityService.getNotesForShaker(shakerId: shakerId, limit: 100)
                     await MainActor.run {
-                        let textNotes = loaded.filter { !$0.noteContent.isEmojiOnly }
+                        let textNotes = loaded.filter { !$0.noteContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
                         // Restore multiple notes (up to 10), no special reordering
                         notes = Array(textNotes.prefix(10))
                         currentIndex = 0
                         isLoading = false
                     }
                     // Load author display names for the notes shown
-                    let userIds = loaded.filter { !$0.noteContent.isEmojiOnly }.map { $0.userId }
+                    let userIds = loaded
+                        .filter { !$0.noteContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+                        .map { $0.userId }
                     await loadAuthorNames(for: userIds)
                 } else {
                     await MainActor.run { notes = []; isLoading = false }

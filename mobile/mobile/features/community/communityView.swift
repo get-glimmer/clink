@@ -789,6 +789,7 @@ struct LeaveNoteSheet: View {
     @State private var isSending = false
     @State private var customEmoji: String = ""
     @State private var isEmojiFieldFocused: Bool = false
+    @State private var selectedEmoji: String? = nil
     
     private let emojiReactions = ["👍", "💖", "👏", "🔥", "🎉"]
     
@@ -870,14 +871,23 @@ struct LeaveNoteSheet: View {
                             HStack(spacing: 16) {
                                 ForEach(emojiReactions, id: \.self) { emoji in
                                     Button(action: {
-                                        // Submit emoji reaction immediately
-                                        sendEmojiReaction(emoji)
+                                        // Select emoji; do not submit immediately
+                                        if selectedEmoji == emoji {
+                                            selectedEmoji = nil
+                                        } else {
+                                            selectedEmoji = emoji
+                                        }
                                     }) {
-                                        Text(emoji)
-                                            .font(.system(size: 40))
-                                            .frame(width: 44, height: 44)
-                                            .scaleEffect(isSending ? 0.9 : 1.0)
-                                            .animation(.easeInOut(duration: 0.1), value: isSending)
+                                        ZStack {
+                                            if selectedEmoji == emoji {
+                                                Circle()
+                                                    .fill(AppColors.green300.opacity(0.25))
+                                                    .frame(width: 48, height: 48)
+                                            }
+                                            Text(emoji)
+                                                .font(.system(size: 40))
+                                                .frame(width: 44, height: 44)
+                                        }
                                     }
                                     .disabled(isSending)
                                 }
@@ -910,12 +920,12 @@ struct LeaveNoteSheet: View {
                                     if let emoji = newValue.firstEmoji, !emoji.isEmpty {
                                         isEmojiFieldFocused = false
                                         customEmoji = ""
-                                        sendEmojiReaction(emoji)
+                                        selectedEmoji = emoji
                                     }
                                 }
                         }
                         
-                        // Send Text Note button
+                        // Send button (text and/or emoji)
                 Button(action: {
                     sendNote()
                 }) {
@@ -925,7 +935,7 @@ struct LeaveNoteSheet: View {
                                         .progressViewStyle(CircularProgressViewStyle(tint: Color.white))
                                 .scaleEffect(0.8)
                         }
-                                Text(isSending ? "Sending..." : "Attach Note")
+                                Text(isSending ? "Sending..." : "Send")
                                     .appFont(AppFont.title3)
                                     .foregroundColor(AppColors.textWhite)
                             }
@@ -933,7 +943,7 @@ struct LeaveNoteSheet: View {
                             .background(AppColors.neutral900)
                             .cornerRadius(32)
                 }
-                .disabled(noteText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSending)
+                .disabled((noteText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && selectedEmoji == nil) || isSending)
                         .padding(.horizontal, 21)
                         .padding(.bottom, 24)
                     }
@@ -964,7 +974,6 @@ struct LeaveNoteSheet: View {
     }
     
     private func sendNote() {
-        guard !noteText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         guard let currentUserId = getUserId(),
               let fromUserId = UUID(uuidString: currentUserId) else { return }
         
@@ -979,18 +988,21 @@ struct LeaveNoteSheet: View {
                 
                 let trimmedContent = noteText.trimmingCharacters(in: .whitespacesAndNewlines)
                 
-                // Submit the note to database
-                try await CommunityService().submitNote(
-                    to: shakerId,
-                    content: trimmedContent,
-                    fromUserId: fromUserId
-                )
+                // Submit the note to database with both fields as applicable
+                try await CommunityService().submitNote(to: shakerId, text: trimmedContent.isEmpty ? nil : trimmedContent, emoji: selectedEmoji, fromUserId: fromUserId)
                 
-                // Determine if this is an emoji reaction or text note
+                // Determine if this is an emoji-only reaction or text (with/without emoji)
                 await MainActor.run {
-                    if trimmedContent.isEmojiOnly {
-                        // Handle emoji reaction - add glowing emoji to jar
-                        if let emoji = trimmedContent.firstEmoji {
+                    let hasText = !trimmedContent.isEmpty
+                    if hasText {
+                        // Handle text note (with or without emoji) - refresh sticky notes
+                        NotificationCenter.default.post(
+                            name: .friendShakerNoteAdded,
+                            object: nil,
+                            userInfo: ["friendUserId": friend.userId]
+                        )
+                    } else if let emoji = selectedEmoji {
+                        // Handle emoji-only reaction - add glowing emoji to jar
                             NotificationCenter.default.post(
                                 name: .friendShakerEmojiReactionAdded,
                                 object: nil,
@@ -999,17 +1011,11 @@ struct LeaveNoteSheet: View {
                                     "emoji": emoji
                                 ]
                             )
-                        }
-                    } else {
-                        // Handle text note - add note emoji to jar
-                        NotificationCenter.default.post(
-                            name: .friendShakerNoteAdded,
-                            object: nil,
-                            userInfo: ["friendUserId": friend.userId]
-                        )
                     }
                     
                     self.isSending = false
+                    self.selectedEmoji = nil
+                    self.noteText = ""
                     onClose()
                 }
             } catch {
@@ -1027,49 +1033,7 @@ struct LeaveNoteSheet: View {
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
     
-    private func sendEmojiReaction(_ emoji: String) {
-        guard let currentUserId = getUserId(),
-              let fromUserId = UUID(uuidString: currentUserId) else { return }
-        
-        isSending = true
-        
-        Task {
-            do {
-                // Get friend's current shaker ID
-                guard let shakerId = try await CommunityService().getCurrentShakerForUser(userId: friend.userId) else {
-                    throw NSError(domain: "EmojiReactionError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Could not find friend's shaker"])
-                }
-                
-                // Submit the emoji reaction to database
-                try await CommunityService().submitNote(
-                    to: shakerId,
-                    content: emoji,
-                    fromUserId: fromUserId
-                )
-                
-                // Notify any open friend shaker views to add the glowing emoji
-                await MainActor.run {
-                    NotificationCenter.default.post(
-                        name: .friendShakerEmojiReactionAdded,
-                        object: nil,
-                        userInfo: [
-                            "friendUserId": friend.userId,
-                            "emoji": emoji
-                        ]
-                    )
-                    
-                    self.isSending = false
-                    onClose()
-                }
-            } catch {
-                await MainActor.run {
-                    self.isSending = false
-                    // Show error to user
-                    print("Error sending emoji reaction: \(error)")
-                }
-            }
-        }
-    }
+    // Removed immediate sendEmojiReaction; emoji is now selected and sent with the Send button.
 }
 
 // UITextView with controllable text container insets (fix caret vs placeholder offset)

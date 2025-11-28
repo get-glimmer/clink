@@ -434,15 +434,22 @@ struct ShakerView: View {
             if let shakerUUID = UUID(uuidString: shakerId) {
                 do {
                     let loaded = try await CommunityService().getNotesForShaker(shakerId: shakerUUID, limit: 20)
-                    for note in loaded {
-                        print("📝 syncNoteEmoji: note content='\(note.noteContent)', isEmojiOnly=\(note.noteContent.isEmojiOnly)")
-                    }
-                    // Separate text vs emoji notes
-                    textNotes = loaded.filter { !$0.noteContent.isEmojiOnly }
+                    // Separate text vs emoji-only notes under new schema (note_emoji separate)
+                    textNotes = loaded.filter { !$0.noteContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
                     emojiOnlySymbols = loaded.compactMap { note in
-                        note.noteContent.isEmojiOnly ? note.noteContent.firstEmoji : nil
+                        let hasText = !note.noteContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        if !hasText {
+                            if let symbol = note.noteEmoji, !symbol.isEmpty {
+                                return symbol
+                            }
+                            // Backward-compatibility: legacy emoji stored in note_content
+                            if note.noteContent.isEmojiOnly, let legacy = note.noteContent.firstEmoji {
+                                return legacy
+                            }
+                        }
+                        return nil
                     }
-                    print("📝 syncNoteEmoji: loaded \(loaded.count) notes, \(textNotes.count) text notes, \(emojiOnlySymbols.count) emoji notes")
+                    print("📝 syncNoteEmoji: loaded \(loaded.count) notes, \(textNotes.count) text notes, \(emojiOnlySymbols.count) emoji-only")
                 } catch {
                     print("🔴 syncNoteEmoji: error loading notes - \(error)")
                     textNotes = []
@@ -664,7 +671,7 @@ private extension ShakerView {
             if let shakerId = try await service.getCurrentShakerForUser(userId: owner, date: viewModel.taskSelectedDate),
                let uuid = shakerId as UUID? {
                 let all = try await service.getNotesForShaker(shakerId: uuid, limit: 100)
-                let texts = all.filter { !$0.noteContent.isEmojiOnly }
+                let texts = all.filter { !$0.noteContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
                 let picked = Array(texts.shuffled().prefix(10))
                 await MainActor.run {
                     // Only (re)generate if notes changed to avoid re-render noise on resize
