@@ -744,17 +744,35 @@ class CommunityService: ObservableObject {
         return nil
     }
     
-    /// Submit a note to a friend's shaker
+    /// Submit a note to a friend's shaker.
     /// Enforces at most one note per (user, shaker). If a note already exists, it is updated.
-    func submitNote(to shakerId: UUID, content: String, fromUserId: UUID) async throws {
+    /// - Parameters:
+    ///   - shakerId: Target shaker (day) ID
+    ///   - text: Optional text content for the note (stored in `note_content`)
+    ///   - emoji: Optional emoji for the note (stored in `note_emoji`)
+    ///   - fromUserId: Author user ID
+    func submitNote(to shakerId: UUID, text: String?, emoji: String?, fromUserId: UUID) async throws {
         guard let supabase = supabase else {
             throw NSError(domain: "SupabaseError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Supabase client not initialized"])
         }
-        
-        // TODO: Add offensive language check here
-        // let hasOffensiveContent = await containsOffensiveLanguage(content)
-        // if hasOffensiveContent { throw OffensiveLanguageError() }
-        
+        // Normalize inputs (trim whitespace-only text to empty)
+        let normalizedText = (text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedEmoji = (emoji?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 }
+        // If both are empty/nil, nothing to submit
+        if normalizedText.isEmpty && normalizedEmoji == nil { return }
+
+        // Encodable payloads to satisfy Postgrest API
+        struct NoteUpdatePayload: Encodable {
+            let note_content: String
+            let note_emoji: String?
+        }
+        struct NoteInsertPayload: Encodable {
+            let user_id: String
+            let shaker_id: String
+            let note_content: String
+            let note_emoji: String?
+        }
+
         // 1) Check if a note from this user already exists for the shaker
         let existing = try await supabase.database
             .from("notes")
@@ -772,23 +790,31 @@ class CommunityService: ObservableObject {
         }
         
         if let noteId = existingNoteId {
-            // 2) Update existing note content (and let DB set updated_at/created_at as needed)
+            // 2) Update existing note (let DB set updated_at)
+            let payload = NoteUpdatePayload(note_content: normalizedText, note_emoji: normalizedEmoji)
             let _ = try await supabase.database
                 .from("notes")
-                .update(["note_content": content])
+                .update(payload)
                 .eq("note_id", value: noteId)
                 .execute()
         } else {
             // 3) Insert new
+            let payload = NoteInsertPayload(
+                user_id: fromUserId.uuidString,
+                shaker_id: shakerId.uuidString,
+                note_content: normalizedText,
+                note_emoji: normalizedEmoji
+            )
             let _ = try await supabase.database
                 .from("notes")
-                .insert([
-                    "user_id": fromUserId.uuidString,
-                    "shaker_id": shakerId.uuidString,
-                    "note_content": content
-                ])
+                .insert(payload)
                 .execute()
         }
+    }
+    
+    /// Backwards-compatible helper that treats `content` as text-only note.
+    func submitNote(to shakerId: UUID, content: String, fromUserId: UUID) async throws {
+        try await submitNote(to: shakerId, text: content, emoji: nil, fromUserId: fromUserId)
     }
 
     /// Delete an emoji-only note for a given shaker and user (used when unliking a category)
@@ -801,7 +827,7 @@ class CommunityService: ObservableObject {
             .delete()
             .eq("shaker_id", value: shakerId)
             .eq("user_id", value: userId)
-            .eq("note_content", value: emoji)
+            .eq("note_emoji", value: emoji)
             .execute()
     }
     
@@ -813,7 +839,7 @@ class CommunityService: ObservableObject {
         
         let response = try await supabase.database
             .from("notes")
-            .select("note_id, user_id, note_content, created_at")
+            .select("note_id, user_id, note_content, note_emoji, created_at")
             .eq("shaker_id", value: shakerId)
             .order("created_at", ascending: false)
             .limit(limit)
@@ -881,7 +907,7 @@ class CommunityService: ObservableObject {
         
         let response = try await supabase.database
             .from("notes")
-            .select("note_content")
+            .select("note_content, note_emoji")
             .eq("shaker_id", value: shakerId)
             .eq("user_id", value: userId)
             .order("created_at", ascending: false)
@@ -894,10 +920,31 @@ class CommunityService: ObservableObject {
             print("🔴 userHasTextNote: no note found for user \(userId)")
             return false
         }
-        
-        let isEmoji = content.isEmojiOnly
-        print("📝 userHasTextNote: content='\(content)', isEmojiOnly=\(isEmoji)")
-        return !isEmoji
+        let hasText = !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        print("📝 userHasTextNote: hasText=\(hasText)")
+        return hasText
+    }
+    
+    /// Check if a specific user already has ANY note for the given shaker (text, emoji, or both)
+    func userHasAnyNote(shakerId: UUID, userId: UUID) async throws -> Bool {
+        guard let supabase = supabase else {
+            throw NSError(domain: "SupabaseError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Supabase client not initialized"])
+        }
+        let response = try await supabase.database
+            .from("notes")
+            .select("note_id")
+            .eq("shaker_id", value: shakerId)
+            .eq("user_id", value: userId)
+            .limit(1)
+            .execute()
+        let found: Bool
+        if let jsonArray = try? JSONSerialization.jsonObject(with: response.data) as? [[String: Any]] {
+            found = (jsonArray.first?["note_id"] as? String) != nil
+        } else {
+            found = false
+        }
+        print("📝 userHasAnyNote: \(found)")
+        return found
     }
     
     // Note: We intentionally do not persist note emoji into category_emojis.
@@ -917,12 +964,14 @@ struct NoteRecord: Codable, Identifiable {
     let id: UUID
     let userId: UUID
     let noteContent: String
+    let noteEmoji: String?
     let createdAt: Date
     
     enum CodingKeys: String, CodingKey {
         case id = "note_id"
         case userId = "user_id"
         case noteContent = "note_content"
+        case noteEmoji = "note_emoji"
         case createdAt = "created_at"
     }
 }
