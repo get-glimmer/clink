@@ -790,8 +790,8 @@ struct LeaveNoteSheet: View {
     @State private var customEmoji: String = ""
     @State private var isEmojiFieldFocused: Bool = false
     @State private var selectedEmoji: String? = nil
-    
-    private let emojiReactions = ["👍", "💖", "👏", "🔥", "🎉"]
+    // Preset emoji reactions, last slot can be replaced by custom emoji selection
+    @State private var presetEmojis: [String] = ["👍", "💖", "👏", "🔥", "🎉"]
     
     var body: some View {
         ZStack {
@@ -869,7 +869,8 @@ struct LeaveNoteSheet: View {
                             
                             // Emoji buttons
                             HStack(spacing: 16) {
-                                ForEach(emojiReactions, id: \.self) { emoji in
+                                ForEach(presetEmojis.indices, id: \.self) { idx in
+                                    let emoji = presetEmojis[idx]
                                     Button(action: {
                                         // Select emoji; do not submit immediately
                                         if selectedEmoji == emoji {
@@ -878,16 +879,29 @@ struct LeaveNoteSheet: View {
                                             selectedEmoji = emoji
                                         }
                                     }) {
-                                        ZStack {
-                                            if selectedEmoji == emoji {
-                                                Circle()
-                                                    .fill(AppColors.green300.opacity(0.25))
-                                                    .frame(width: 48, height: 48)
-                                            }
-                                            Text(emoji)
-                                                .font(.system(size: 40))
-                                                .frame(width: 44, height: 44)
-                                        }
+                                        let isSelected = (selectedEmoji == emoji)
+                                        let glow = Color(red: 1.0, green: 0.92, blue: 0.35)
+                                        Text(emoji)
+                                            .font(.system(size: 40))
+                                            .frame(width: 44, height: 44) // fixed layout box to prevent shifting
+                                            // Draw glow BELOW the emoji so the glyph stays crisp
+                                            .background(
+                                                Group {
+                                                    if isSelected {
+                                                        ZStack {
+                                                            Circle()
+                                                                .fill(glow.opacity(0.40))
+                                                                .frame(width: 50, height: 50)
+                                                                .blur(radius: 8)
+                                                            Circle()
+                                                                .fill(glow.opacity(0.22))
+                                                                .frame(width: 58, height: 58)
+                                                                .blur(radius: 12)
+                                                        }
+                                                    }
+                                                }
+                                            )
+                                            .allowsHitTesting(false)
                                     }
                                     .disabled(isSending)
                                 }
@@ -909,6 +923,9 @@ struct LeaveNoteSheet: View {
                                 .disabled(isSending)
                             }
                             .padding(.horizontal, 21)
+                            // Ensure no implicit animations cause perceived reloads
+                            .animation(.none, value: presetEmojis)
+                            .animation(.none, value: selectedEmoji)
 
                             // Hidden UIKit text field to reliably summon keyboard/emoji picker
                             HiddenEmojiTextField(text: $customEmoji, isFirstResponder: $isEmojiFieldFocused)
@@ -918,9 +935,24 @@ struct LeaveNoteSheet: View {
                                 .onChange(of: customEmoji) { newValue in
                                     guard !isSending else { return }
                                     if let emoji = newValue.firstEmoji, !emoji.isEmpty {
-                                        isEmojiFieldFocused = false
-                                        customEmoji = ""
-                                        selectedEmoji = emoji
+                                        // Suppress UIKit and SwiftUI animations during keyboard dismiss + emoji swap
+                                        let wasEnabled = UIView.areAnimationsEnabled
+                                        UIView.setAnimationsEnabled(false)
+                                        var tx = Transaction()
+                                        tx.disablesAnimations = true
+                                        withTransaction(tx) {
+                                            isEmojiFieldFocused = false
+                                            customEmoji = ""
+                                            if !presetEmojis.isEmpty {
+                                                presetEmojis[presetEmojis.count - 1] = emoji
+                                            } else {
+                                                presetEmojis = [emoji]
+                                            }
+                                            selectedEmoji = emoji
+                                        }
+                                        DispatchQueue.main.async {
+                                            UIView.setAnimationsEnabled(wasEnabled)
+                                        }
                                     }
                                 }
                         }
