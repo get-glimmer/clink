@@ -90,7 +90,7 @@ struct TaskMenuSheet: View {
             ZStack(alignment: .top) {
                 // MARK: BackGround
                 DarkBlurView(style: .systemChromeMaterialDark)
-                    .frame(width: .infinity, height: .infinity)
+                    .frame(width: .infinity, height: proxy.size.height+500)
                     .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
                     .allowsHitTesting(false)
 
