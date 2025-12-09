@@ -48,7 +48,9 @@ struct FriendDetailView: View {
                                 .frame(maxWidth: 275)
                                 .overlay(
                                     Group {
-                                        if !hasLeftTextNote && friendTaskViewModel.hasAnyTasks && scale >= 0.8 {
+                                        // Allow leaving a note even if the friend has no tasks in the shaker.
+                                        // Previously this was gated by `friendTaskViewModel.hasAnyTasks`.
+                                        if !hasLeftTextNote && scale >= 0.8 {
                                             VStack {
                                                 Spacer().frame(height: shakerSide * 0.3)
                                                 leaveNoteButton
