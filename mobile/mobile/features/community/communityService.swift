@@ -548,7 +548,8 @@ class CommunityService: ObservableObject {
 
             // For each category, fetch its tasks
             // - Daily categories: filter by specific date
-            // - Archived categories: do not filter by date
+            // - Archived categories: mirror TaskListViewModel behavior:
+            //   show incomplete tasks OR tasks that were completed on the selected date.
             for category in categories {
                 let tasks: [TaskListItem]
                 switch category.type {
@@ -569,6 +570,7 @@ class CommunityService: ObservableObject {
                         .eq("userid", value: friendId)
                         .eq("categoryid", value: category.id.uuidString)
                         .in("privacy_status", value: allowed)
+                        .or("iscompleted.eq.false,and(iscompleted.eq.true,completed_date.eq.\(dateString))")
                         .order("createdat", ascending: true)
                         .execute()
                         .value
