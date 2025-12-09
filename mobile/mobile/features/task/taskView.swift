@@ -46,14 +46,14 @@ struct TaskView: View {
 //MARK: - main view
     var body: some View {
         GeometryReader { geo in
-            let fullHeight = geo.size.height
-            let fullWidth = geo.size.width*0.9
+            let screenHeight = geo.size.height
+            let screenWidth = geo.size.width
             let scale = max(0.4, 1 - 0.6 * sheetProgress)
-            let shakerSide = fullWidth * scale
+            let shakerSide = screenWidth * 0.9 * scale
             
-            // responsive bottomsheet size
-            let minSheetHeight = max(340, fullHeight * 0.4)
-            let maxSheetHeight = minSheetHeight + 220
+
+            let minSheetHeight = screenHeight/794*340
+            let maxSheetHeight = screenHeight/794*560
             
             let shakerIsActive =
               !showOptionsSheet &&
