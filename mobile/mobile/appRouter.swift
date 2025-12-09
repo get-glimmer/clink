@@ -59,13 +59,15 @@ struct CustomNavBar: View {
         }
         .ignoresSafeArea(.keyboard)
         .padding(.horizontal, 28)
-        .frame(width: 361, height: 65)
+        .frame(maxWidth: .infinity)
+        .frame(height: 65)
         // liquid glass background
         .liquidGlass(
             cornerRadius: 50,
             tint: greenTint,
             tintOpacity: 0.5
         )
+        .padding(.horizontal, 16)
         .accessibilityElement(children: .contain)
     }
     
