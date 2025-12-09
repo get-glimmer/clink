@@ -90,7 +90,8 @@ struct TaskMenuSheet: View {
             ZStack(alignment: .top) {
                 // MARK: BackGround
                 DarkBlurView(style: .systemChromeMaterialDark)
-                    .frame(width: proxy.size.width, height: proxy.size.height+100)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: proxy.size.height+500)
                     .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
                     .allowsHitTesting(false)
 
@@ -119,8 +120,9 @@ struct TaskMenuSheet: View {
                       .padding(.top,9)
                     header
                     Divider()
-                        .frame(width: 361)
                         .background(Color("Neutral-800"))
+                        .frame(width: .infinity)
+                        .padding(.horizontal, 16)
                         .padding(.top, 18)
                     options
                         .padding(.top, 26)
