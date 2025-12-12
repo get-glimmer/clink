@@ -564,13 +564,16 @@ class CommunityService: ObservableObject {
                         .execute()
                         .value
                 case .archived:
+                    // For friend detail view, tie archived tasks strictly to the chosen day:
+                    // - show *incomplete* archived tasks whose duedate is that date
+                    // - show *completed* archived tasks whose completed_date is that date
                     tasks = try await supabase
                         .from("task")
                         .select("*")
                         .eq("userid", value: friendId)
                         .eq("categoryid", value: category.id.uuidString)
                         .in("privacy_status", value: allowed)
-                        .or("iscompleted.eq.false,and(iscompleted.eq.true,completed_date.eq.\(dateString))")
+                        .or("and(iscompleted.eq.false,duedate.eq.\(dateString)),and(iscompleted.eq.true,completed_date.eq.\(dateString))")
                         .order("createdat", ascending: true)
                         .execute()
                         .value
@@ -744,6 +747,58 @@ class CommunityService: ObservableObject {
         }
         
         return nil
+    }
+    
+    /// Ensure there is a shaker row for the given user and date.
+    /// If none exists, create one (iscompleted = false) and return its ID.
+    func ensureShakerForUser(userId: String, date: Date = Date()) async throws -> UUID {
+        // 1) If a shaker already exists for this user/date, just reuse it.
+        if let existing = try await getCurrentShakerForUser(userId: userId, date: date) {
+            return existing
+        }
+        
+        guard let supabase = supabase else {
+            throw NSError(domain: "SupabaseError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Supabase client not initialized"])
+        }
+        
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        let dateString = formatter.string(from: date)
+        
+        struct ShakerInsertPayload: Encodable {
+            let userid: String
+            let date: String
+            let iscompleted: Bool
+        }
+        
+        let payload = ShakerInsertPayload(userid: userId, date: dateString, iscompleted: false)
+        
+        // 2) Try to insert a new shaker row. If it already exists (race), treat as success.
+        do {
+            let _ = try await supabase.database
+                .from("shaker")
+                .insert(payload)
+                .execute()
+        } catch {
+            if let pg = error as? PostgrestError, pg.code == "23505" {
+                // Unique constraint on (userid, date) hit; another caller created it first.
+                print("🟡 ensureShakerForUser: shaker already exists for user=\(userId) date=\(dateString)")
+            } else {
+                print("🔴 ensureShakerForUser: insert failed - \(error)")
+                throw error
+            }
+        }
+        
+        // 3) Re-fetch the shaker ID (whether we created it or someone else did).
+        if let created = try await getCurrentShakerForUser(userId: userId, date: date) {
+            return created
+        }
+        
+        throw NSError(
+            domain: "SupabaseError",
+            code: -1,
+            userInfo: [NSLocalizedDescriptionKey: "Failed to ensure shaker for user \(userId) on \(dateString)"]
+        )
     }
     
     /// Submit a note to a friend's shaker.

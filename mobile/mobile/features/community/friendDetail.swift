@@ -26,6 +26,10 @@ struct FriendDetailView: View {
             let fullWidth = geo.size.width * 0.9
             let scale = max(0.4, 1 - 0.6 * sheetProgress)
             let shakerSide = fullWidth * scale
+            // Match TaskView's BottomSheet sizing so the jar→header gap feels the same.
+            let screenHeight = geo.size.height
+            let minSheetHeight = screenHeight / 794 * 340
+            let maxSheetHeight = screenHeight / 794 * 560
             AppColors.neutral1000.ignoresSafeArea()
             ZStack(alignment: .top) {
                 VStack(spacing: 12) {
@@ -33,8 +37,12 @@ struct FriendDetailView: View {
                     // Toggle between Shaker and Calendar
                     Group {
                         if showingCalendar {
-                            FriendTrackerView(friendUserId: friend.userId, friendName: friend.name)
-                                .frame(maxWidth: .infinity)
+                            FriendTrackerView(
+                                friendUserId: friend.userId,
+                                friendName: friend.name,
+                                friendTaskViewModel: friendTaskViewModel
+                            )
+                            .frame(maxWidth: .infinity)
                         } else {
                             ShakerView(
                                 viewModel: friendTaskViewModel,
@@ -64,11 +72,14 @@ struct FriendDetailView: View {
                     .padding(.top, showingCalendar ? 2 : 16)
                 }
                 BottomSheet(
-                    minHeight: 340,
-                    maxHeight: 560,
+                    minHeight: minSheetHeight,
+                    maxHeight: maxSheetHeight,
                     progress: $sheetProgress
                 ) {
-                    FriendTasksView(friend: friend)
+                    FriendTasksView(
+                        friend: friend,
+                        date: friendTaskViewModel.taskSelectedDate
+                    )
                 }
             }
             .animation(.easeInOut, value: scale)

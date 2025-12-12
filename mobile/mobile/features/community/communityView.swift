@@ -587,6 +587,8 @@ struct FriendMenuSheet: View {
 // Read-only view of friend's tasks
 struct FriendTasksView: View {
     let friend: Friend
+    /// Date whose tasks should be shown (driven by friend's tracker/calendar)
+    let date: Date
     @StateObject private var communityService = CommunityService()
     @State private var categoriesWithTasks: [CategoryWithTasks] = []
     @State private var isLoading = true
@@ -601,7 +603,7 @@ struct FriendTasksView: View {
                         .appFont(AppFont.title3)
                         .foregroundColor(AppColors.textWhite)
                 }
-                                            .padding(.horizontal, 28)
+                                            .padding(.horizontal, 24)
                 .padding(.top, 24)
                 .padding(.bottom, 4)
                 
@@ -661,22 +663,13 @@ struct FriendTasksView: View {
                     // Friend's real tasks
                     VStack(alignment: .leading, spacing: 0) {
                         // Daily section
-                        VStack(spacing: 16) {
+                        VStack(spacing: 0) {
                             ForEach(categoriesWithTasks.filter { $0.category.type == .daily }) { categoryWithTasks in
-                                TaskCategoryCard(
-                                    categoryWithTasks: categoryWithTasks,
-                                    backgroundColor: AppColors.neutral900,
-                                    readOnly: true
-                                ) {
-                                    HeartButton(
-                                        categoryId: categoryWithTasks.category.id,
-                                        categoryEmoji: categoryWithTasks.category.emoji,
-                                        friendUserId: friend.userId
-                                    )
-                                }
+                                friendCategoryCard(for: categoryWithTasks)
                             }
                         }
-                        .padding(.horizontal, 20)
+                        // Match TaskListView: `.padding(.horizontal)` defaults to 16
+                        .padding(.horizontal)
 
                         // Archived header
                         HStack {
@@ -684,49 +677,109 @@ struct FriendTasksView: View {
                                 .appFont(AppFont.title3)
                                 .foregroundColor(AppColors.textWhite)
                         }
-                        .padding(.horizontal, 28)
+                        .padding(.horizontal, 24)
                         .padding(.top, 24)
                         .padding(.bottom, 4)
 
                         // Archived section
-                        VStack(spacing: 16) {
+                        VStack(spacing: 0) {
                             ForEach(categoriesWithTasks.filter { $0.category.type == .archived }) { categoryWithTasks in
-                                TaskCategoryCard(
-                                    categoryWithTasks: categoryWithTasks,
-                                    backgroundColor: AppColors.neutral900,
-                                    readOnly: true
-                                ) {
-                                    HeartButton(
-                                        categoryId: categoryWithTasks.category.id,
-                                        categoryEmoji: categoryWithTasks.category.emoji,
-                                        friendUserId: friend.userId
-                                    )
-                                }
+                                friendCategoryCard(for: categoryWithTasks)
                             }
                         }
-                        .padding(.horizontal, 20)
+                        .padding(.horizontal)
                         .padding(.bottom, 120)
                     }
                 }
             }
         }
         .onAppear {
-            loadFriendTasks()
+            loadFriendTasks(for: date)
         }
         .refreshable {
-            loadFriendTasks()
+            loadFriendTasks(for: date)
+        }
+        // When the driving date changes (e.g., user taps another day on FriendTrackerView),
+        // re-load that day's visible tasks.
+        .onChange(of: date) { newDate in
+            loadFriendTasks(for: newDate)
         }
     }
     
-    private func loadFriendTasks() {
+    // MARK: - Layout helpers (mirror TaskListView)
+    private func friendCategoryCard(for categoryWithTasks: CategoryWithTasks) -> some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 16)
+                .foregroundColor(AppColors.neutral900)
+
+            VStack(alignment: .leading, spacing: 25) {
+                friendCategoryHeader(for: categoryWithTasks)
+                friendTasksSection(for: categoryWithTasks)
+            }
+            // Match TaskListView.categoryCard internal padding for consistent spacing.
+            .padding(.top, 22)
+            .padding(.horizontal, 19)
+            .padding(.bottom, 26)
+        }
+        .frame(maxWidth: .infinity, minHeight: categoryWithTasks.tasks.isEmpty ? 60 : 120)
+        // Match vertical gap between cards in TaskListView.
+        .padding(.vertical, 8)
+    }
+
+    private func friendCategoryHeader(for categoryWithTasks: CategoryWithTasks) -> some View {
+        HStack {
+            Text(categoryWithTasks.category.emoji)
+                .font(.system(size: 27))
+
+            HStack(spacing: 0) {
+                Text(categoryWithTasks.category.name)
+                    .appFont(AppFont.title3)
+                    .foregroundColor(AppColors.textWhite)
+
+                if (categoryWithTasks.category.privacyStatus ?? "public") == "user_only" {
+                    Image("privacyOnSmall")
+                        .accessibilityLabel("Private category")
+                }
+            }
+
+            Spacer()
+
+            HeartButton(
+                categoryId: categoryWithTasks.category.id,
+                categoryEmoji: categoryWithTasks.category.emoji,
+                friendUserId: friend.userId
+            )
+        }
+    }
+
+    private func friendTasksSection(for categoryWithTasks: CategoryWithTasks) -> some View {
+        VStack(alignment: .leading, spacing: 25) {
+            ForEach(categoryWithTasks.tasks) { task in
+                HStack(spacing: 0) {
+                    Image(task.isCompleted ? "checkboxFilled" : "checkboxEmpty")
+                        .foregroundColor(AppColors.textWhite)
+
+                    Text(task.title)
+                        .appFont(AppFont.body1)
+                        .foregroundColor(AppColors.textWhite)
+                        .strikethrough(task.isCompleted)
+                        // Match TaskListView task content leading padding
+                        .padding(.leading, 13.42)
+
+                    Spacer()
+                }
+            }
+        }
+    }
+    private func loadFriendTasks(for targetDate: Date) {
         Task {
             do {
                 isLoading = true
                 errorMessage = nil
-                
+
                 let tasks = try await communityService.getFriendTasks(
                     friendId: friend.userId,
-                    date: Date() // Today's tasks
+                    date: targetDate
                 )
                 
                 await MainActor.run {
@@ -1013,10 +1066,8 @@ struct LeaveNoteSheet: View {
         
         Task {
             do {
-                // Get friend's current shaker ID
-                guard let shakerId = try await CommunityService().getCurrentShakerForUser(userId: friend.userId) else {
-                    throw NSError(domain: "NoteError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Could not find friend's shaker"])
-                }
+                // Get or create friend's shaker ID for the selected day
+                let shakerId = try await CommunityService().ensureShakerForUser(userId: friend.userId)
                 
                 let trimmedContent = noteText.trimmingCharacters(in: .whitespacesAndNewlines)
                 
