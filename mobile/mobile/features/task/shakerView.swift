@@ -428,39 +428,46 @@ struct ShakerView: View {
                 return
             }
             print("📝 syncNoteEmoji: shakerId=\(shakerId)")
-            // Fetch all notes for this shaker, then split into emoji-only vs text notes
-            var textNotes: [NoteRecord] = []
+            // Fetch all notes for this shaker, then split into:
+            // - emoji-only reactions
+            // - text notes that also carry an emoji
             var emojiOnlySymbols: [String] = []
+            var emojiWithTextSymbols: [String] = []
             if let shakerUUID = UUID(uuidString: shakerId) {
                 do {
                     let loaded = try await CommunityService().getNotesForShaker(shakerId: shakerUUID, limit: 20)
-                    // Separate text vs emoji-only notes under new schema (note_emoji separate)
-                    textNotes = loaded.filter { !$0.noteContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-                    emojiOnlySymbols = loaded.compactMap { note in
+                    // Separate into emoji-only and text+emoji buckets under new schema (note_emoji separate)
+                    for note in loaded {
                         let hasText = !note.noteContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                        if !hasText {
+                        if hasText {
+                            // Text note; if it also has an associated emoji, remember it so we can drop it as a charm
                             if let symbol = note.noteEmoji, !symbol.isEmpty {
-                                return symbol
+                                emojiWithTextSymbols.append(symbol)
                             }
-                            // Backward-compatibility: legacy emoji stored in note_content
-                            if note.noteContent.isEmojiOnly, let legacy = note.noteContent.firstEmoji {
-                                return legacy
+                        } else {
+                            // Emoji-only note (no text)
+                            if let symbol = note.noteEmoji, !symbol.isEmpty {
+                                emojiOnlySymbols.append(symbol)
+                            } else if note.noteContent.isEmojiOnly, let legacy = note.noteContent.firstEmoji {
+                                // Backward-compatibility: legacy emoji stored in note_content
+                                emojiOnlySymbols.append(legacy)
                             }
                         }
-                        return nil
                     }
-                    print("📝 syncNoteEmoji: loaded \(loaded.count) notes, \(textNotes.count) text notes, \(emojiOnlySymbols.count) emoji-only")
+                    print("📝 syncNoteEmoji: loaded \(loaded.count) notes, \(emojiWithTextSymbols.count) text+emoji, \(emojiOnlySymbols.count) emoji-only")
                 } catch {
                     print("🔴 syncNoteEmoji: error loading notes - \(error)")
-                    textNotes = []
                     emojiOnlySymbols = []
+                    emojiWithTextSymbols = []
                 }
             }
 
-            // For emoji-only notes, ensure glowing reaction emojis are present on reload
-            if !emojiOnlySymbols.isEmpty {
+            // For emoji-only notes, ensure glowing reaction emojis are present on reload.
+            // For text+emoji notes, we now ALSO drop the emoji into the jar (in addition to the sticky note overlay).
+            let allSymbols = Array(Set(emojiOnlySymbols + emojiWithTextSymbols))
+            if !allSymbols.isEmpty {
                 await MainActor.run {
-                    for symbol in emojiOnlySymbols {
+                    for symbol in allSymbols {
                         // Avoid duplicate adds of the same reaction symbol
                         if !scene.hasReactionEmoji(symbol) {
                             scene.addGlowingEmoji(symbol, for: UUID())

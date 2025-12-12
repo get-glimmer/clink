@@ -1072,20 +1072,26 @@ struct LeaveNoteSheet: View {
                 let trimmedContent = noteText.trimmingCharacters(in: .whitespacesAndNewlines)
                 
                 // Submit the note to database with both fields as applicable
-                try await CommunityService().submitNote(to: shakerId, text: trimmedContent.isEmpty ? nil : trimmedContent, emoji: selectedEmoji, fromUserId: fromUserId)
+                try await CommunityService().submitNote(
+                    to: shakerId,
+                    text: trimmedContent.isEmpty ? nil : trimmedContent,
+                    emoji: selectedEmoji,
+                    fromUserId: fromUserId
+                )
                 
                 // Determine if this is an emoji-only reaction or text (with/without emoji)
                 await MainActor.run {
                     let hasText = !trimmedContent.isEmpty
                     if hasText {
-                        // Handle text note (with or without emoji) - refresh sticky notes
+                        // Handle text note (with or without emoji)
+                        // 1) Refresh sticky notes
                         NotificationCenter.default.post(
                             name: .friendShakerNoteAdded,
                             object: nil,
                             userInfo: ["friendUserId": friend.userId]
                         )
-                    } else if let emoji = selectedEmoji {
-                        // Handle emoji-only reaction - add glowing emoji to jar
+                        // 2) If an emoji was chosen alongside text, also drop a glowing emoji into the jar
+                        if let emoji = selectedEmoji {
                             NotificationCenter.default.post(
                                 name: .friendShakerEmojiReactionAdded,
                                 object: nil,
@@ -1094,6 +1100,17 @@ struct LeaveNoteSheet: View {
                                     "emoji": emoji
                                 ]
                             )
+                        }
+                    } else if let emoji = selectedEmoji {
+                        // Handle emoji-only reaction - add glowing emoji to jar
+                        NotificationCenter.default.post(
+                            name: .friendShakerEmojiReactionAdded,
+                            object: nil,
+                            userInfo: [
+                                "friendUserId": friend.userId,
+                                "emoji": emoji
+                            ]
+                        )
                     }
                     
                     self.isSending = false
