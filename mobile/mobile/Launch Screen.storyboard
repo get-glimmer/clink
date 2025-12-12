@@ -35,7 +35,7 @@
     </scenes>
     <color key="tintColor" name="Neutral-1000"/>
     <resources>
-        <image name="LaunchScreenIcon" width="341.33334350585938" height="341.33334350585938"/>
+        <image name="LaunchScreenIcon" width="500" height="500"/>
         <namedColor name="Neutral-1000">
             <color red="0.050999999046325684" green="0.050999999046325684" blue="0.050999999046325684" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
         </namedColor>
