@@ -166,6 +166,11 @@ struct TrackerView: View {
                 .task(id: trackerViewModel.selectedDate) {
                     try? await trackerViewModel.fetchShakers()
                 }
+                // when token flag is refreshed (ex. duedate changed)
+                .task(id: trackerViewModel.refreshToken) {
+                    try? await trackerViewModel.fetchShakers()
+                }
+
 
                 // --- Task list ---
                 ScrollView {

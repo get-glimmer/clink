@@ -48,6 +48,8 @@ class TrackerViewModel: ObservableObject {
     @Published var isSupabaseConnected: Bool = false
     // dictionary of shaker's [date : progress]
     @Published var shakersRecord: [String: ShakerRecord] = [:]
+    // token flag that lets trackerView to know when to refresh (ex. when due date is changed)
+    @Published var refreshToken = UUID()
     
     private let client = SupabaseClientManager.shared.client
     private let userId: String?
@@ -73,6 +75,11 @@ class TrackerViewModel: ObservableObject {
     }
     var daysInWeek: [Date] {
         (0..<7).compactMap { Calendar.current.date(byAdding: .day, value: $0, to: selectedWeek) }
+    }
+    
+    // refresh token to let trackerView know that it needs to update the calendar grid
+    func requestShakerRefresh() {
+        refreshToken = UUID()
     }
     
     // fetches shakers and saves shaker's date and progress percentage in dict

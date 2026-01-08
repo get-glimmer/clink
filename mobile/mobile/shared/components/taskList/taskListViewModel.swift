@@ -611,6 +611,8 @@ class TaskListViewModel: ObservableObject {
                     }
                 }
                 updateAllCompleted()
+                
+                self.trackerViewModel?.requestShakerRefresh()
             }
         } catch {
             print("[Task] duedate update failed:", error)
