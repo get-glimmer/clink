@@ -85,7 +85,6 @@ struct EditRoutineSheet: View {
                     Button(action: { dismiss() }) {
                         Image("dismissButton")
                     }
-                    .buttonStyle(.plain)
                 }
                 ToolbarItem(placement: .principal) {
                     Text("Edit Routine")

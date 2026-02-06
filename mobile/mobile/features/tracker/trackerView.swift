@@ -55,7 +55,7 @@ struct TrackerView: View {
 
     
     var body: some View {
-        ZStack() {
+        ZStack(alignment: .topLeading) {
             VStack {
                 // --- Month selector header ---
                 HStack {
@@ -188,7 +188,7 @@ struct TrackerView: View {
                 MonthYearDropdown(anchorMonth: $trackerViewModel.selectedDate)
                     .frame(width:240)
                     .padding(.leading, 16)
-                    .padding(.top, 46)
+                    .padding(.top, 56)
                     .opacity(showMonthDropdown ? 1 : 0)
                     .allowsHitTesting(showMonthDropdown)
                     .zIndex(10)
