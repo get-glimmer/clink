@@ -88,7 +88,6 @@ struct AddRoutineSheet: View {
                     Button(action: { dismiss() }) {
                         Image("dismissButton")
                     }
-                    .buttonStyle(.plain)
                 }
                 ToolbarItem(placement: .principal) {
                     Text("Add Routine")

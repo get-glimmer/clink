@@ -173,14 +173,28 @@ public struct CustomCalendar: View {
         let leading = (firstWeekday + 6) % 7
 
         // prev month tail
-        let prevMonth = calendar.date(byAdding: .month, value: -1, to: start)!
-        let prevCount = calendar.range(of: .day, in: .month, for: prevMonth)!.count
-        var days: [Date] = (prevCount - leading + 1...prevCount).compactMap { day -> Date? in
-            calendar.date(from: DateComponents(
-                year: calendar.component(.year, from: prevMonth),
-                month: calendar.component(.month, from: prevMonth),
-                day: day
-            ))
+        guard let prevMonth = calendar.date(byAdding: .month, value: -1, to: start),
+              let prevRange = calendar.range(of: .day, in: .month, for: prevMonth)
+        else {
+            return []
+        }
+
+        let prevCount = prevRange.count
+
+        var days: [Date] = []
+
+        // Only create the prev tail if leading > 0
+        if leading > 0 {
+            let startDay = prevCount - leading + 1
+            if startDay <= prevCount {
+                days = (startDay...prevCount).compactMap { day -> Date? in
+                    calendar.date(from: DateComponents(
+                        year: calendar.component(.year, from: prevMonth),
+                        month: calendar.component(.month, from: prevMonth),
+                        day: day
+                    ))
+                }
+            }
         }
 
         // current month

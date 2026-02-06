@@ -27,8 +27,6 @@ struct RoutinesSheet: View {
                     .appFont(AppFont.title2)
                     .foregroundColor(.white)
                 Spacer()
-                // global add (optional)
-                Color.clear.frame(width: 44, height: 44)
             }
             .padding(.horizontal, 16)
             .padding(.top, 12)
