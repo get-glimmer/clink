@@ -1,5 +1,6 @@
 
 import SwiftUI
+import SpriteKit
 
 struct ChallengeView: View {
     @StateObject private var viewModel = ChallengeViewModel()
@@ -157,15 +158,104 @@ struct ChallengeCard: View {
 
             Spacer(minLength: 16)
 
-            // Right Image
-            Image(challenge.shakerType)
-                .resizable()
-                .aspectRatio(contentMode: .fill)
+            // Right: Shaker Preview
+            ChallengeShakerPreview(challenge: challenge)
                 .frame(width: 100, height: 100)
-                .clipped()
         }
         .padding(16)
         .background(AppColors.neutral900)
         .cornerRadius(16)
+    }
+}
+
+// MARK: - Challenge Shaker Preview (mirrors FriendCardView's ShakerView pattern)
+struct ChallengeShakerPreview: View {
+    let challenge: ChallengeItem
+
+    @State private var scene = ShakerScene(size: .zero)
+    @State private var lidColors: [Color] = [.black, .gray]
+    @State private var lidOpacity: Double = 0
+
+    // Lid position & size (matching ShakerView ratios)
+    private let lidHeightRatio:   CGFloat = 46.0 / 270.0
+    private let lidCornerRatio:   CGFloat = 13.0 / 270.0
+    private let lidTopInsetRatio: CGFloat = 23.5 / 270.0
+
+    var body: some View {
+        GeometryReader { geo in
+            let side = min(geo.size.width, geo.size.height)
+            let jarSize = CGSize(width: side, height: side)
+
+            ZStack {
+                // Jar base
+                Image("jarBase")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: jarSize.width, height: jarSize.height)
+                    .allowsHitTesting(false)
+
+                // Lid gradient (when completed)
+                Rectangle()
+                    .fill(
+                        LinearGradient(colors: lidColors,
+                                       startPoint: .leading,
+                                       endPoint: .trailing)
+                    )
+                    .frame(
+                        width: jarSize.width,
+                        height: jarSize.height * lidHeightRatio
+                    )
+                    .cornerRadius(jarSize.height * lidCornerRatio)
+                    .offset(y: -jarSize.height / 2 + jarSize.height * lidTopInsetRatio)
+                    .opacity(lidOpacity)
+                    .allowsHitTesting(false)
+
+                // SpriteKit emoji scene
+                SpriteView(scene: scene, options: [.allowsTransparency])
+                    .frame(width: jarSize.width, height: jarSize.height)
+
+                // Jar lid overlay image
+                Image("glitchLid")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: jarSize.width, height: jarSize.height)
+                    .allowsHitTesting(false)
+            }
+            .frame(width: geo.size.width, height: geo.size.height, alignment: .center)
+            .onAppear {
+                if scene.size == .zero {
+                    scene = ShakerScene(size: jarSize)
+                }
+
+                // Preview mode: small emojis, constant gravity, no device motion
+                scene.setEmojiScale(24.0 / 54.0)
+                scene.setMotionEnabled(false)
+                scene.configureBoundaries(inset: 12, lidHeight: 40, bottomExtraDepth: 10)
+                scene.useConstantGravity(18)
+                scene.setHapticsEnabled(false)
+
+                // Clear and re-add emojis
+                scene.resetScene()
+                for emoji in challenge.shakerUserEmojis {
+                    scene.addEmoji(emoji, for: UUID())
+                }
+
+                // Settle emojis to the bottom for preview
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    scene.settleAllToBottom()
+                }
+
+                // Lid color
+                if challenge.shakerIsCompleted {
+                    if let c0 = Color(hex: challenge.shakerLidColorStart),
+                       let c1 = Color(hex: challenge.shakerLidColorEnd) {
+                        lidColors = [c0, c1]
+                    }
+                    lidOpacity = 1
+                } else {
+                    lidOpacity = 0
+                }
+            }
+        }
     }
 }

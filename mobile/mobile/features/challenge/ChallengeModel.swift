@@ -11,35 +11,24 @@ struct ChallengeData: Codable, Identifiable {
     let proof_type: String
     let start_date: String?
     let end_date: String?
-    let repeat_rule: RepeatRule
+    let repeat_type: String
+    let weekly_days: [Int]?
+    let monthly_days: [Int]?
     let created_at: String?
     let updated_at: String?
-}
-
-struct RepeatRule: Codable {
-    let type: String?          // "daily", "weekly", "monthly"
-    let days_per_week: Int?    // e.g. 3
-    let days_per_month: [Int]? // e.g. [1, 15]
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.type = try container.decodeIfPresent(String.self, forKey: .type)
-        self.days_per_week = try container.decodeIfPresent(Int.self, forKey: .days_per_week)
-        self.days_per_month = try container.decodeIfPresent([Int].self, forKey: .days_per_month)
-    }
 
     /// Human-readable frequency string for the UI
     var frequencyText: String {
-        switch type {
-        case "daily":
+        switch repeat_type {
+        case "everyday", "daily":
             return "Everyday"
         case "weekly":
-            if let days = days_per_week {
-                return "\(days) days a week"
+            if let days = weekly_days, !days.isEmpty {
+                return "\(days.count) days a week"
             }
             return "Weekly"
         case "monthly":
-            if let days = days_per_month {
+            if let days = monthly_days, !days.isEmpty {
                 return "\(days.count) days a month"
             }
             return "Monthly"
@@ -48,6 +37,7 @@ struct RepeatRule: Codable {
         }
     }
 }
+
 
 struct ChallengeMemberData: Codable {
     let challenge_id: UUID
@@ -90,6 +80,16 @@ struct ChallengeTaskCompletionData: Codable {
     let is_completed: Bool?
 }
 
+struct ChallengeShakerData: Codable {
+    let id: UUID
+    let challenge_id: UUID
+    let date: String
+    let iscompleted: Bool
+    let user_emojis: [String]
+    let lid_color_start: String?
+    let lid_color_end: String?
+}
+
 // MARK: - UI-Ready Model
 
 struct ChallengeItem: Identifiable {
@@ -105,6 +105,12 @@ struct ChallengeItem: Identifiable {
     let members: [MemberInfo]
     let taskCount: Int
     let completedTaskCount: Int
+
+    // Shaker (from challenge_shaker table)
+    let shakerIsCompleted: Bool
+    let shakerUserEmojis: [String]
+    let shakerLidColorStart: String?
+    let shakerLidColorEnd: String?
 
     /// Formatted date range for the green pill, e.g. "2/1 - 2/28"
     var dateRangeText: String {

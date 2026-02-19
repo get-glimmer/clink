@@ -189,10 +189,32 @@ class ChallengeService: ObservableObject {
             .execute()
             .value
 
-        // Parse dates
+        // Challenge Shaker (for current user, today)
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
+        let todayStr = dateFormatter.string(from: Date())
 
+        var shakerRow: ChallengeShakerData? = nil
+        if let currentUserId = currentUserId {
+            do {
+                let shakerRows: [ChallengeShakerData] = try await supabase
+                    .from("challenge_shaker")
+                    .select("*")
+                    .eq("challenge_id", value: challenge.id.uuidString)
+                    .eq("date", value: todayStr)
+                    .limit(1)
+                    .execute()
+                    .value
+                shakerRow = shakerRows.first
+                print("[ChallengeShaker] challenge=\(challenge.id), user=\(currentUserId), date=\(todayStr), rows=\(shakerRows.count), isCompleted=\(shakerRow?.iscompleted ?? false), emojis=\(shakerRow?.user_emojis ?? []), lidStart=\(shakerRow?.lid_color_start ?? "nil"), lidEnd=\(shakerRow?.lid_color_end ?? "nil")")
+            } catch {
+                print("[ChallengeShaker] fetch FAILED for challenge=\(challenge.id): \(error)")
+            }
+        } else {
+            print("[ChallengeShaker] skipped — currentUserId is nil")
+        }
+
+        // Parse dates
         let startDate = challenge.start_date.flatMap { dateFormatter.date(from: $0) }
         let endDate = challenge.end_date.flatMap { dateFormatter.date(from: $0) }
 
@@ -203,12 +225,16 @@ class ChallengeService: ObservableObject {
             description: challenge.description,
             startDate: startDate,
             endDate: endDate,
-            frequency: challenge.repeat_rule.frequencyText,
+            frequency: challenge.frequencyText,
             shakerType: challenge.shaker_type,
             memberCount: members.count,
             members: members,
             taskCount: tasks.count,
-            completedTaskCount: completions.count
+            completedTaskCount: completions.count,
+            shakerIsCompleted: shakerRow?.iscompleted ?? false,
+            shakerUserEmojis: shakerRow?.user_emojis ?? [],
+            shakerLidColorStart: shakerRow?.lid_color_start,
+            shakerLidColorEnd: shakerRow?.lid_color_end
         )
     }
 }
