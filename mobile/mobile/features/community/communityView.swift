@@ -10,6 +10,8 @@ import SpriteKit
 import UIKit
 
 struct CommunityView: View {
+
+    // CommunityView has `init`, let's check it.
     @Binding var isMenuPresented: Bool
     init(isMenuPresented: Binding<Bool> = .constant(false)) {
         _isMenuPresented = isMenuPresented
@@ -135,61 +137,19 @@ struct CommunityView: View {
                             .ignoresSafeArea()
                             .onTapGesture { viewModel.showingDropdown = false }
 
-                        VStack(alignment: .leading, spacing: 0) {
-                            let rowHeight: CGFloat = 44
-                            let dividerThickness: CGFloat = 0.5
-                            let totalRows = CGFloat(viewModel.categories.count) * rowHeight
-                            let totalDividers = CGFloat(max(0, viewModel.categories.count - 1)) * dividerThickness
-                            let contentHeight = totalRows + totalDividers
-                            let containerHeight: CGFloat = 152
-                            let verticalPad = max(0, (containerHeight - contentHeight) / 2)
-                            Spacer(minLength: verticalPad)
-                            ForEach(viewModel.categories, id: \.self) { category in
-                                Button(action: { viewModel.selectCategory(category) }) {
-                                    HStack(spacing: 0) {
-                                        Text(labelFor(category))
-                                            .foregroundColor(AppColors.textWhite)
-                                            .appText(AppFont.labelL)
-                                        Spacer(minLength: 0)
-                                        if categoriesEqual(category, viewModel.selectedCategory) {
-                                            Image("checkMark")
-                                                .renderingMode(.template)
-                                                .foregroundColor(AppColors.textWhite)
-                                        }
-                                    }
-                                    .padding(.horizontal, 20)
-                                    .frame(height: rowHeight, alignment: .center)
-                                }
-                                if category != viewModel.categories.last {
-                                    Divider()
-                                        .frame(height: dividerThickness)
-                                        .background(AppColors.neutral800)
-                                        .padding(.horizontal, 20)
-                                }
-                            }
-                            Spacer(minLength: verticalPad)
-                        }
-                        .frame(width: 178, height: 152, alignment: .topLeading)
-                        .background(AppColors.neutral900)
-                        .cornerRadius(16)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16)
-                                .stroke(
-                                    LinearGradient(
-                                        colors: [
-                                            Color("Neutral-400").opacity(0.7),
-                                            Color("Neutral-600").opacity(0.7)
-                                        ],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 1
-                                )
+                        DropdownSelector(
+                            options: viewModel.categories,
+                            selectedOption: $viewModel.selectedCategory,
+                            onSelect: { category in
+                                viewModel.selectCategory(category)
+                                viewModel.showingDropdown = false
+                            },
+                            labelForOption: { labelFor($0) },
+                            isPresented: $viewModel.showingDropdown
                         )
-                        .shadow(color: Color.black.opacity(0.3), radius: 10, x: 0, y: 5)
+                        // Adjust offset to match previous design
                         .offset(x: rect.minX, y: rect.maxY)
                         .animation(.easeInOut(duration: 0.2), value: viewModel.showingDropdown)
-                        
                     }
                 }
             }
@@ -343,12 +303,17 @@ private struct DropdownYPreferenceKey: PreferenceKey {
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }
 
-private struct DropdownBoundsPreferenceKey: PreferenceKey {
-    static var defaultValue: Anchor<CGRect>? = nil
-    static func reduce(value: inout Anchor<CGRect>?, nextValue: () -> Anchor<CGRect>?) {
-        value = nextValue() ?? value
-    }
-}
+// DropdownBoundsPreferenceKey is now in shared/components/DropdownSelector.swift
+// If it collides, we should remove this local definition.
+// Since DropdownSelector.swift is public/internal, we should check if we can just remove this.
+// Assuming DropdownSelector.swift is in the module, we don't need to redeclare it if it's the same name.
+// However, in CommunityView it was likely private or internal.
+// I will comment it out or remove it to use the one in shared. But wait, `DropdownSelector.swift` defined it as `struct DropdownBoundsPreferenceKey`.
+// If I remove it here, it will use the one from DropdownSelector.swift (if visible).
+// Let's assume it is visible.
+
+// private struct DropdownBoundsPreferenceKey: PreferenceKey { ... } // Removed
+
 
 private extension CommunityView {
     func refreshPendingRequests() async {

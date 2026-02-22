@@ -7,7 +7,7 @@ struct AppRouter: View {
     @State private var isCommunityMenuPresented: Bool = false
     @State private var isNavHidden: Bool = false
     
-    enum Tab: Hashable { case task, tracker, community, profile }
+    enum Tab: Hashable { case task, tracker, challenge, community, profile }
 
         // Hide system tab bar globally
         init() {
@@ -19,6 +19,7 @@ struct AppRouter: View {
                 TabView(selection: $selectedTab) {
                     TaskView().tag(Tab.task)
                     TrackerView().tag(Tab.tracker)
+                    ChallengeView().tag(Tab.challenge)
                     CommunityView(isMenuPresented: $isCommunityMenuPresented).tag(Tab.community)
                     ChallengeView().tag(Tab.profile)
                 }
@@ -52,6 +53,8 @@ struct CustomNavBar: View {
             navItem(.task, imageName: "task")
             Spacer(minLength: 0)
             navItem(.tracker, imageName: "tracker")
+            Spacer(minLength: 0)
+            navItem(.challenge, imageName: "star")
             Spacer(minLength: 0)
             navItem(.community, imageName: "community")
             Spacer(minLength: 0)
