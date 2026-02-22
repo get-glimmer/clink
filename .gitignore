@@ -1,6 +1,10 @@
 .DS_store
 .env
 
+# Claude Code
+.claude/
+CLAUDE.md
+
 # Xcode user data
 *.xcuserstate
 *.xcuserdatad/

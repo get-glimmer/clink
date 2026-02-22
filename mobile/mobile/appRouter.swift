@@ -20,7 +20,7 @@ struct AppRouter: View {
                     TaskView().tag(Tab.task)
                     TrackerView().tag(Tab.tracker)
                     CommunityView(isMenuPresented: $isCommunityMenuPresented).tag(Tab.community)
-                    ProfileView().tag(Tab.profile)
+                    ChallengeView().tag(Tab.profile)
                 }
                 .onPreferenceChange(NavBarHiddenPreferenceKey.self) { value in
                     isNavHidden = value // If any active child requests hiding
