@@ -55,6 +55,7 @@ class ChallengeService: ObservableObject {
             .from("challenges")
             .select("*")
             .in("id", value: challengeIds)
+            .order("end_date", ascending: true)
             .execute()
             .value
 
