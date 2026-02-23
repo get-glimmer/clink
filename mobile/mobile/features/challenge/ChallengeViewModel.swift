@@ -44,7 +44,7 @@ class ChallengeViewModel: ObservableObject {
                 // Make sure the service has the current user
                 await challengeService.initializeService()
 
-                let fetched = try await challengeService.fetchMyChallenges()
+                let fetched = try await challengeService.fetchChallenges()
 
                 await MainActor.run {
                     self.challenges = fetched
