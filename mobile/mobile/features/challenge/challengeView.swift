@@ -31,11 +31,13 @@ struct ChallengeView: View {
 
                     Spacer()
 
-                    // Search Button
+                    // Options Button (...)
                     Button {
-                        // Search action
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            viewModel.toggleOptionsMenu()
+                        }
                     } label: {
-                         Image(systemName: "magnifyingglass")
+                        Image(systemName: "ellipsis")
                             .resizable()
                             .scaledToFit()
                             .frame(width: 20, height: 20)
@@ -73,7 +75,12 @@ struct ChallengeView: View {
                     ScrollView {
                         VStack(spacing: 16) {
                             ForEach(viewModel.challenges) { challenge in
-                                ChallengeCard(challenge: challenge)
+                                SwipeableChallengeCard(
+                                    challenge: challenge,
+                                    onDelete: {
+                                        viewModel.requestQuit(challenge: challenge)
+                                    }
+                                )
                             }
                         }
                         .padding(.horizontal, 24)
@@ -91,6 +98,51 @@ struct ChallengeView: View {
             },
             labelTitle: { $0 }
         )
+        // MARK: - Options Menu Overlay
+        .overlay(alignment: .bottomLeading) {
+            if viewModel.showOptionsMenu {
+                ChallengeOptionsSheet(
+                    onTapOutside: {
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            viewModel.showOptionsMenu = false
+                        }
+                    },
+                    onTapCreateChallenge: {
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            viewModel.showOptionsMenu = false
+                        }
+                        viewModel.showCreateChallenge = true
+                    }
+                )
+                .transition(.opacity)
+                .ignoresSafeArea()
+            }
+        }
+        .zIndex(999)
+        .animation(.easeInOut(duration: 0.25), value: viewModel.showOptionsMenu)
+        // MARK: - Quit Challenge Confirmation
+        .overlay {
+            if viewModel.showQuitConfirmation {
+                QuitChallengeOverlay(
+                    onQuit: {
+                        viewModel.confirmQuitChallenge()
+                    },
+                    onCancel: {
+                        viewModel.cancelQuit()
+                    }
+                )
+                .transition(.opacity)
+                .animation(.easeInOut(duration: 0.2), value: viewModel.showQuitConfirmation)
+            }
+        }
+        .fullScreenCover(isPresented: $viewModel.showCreateChallenge) {
+            CreateChallengeView()
+        }
+        .onChange(of: viewModel.showCreateChallenge) { isShowing in
+            if !isShowing {
+                viewModel.refreshChallenges()
+            }
+        }
     }
 }
 
@@ -255,6 +307,186 @@ struct ChallengeShakerPreview: View {
                     lidOpacity = 0
                 }
             }
+        }
+    }
+}
+
+// MARK: - Swipeable Challenge Card
+
+struct SwipeableChallengeCard: View {
+    let challenge: ChallengeItem
+    let onDelete: () -> Void
+
+    @State private var offset: CGFloat = 0
+    @State private var showingTrash: Bool = false
+    private let trashThreshold: CGFloat = -80
+    private let deleteThreshold: CGFloat = -160
+
+    var body: some View {
+        ZStack(alignment: .trailing) {
+            // Trash icon background
+            HStack {
+                Spacer()
+                Button(action: onDelete) {
+                    Image(systemName: "trash")
+                        .font(.system(size: 22))
+                        .foregroundColor(Color("Red-500"))
+                        .frame(width: 60, height: 60)
+                }
+                .opacity(showingTrash ? 1 : 0)
+            }
+
+            // Card content
+            ChallengeCard(challenge: challenge)
+                .offset(x: offset)
+                .gesture(
+                    DragGesture()
+                        .onChanged { value in
+                            let translation = value.translation.width
+                            if translation < 0 {
+                                offset = translation
+                                showingTrash = translation < trashThreshold
+                            }
+                        }
+                        .onEnded { value in
+                            let translation = value.translation.width
+                            if translation < deleteThreshold {
+                                // Swiped far enough — trigger quit
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    offset = 0
+                                    showingTrash = false
+                                }
+                                onDelete()
+                            } else if translation < trashThreshold {
+                                // Show trash icon position
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    offset = trashThreshold
+                                    showingTrash = true
+                                }
+                            } else {
+                                // Snap back
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    offset = 0
+                                    showingTrash = false
+                                }
+                            }
+                        }
+                )
+        }
+        .clipped()
+    }
+}
+
+// MARK: - Challenge Options Sheet (reuses OptionsSheet pattern)
+
+struct ChallengeOptionsSheet: View {
+    let onTapOutside: () -> Void
+    let onTapCreateChallenge: () -> Void
+
+    var body: some View {
+        ZStack(alignment: .bottomLeading) {
+            // Background: blur + dim
+            ZStack {
+                DarkBlurView(style: .systemChromeMaterialDark)
+                    .ignoresSafeArea()
+                Color.black.opacity(0.7)
+                    .ignoresSafeArea()
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { onTapOutside() }
+
+            // Floating options
+            VStack(alignment: .leading, spacing: 30) {
+                ChallengeOptionRow(
+                    systemImage: "plus",
+                    title: "Create Challenge",
+                    action: onTapCreateChallenge
+                )
+            }
+            .padding(.bottom, 78)
+            .padding(.leading, 31)
+        }
+        .navBarHidden(true)
+    }
+}
+
+private struct ChallengeOptionRow: View {
+    let systemImage: String
+    let title: String
+    let action: () -> Void
+
+    var body: some View {
+        HStack(spacing: 16) {
+            ZStack {
+                Circle()
+                    .fill(AppColors.green300)
+                    .frame(width: 44, height: 44)
+
+                Image(systemName: systemImage)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(Color.white)
+            }
+
+            Text(title)
+                .appText(AppFont.title3)
+                .foregroundStyle(.white)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture { action() }
+    }
+}
+
+// MARK: - Quit Challenge Overlay (blurred background + confirmation dialog)
+
+struct QuitChallengeOverlay: View {
+    let onQuit: () -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        ZStack {
+            // Blurred background
+            ZStack {
+                DarkBlurView(style: .systemUltraThinMaterialDark)
+                    .ignoresSafeArea()
+                Color.black.opacity(0.7)
+                    .ignoresSafeArea()
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { onCancel() }
+
+            // Confirmation card
+            VStack(spacing: 20) {
+                HStack {
+                    Text("Quit this challenge?")
+                        .appText(AppFont.title3)
+                        .foregroundColor(AppColors.textWhite)
+                    Spacer()
+                    Button(action: onCancel) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(AppColors.neutral400)
+                    }
+                }
+
+                Text("Your progress and shared data will be lost. This action can't be undone.")
+                    .appText(AppFont.captionM)
+                    .foregroundColor(AppColors.neutral400)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Button(action: onQuit) {
+                    Text("Quit Challenge")
+                        .appText(AppFont.labelL)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(Color(red: 1.0, green: 0.45, blue: 0.5))
+                        .cornerRadius(12)
+                }
+            }
+            .padding(24)
+            .background(AppColors.neutral900)
+            .cornerRadius(20)
+            .padding(.horizontal, 40)
         }
     }
 }

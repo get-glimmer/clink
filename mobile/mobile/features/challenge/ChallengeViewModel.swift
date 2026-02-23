@@ -8,6 +8,14 @@ class ChallengeViewModel: ObservableObject {
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
 
+    // Options menu state
+    @Published var showOptionsMenu: Bool = false
+    @Published var showCreateChallenge: Bool = false
+
+    // Quit challenge state
+    @Published var challengeToQuit: ChallengeItem? = nil
+    @Published var showQuitConfirmation: Bool = false
+
     let categories = ["Challenges", "My Challenges", "Completed"]
     private let challengeService = ChallengeService()
 
@@ -29,6 +37,41 @@ class ChallengeViewModel: ObservableObject {
 
     func refreshChallenges() {
         loadChallenges(refresh: true)
+    }
+
+    func toggleOptionsMenu() {
+        showOptionsMenu.toggle()
+    }
+
+    func requestQuit(challenge: ChallengeItem) {
+        challengeToQuit = challenge
+        showQuitConfirmation = true
+    }
+
+    func confirmQuitChallenge() {
+        guard let challenge = challengeToQuit else { return }
+        Task {
+            do {
+                await challengeService.initializeService()
+                try await challengeService.quitChallenge(challenge.id)
+                await MainActor.run {
+                    self.challenges.removeAll { $0.id == challenge.id }
+                    self.challengeToQuit = nil
+                    self.showQuitConfirmation = false
+                }
+            } catch {
+                await MainActor.run {
+                    self.errorMessage = "Failed to quit challenge: \(error.localizedDescription)"
+                    self.challengeToQuit = nil
+                    self.showQuitConfirmation = false
+                }
+            }
+        }
+    }
+
+    func cancelQuit() {
+        challengeToQuit = nil
+        showQuitConfirmation = false
     }
 
     // MARK: - Private
