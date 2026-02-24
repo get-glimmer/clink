@@ -131,6 +131,17 @@ class CreateChallengeViewModel: ObservableObject {
                     .execute()
             }
 
+            // Add the owner as a member of the challenge
+            let memberPayload = ChallengeMemberInsert(
+                challenge_id: inserted.id,
+                user_id: userId,
+                role: "owner"
+            )
+            try await client
+                .from("challenge_members")
+                .insert(memberPayload)
+                .execute()
+
             didCreateSuccessfully = true
 
         } catch {

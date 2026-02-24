@@ -134,6 +134,25 @@ class ChallengeService: ObservableObject {
         return items
     }
 
+    // MARK: - Quit Challenge (set left_at on the current user's membership)
+
+    func quitChallenge(_ challengeId: UUID) async throws {
+        guard let supabase = supabase,
+              let currentUserId = currentUserId else {
+            throw NSError(domain: "ChallengeService", code: 1,
+                          userInfo: [NSLocalizedDescriptionKey: "Service not properly initialized"])
+        }
+
+        let now = ISO8601DateFormatter().string(from: Date())
+
+        try await supabase
+            .from("challenge_members")
+            .update(["left_at": now])
+            .eq("challenge_id", value: challengeId.uuidString)
+            .eq("user_id", value: currentUserId)
+            .execute()
+    }
+
     // MARK: - Private Helpers
 
     private func assembleItem(challenge: ChallengeData, supabase: SupabaseClient) async throws -> ChallengeItem {
