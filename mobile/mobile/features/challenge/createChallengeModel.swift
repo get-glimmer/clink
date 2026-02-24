@@ -89,3 +89,9 @@ struct ChallengeTaskInsert: Encodable {
     let task_title: String
     let sortorder: Int
 }
+
+struct ChallengeMemberInsert: Encodable {
+    let challenge_id: UUID
+    let user_id: UUID
+    let role: String
+}

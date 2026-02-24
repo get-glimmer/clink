@@ -86,6 +86,9 @@ struct ChallengeView: View {
                         .padding(.horizontal, 24)
                         .padding(.bottom, 100)
                     }
+                    .refreshable {
+                        await MainActor.run { viewModel.refreshChallenges() }
+                    }
                 }
             }
         }
