@@ -17,13 +17,10 @@ struct CommunityView: View {
         _isMenuPresented = isMenuPresented
     }
     @StateObject private var viewModel = CommunityViewModel()
-    @StateObject private var searchService = UserSearchService()
+    @StateObject private var friendRequestRT = FriendRequestRealtimeService()
     @State private var showingSearch = false
     @State private var selectedFriend: Friend? = nil
     @State private var activeMenuFriend: Friend? = nil
-    @State private var pendingRequestCount: Int = 0
-    @State private var enableBadgeTick: Bool = false
-    private let badgeTimer = Timer.publish(every: 5, on: .main, in: .common).autoconnect()
     
     
     var body: some View {
@@ -195,20 +192,18 @@ struct CommunityView: View {
             }
         }
         .fullScreenCover(isPresented: $showingSearch) { SearchView() }
-        .onAppear {
-            Task { await refreshPendingRequests() }
-            enableBadgeTick = true
+        .task {
+            await friendRequestRT.start()
         }
         .onReceive(NotificationCenter.default.publisher(for: .friendRequestsChanged)) { _ in
-            Task { await refreshPendingRequests() }
-            // Also refresh friends list to show the new accepted friend preview
+            // Refresh friends list to show a newly-accepted friend
             viewModel.refreshFriends()
+            // Also re-fetch count in case the event came from local action
+            Task { await friendRequestRT.fetchPendingCount() }
         }
-        .onReceive(badgeTimer) { _ in
-            guard enableBadgeTick else { return }
-            Task { await refreshPendingRequests() }
+        .onDisappear {
+            Task { await friendRequestRT.stop() }
         }
-        .onDisappear { enableBadgeTick = false }
         .fullScreenCover(item: $selectedFriend) { friend in FriendDetailView(friend: friend) }
     }
     
@@ -255,8 +250,8 @@ struct CommunityView: View {
                         .font(.system(size: 20))
                 }
                 .overlay(alignment: .topTrailing) {
-                    if pendingRequestCount > 0 {
-                        Text("\(min(pendingRequestCount, 99))")
+                    if friendRequestRT.pendingRequestCount > 0 {
+                        Text("\(min(friendRequestRT.pendingRequestCount, 99))")
                             .appText(AppFont.captionXS_M)
                             .foregroundColor(Color.white)
                             .lineLimit(1)
@@ -315,16 +310,8 @@ private struct DropdownYPreferenceKey: PreferenceKey {
 // private struct DropdownBoundsPreferenceKey: PreferenceKey { ... } // Removed
 
 
-private extension CommunityView {
-    func refreshPendingRequests() async {
-        do {
-            let incoming = try await searchService.getIncomingFriendRequests()
-            await MainActor.run { self.pendingRequestCount = incoming.count }
-        } catch {
-            await MainActor.run { self.pendingRequestCount = 0 }
-        }
-    }
-}
+// Polling-based refreshPendingRequests removed – badge count now driven by
+// FriendRequestRealtimeService via Supabase Realtime Postgres Changes.
 
 // Helper to read bottom safe area inset for padding adjustments
 private func bottomSafeAreaInset() -> CGFloat {
