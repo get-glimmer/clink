@@ -18,7 +18,8 @@ struct SearchUser: Identifiable {
 
 enum UserStatus {
     case canFollow
-    case requested
+    case requested       // I sent them a request
+    case incomingRequest // They sent me a request
     case following
     
     var displayText: String {
@@ -27,8 +28,10 @@ enum UserStatus {
             return "Follow"
         case .requested:
             return "Requested"
+        case .incomingRequest:
+            return "Accept"
         case .following:
-            return "Friend"
+            return "Following"
         }
     }
     
@@ -38,6 +41,8 @@ enum UserStatus {
             return AppColors.textWhite
         case .requested:
             return AppColors.neutral400
+        case .incomingRequest:
+            return AppColors.green300
         case .following:
             return AppColors.neutral400
         }
@@ -53,6 +58,12 @@ struct SearchView: View {
     @StateObject private var searchService = UserSearchService()
     @State private var incomingRequests: [UserProfile] = []
     @Environment(\.dismiss) private var dismiss
+    
+    // Pagination state for suggestions
+    @State private var suggestionOffset: Int = 0
+    @State private var hasMoreSuggestions: Bool = true
+    @State private var isLoadingMore: Bool = false
+    private let pageSize = 10
     
     var body: some View {
         ZStack {
@@ -142,7 +153,23 @@ struct SearchView: View {
                                 .padding(.bottom, 15)
                                 
                                 ForEach(suggestions) { user in
-                                UserRowView(user: user, searchService: searchService)
+                                    UserRowView(user: user, searchService: searchService)
+                                        .onAppear {
+                                            // Trigger next page when the last item becomes visible
+                                            if user.id == suggestions.last?.id {
+                                                loadMoreSuggestions()
+                                            }
+                                        }
+                                }
+                                
+                                if isLoadingMore {
+                                    HStack {
+                                        Spacer()
+                                        ProgressView()
+                                            .progressViewStyle(CircularProgressViewStyle(tint: AppColors.neutral400))
+                                            .padding(.vertical, 16)
+                                        Spacer()
+                                    }
                                 }
                             }
                         }
@@ -152,12 +179,8 @@ struct SearchView: View {
             }
         }
         .onAppear {
-            // Only load suggestions if we have a current user
-            // Wait a bit for authentication to complete
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                loadSuggestions()
-                Task { await loadIncomingRequests() }
-            }
+            loadSuggestions()
+            Task { await loadIncomingRequests() }
         }
     }
     
@@ -219,19 +242,42 @@ struct SearchView: View {
                 isLoading = true
                 errorMessage = nil
                 
-                // Add a small delay to ensure authentication is complete
-                try await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
-                
-                let suggestedUsers = try await searchService.getSuggestedUsers()
+                let (suggestedUsers, hasMore) = try await searchService.getSuggestedUsers(offset: 0, limit: pageSize)
                 
                 await MainActor.run {
                     self.suggestions = suggestedUsers.map { $0.toSearchUser() }
+                    self.suggestionOffset = suggestedUsers.count
+                    self.hasMoreSuggestions = hasMore
                     self.isLoading = false
                 }
             } catch {
                 await MainActor.run {
                     self.errorMessage = "Failed to load suggestions: \(error.localizedDescription)"
                     self.isLoading = false
+                }
+            }
+        }
+    }
+    
+    private func loadMoreSuggestions() {
+        guard !isLoadingMore, hasMoreSuggestions else { return }
+        isLoadingMore = true
+        
+        Task {
+            do {
+                let (moreUsers, hasMore) = try await searchService.getSuggestedUsers(offset: suggestionOffset, limit: pageSize)
+                
+                await MainActor.run {
+                    let newItems = moreUsers.map { $0.toSearchUser() }
+                    self.suggestions.append(contentsOf: newItems)
+                    self.suggestionOffset += moreUsers.count
+                    self.hasMoreSuggestions = hasMore && !moreUsers.isEmpty
+                    self.isLoadingMore = false
+                }
+            } catch {
+                await MainActor.run {
+                    self.hasMoreSuggestions = false
+                    self.isLoadingMore = false
                 }
             }
         }
@@ -348,14 +394,22 @@ struct UserRowView: View {
                 }
                 
             case .requested:
-                // Cancel friend request (remove the pending request)
+                // Cancel my outgoing friend request
                 try await searchService.removeFriend(userId: user.actualUserId)
                 await MainActor.run {
                     currentStatus = .canFollow
                 }
+
+            case .incomingRequest:
+                // Accept their incoming friend request
+                try await searchService.acceptFriendRequest(from: user.actualUserId)
+                await MainActor.run {
+                    currentStatus = .following
+                    NotificationCenter.default.post(name: .friendRequestsChanged, object: nil)
+                }
                 
             case .following:
-                // Unfollow/Remove friend (remove the accepted friendship)
+                // Unfollow/Remove friend
                 try await searchService.removeFriend(userId: user.actualUserId)
                 await MainActor.run {
                     currentStatus = .canFollow
@@ -364,7 +418,6 @@ struct UserRowView: View {
             
         } catch {
             print("Error handling user action: \(error)")
-            // Don't change status on error - let user try again
         }
         
         await MainActor.run {
