@@ -10,19 +10,6 @@ struct EditChallengeView: View {
     @State private var monthCursor: Date = Date()           // Tracks which month is visible in the monthly day picker.
     @State private var showDeleteConfirmation: Bool = false // Guards the destructive delete action.
 
-    private struct InvitedFriend: Identifiable {
-        let id = UUID()
-        let name: String
-        let status: String
-        let isPending: Bool
-    }
-
-    private let invitedFriends: [InvitedFriend] = [
-        InvitedFriend(name: "Seeunne", status: "Joined",  isPending: false),
-        InvitedFriend(name: "Seeunne", status: "Joined",  isPending: false),
-        InvitedFriend(name: "Seeunne", status: "Pending", isPending: true)
-    ]
-
     // Custom init required to forward challengeId into the @StateObject at creation time.
     init(challengeId: UUID) {
         self._viewModel = StateObject(wrappedValue: EditChallengeViewModel(challengeId: challengeId))
@@ -452,27 +439,47 @@ struct EditChallengeView: View {
         }
     }
 
-    // MARK: - Invited friends list
+    // MARK: - Members + pending invites
+    @ViewBuilder
     private var invitedSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            sectionLabel("Invited Friends")
+        if !viewModel.members.isEmpty || !viewModel.pendingInvites.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                sectionLabel("Members")
 
-            VStack(spacing: 10) {
-                ForEach(invitedFriends) { friend in
-                    HStack(spacing: 10) {
-                        Image("friends")
-                        Text(friend.name)
-                            .appFont(AppFont.labelM)
-                            .foregroundColor(.white)
-                        Spacer()
-                        Text(friend.status)
-                            .appFont(AppFont.captionS)
-                            .foregroundColor(friend.isPending ? Color("Neutral-500") : Color("Neutral-200"))
+                VStack(spacing: 10) {
+                    ForEach(viewModel.members, id: \.userId) { member in
+                        HStack(spacing: 10) {
+                            AvatarView(imageURLOrName: member.avatarUrl, size: 36)
+                            Text(member.name ?? "Unknown")
+                                .appFont(AppFont.labelM)
+                                .foregroundColor(.white)
+                            Spacer()
+                            Text(member.role == "owner" ? "Owner" : "Joined")
+                                .appFont(AppFont.captionS)
+                                .foregroundColor(member.role == "owner" ? Color("Neutral-200") : Color("Neutral-500"))
+                        }
+                        .padding(.horizontal, 14)
+                        .frame(height: 50)
+                        .background(Color("Neutral-900"))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
                     }
-                    .padding(.horizontal, 14)
-                    .frame(height: 44)
-                    .background(Color("Neutral-900"))
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                    ForEach(viewModel.pendingInvites) { invite in
+                        HStack(spacing: 10) {
+                            AvatarView(imageURLOrName: invite.avatarUrl, size: 36)
+                            Text(invite.name ?? "Unknown")
+                                .appFont(AppFont.labelM)
+                                .foregroundColor(.white)
+                            Spacer()
+                            Text(invite.status.capitalized)
+                                .appFont(AppFont.captionS)
+                                .foregroundColor(Color("Neutral-500"))
+                        }
+                        .padding(.horizontal, 14)
+                        .frame(height: 50)
+                        .background(Color("Neutral-900"))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                    }
                 }
             }
         }

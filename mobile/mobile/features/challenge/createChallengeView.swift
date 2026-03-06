@@ -7,6 +7,7 @@ struct CreateChallengeView: View {
     // UI-only state — sheet visibility and calendar cursor stay in the view, not the VM.
     @State private var showFromDateSheet: Bool = false
     @State private var showToDateSheet: Bool = false
+    @State private var showInviteFriends: Bool = false
     @State private var monthCursor: Date = Date()  // Tracks which month is visible in the monthly day picker.
 
     var body: some View {
@@ -84,6 +85,10 @@ struct CreateChallengeView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: showToDateSheet)
+        // MARK: - Invite friends sheet
+        .fullScreenCover(isPresented: $showInviteFriends) {
+            InviteFriendsView(invitedIds: $viewModel.invitedFriendIds)
+        }
     }
 
     // MARK: - Header bar
@@ -436,7 +441,36 @@ struct CreateChallengeView: View {
             sectionLabel("Invite Participants")
 
             VStack(spacing: 10) {
-                outlineButton(title: "Add Friends", iconName: "friends", isSystem: false, isDashed: true) {}
+                // Show invited count badge when friends are selected
+                if !viewModel.invitedFriendIds.isEmpty {
+                    HStack {
+                        Image("friends")
+                        Text("\(viewModel.invitedFriendIds.count) friend\(viewModel.invitedFriendIds.count == 1 ? "" : "s") invited")
+                            .appFont(AppFont.labelM)
+                            .foregroundColor(Color("White"))
+                        Spacer()
+                        Button {
+                            showInviteFriends = true
+                        } label: {
+                            Text("Edit")
+                                .appFont(AppFont.captionS)
+                                .foregroundColor(Color("Neutral-400"))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, 14)
+                    .frame(height: 44)
+                    .background(Color("Neutral-900"))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .strokeBorder(Color("Neutral-700"), lineWidth: 1)
+                    )
+                }
+
+                outlineButton(title: "Add Friends", iconName: "friends", isSystem: false, isDashed: true) {
+                    showInviteFriends = true
+                }
                 outlineButton(title: "Invite via Link", iconName: "arrowsCircular", isSystem: false, isDashed: false) {}
             }
         }

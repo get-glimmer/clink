@@ -25,6 +25,10 @@ class EditChallengeViewModel: ObservableObject {
     @Published var selectedWeeklyDays: Set<Int> = []
     @Published var selectedMonthlyDays: Set<Int> = []
 
+    // Active members (joined) and friends with a pending invite.
+    @Published var members: [MemberInfo] = []
+    @Published var pendingInvites: [PendingInviteInfo] = []
+
     // Status
     @Published var isLoading: Bool = false
     @Published var isSaving: Bool = false
@@ -89,6 +93,74 @@ class EditChallengeViewModel: ObservableObject {
 
             let loaded = tasks.compactMap { $0.task_title }.filter { !$0.isEmpty }
             dailyTasks = loaded.isEmpty ? [""] : loaded  // Always keep at least one empty row in the UI.
+
+            // Fetch active members (left_at == nil) and resolve their profiles in one batch.
+            let allMembers: [ChallengeMemberData] = try await client
+                .from("challenge_members")
+                .select("*")
+                .eq("challenge_id", value: challengeId.uuidString)
+                .execute()
+                .value
+
+            let activeMembers = allMembers.filter { $0.left_at == nil }
+            let memberUserIds = activeMembers.map { $0.user_id.uuidString }
+
+            var profilesMap: [String: ProfileData] = [:]
+            if !memberUserIds.isEmpty {
+                let profiles: [ProfileData] = try await client
+                    .from("profiles")
+                    .select("id, name, avatar_url")
+                    .in("id", value: memberUserIds)
+                    .execute()
+                    .value
+                for profile in profiles {
+                    profilesMap[profile.id.uuidString] = profile
+                }
+            }
+
+            members = activeMembers.map { member in
+                let profile = profilesMap[member.user_id.uuidString]
+                return MemberInfo(
+                    userId: member.user_id,
+                    name: profile?.name,
+                    avatarUrl: profile?.avatar_url,
+                    emoji: member.member_emoji,
+                    role: member.role
+                )
+            }
+
+            // Fetch all invites for this challenge and resolve invitee profiles in one batch.
+            let inviteRecords: [ChallengeInviteRecord] = try await client
+                .from("challenge_invites")
+                .select("id, invitee_user_id, status")
+                .eq("challenge_id", value: challengeId.uuidString)
+                .execute()
+                .value
+
+            let inviteeIds = inviteRecords.compactMap { $0.invitee_user_id?.uuidString }
+            var inviteeProfilesMap: [String: ProfileData] = [:]
+            if !inviteeIds.isEmpty {
+                let inviteeProfiles: [ProfileData] = try await client
+                    .from("profiles")
+                    .select("id, name, avatar_url")
+                    .in("id", value: inviteeIds)
+                    .execute()
+                    .value
+                for profile in inviteeProfiles {
+                    inviteeProfilesMap[profile.id.uuidString] = profile
+                }
+            }
+
+            pendingInvites = inviteRecords.map { invite in
+                let profile = invite.invitee_user_id.flatMap { inviteeProfilesMap[$0.uuidString] }
+                return PendingInviteInfo(
+                    id: invite.id,
+                    userId: invite.invitee_user_id,
+                    name: profile?.name,
+                    avatarUrl: profile?.avatar_url,
+                    status: invite.status
+                )
+            }
 
         } catch {
             errorMessage = "Failed to load challenge: \(error.localizedDescription)"

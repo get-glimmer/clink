@@ -16,6 +16,13 @@ class ChallengeViewModel: ObservableObject {
     @Published var challengeToQuit: ChallengeItem? = nil
     @Published var showQuitConfirmation: Bool = false
 
+    // DEV ONLY: edit challenge state
+    @Published var showEditChallenge: Bool = false
+    @Published var selectedChallengeId: UUID? = nil
+
+    // Used to determine ownership for edit access.
+    private(set) var currentUserId: UUID? = nil
+
     let categories = ["Challenges", "My Challenges", "Completed"]
     private let challengeService = ChallengeService()
 
@@ -86,6 +93,11 @@ class ChallengeViewModel: ObservableObject {
             do {
                 // Make sure the service has the current user
                 await challengeService.initializeService()
+
+                if self.currentUserId == nil,
+                   let session = try? await SupabaseClientManager.shared.client?.auth.session {
+                    await MainActor.run { self.currentUserId = session.user.id }
+                }
 
                 let fetched: [ChallengeItem]
                 switch self.selectedCategory {
