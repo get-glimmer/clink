@@ -3,94 +3,120 @@ import SpriteKit
 
 struct ChallengeView: View {
     @StateObject private var viewModel = ChallengeViewModel()
+    @State private var selectedChallengeId: UUID?
+    @State private var isShowingChallengeDetail = false
 
     var body: some View {
-        ZStack {
-            AppColors.neutral1000.ignoresSafeArea()
+        NavigationStack {
+            ZStack {
+                AppColors.neutral1000.ignoresSafeArea()
 
-            VStack(spacing: 24) {
-                // Header
-                HStack {
-                    // Dropdown Button
-                    Button(action: {
-                        viewModel.toggleDropdown()
-                    }) {
-                        HStack(spacing: 8) {
-                            Text(viewModel.selectedCategory)
-                                .appText(AppFont.title1)
-                                .foregroundColor(AppColors.textWhite)
+                VStack(spacing: 24) {
+                    // Header
+                    HStack {
+                        // Dropdown Button
+                        Button(action: {
+                            viewModel.toggleDropdown()
+                        }) {
+                            HStack(spacing: 8) {
+                                Text(viewModel.selectedCategory)
+                                    .appText(AppFont.title1)
+                                    .foregroundColor(AppColors.textWhite)
 
-                            Image(systemName: "chevron.down")
-                                .foregroundColor(AppColors.textWhite)
-                                .font(.system(size: 10, weight: .bold))
-                                .rotationEffect(.degrees(viewModel.isDropdownPresented ? 180 : 0))
-                                .animation(.easeInOut(duration: 0.2), value: viewModel.isDropdownPresented)
-                        }
-                    }
-                    .anchorPreference(key: DropdownBoundsPreferenceKey.self, value: .bounds) { $0 }
-
-                    Spacer()
-
-                    // Options Button (...)
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.25)) {
-                            viewModel.toggleOptionsMenu()
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 20, height: 20)
-                            .padding(12)
-                            .background(AppColors.neutral900)
-                            .clipShape(Circle())
-                            .foregroundColor(AppColors.textWhite)
-                    }
-                }
-                .padding(.horizontal, 24)
-                .padding(.top, 16)
-                .zIndex(1)
-
-                // Content
-                if viewModel.isLoading {
-                    Spacer()
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: AppColors.textWhite))
-                    Spacer()
-                } else if let errorMessage = viewModel.errorMessage, viewModel.challenges.isEmpty {
-                    Spacer()
-                    Text(errorMessage)
-                        .appText(AppFont.captionM)
-                        .foregroundColor(AppColors.neutral400)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 40)
-                    Spacer()
-                } else if viewModel.challenges.isEmpty {
-                    Spacer()
-                    Text("No challenges yet")
-                        .appText(AppFont.captionM)
-                        .foregroundColor(AppColors.neutral400)
-                    Spacer()
-                } else {
-                    ScrollView {
-                        VStack(spacing: 16) {
-                            ForEach(viewModel.challenges) { challenge in
-                                SwipeableChallengeCard(
-                                    challenge: challenge,
-                                    onDelete: {
-                                        viewModel.requestQuit(challenge: challenge)
-                                    }
-                                )
+                                Image(systemName: "chevron.down")
+                                    .foregroundColor(AppColors.textWhite)
+                                    .font(.system(size: 10, weight: .bold))
+                                    .rotationEffect(.degrees(viewModel.isDropdownPresented ? 180 : 0))
+                                    .animation(.easeInOut(duration: 0.2), value: viewModel.isDropdownPresented)
                             }
                         }
-                        .padding(.horizontal, 24)
-                        .padding(.bottom, 100)
+                        .anchorPreference(key: DropdownBoundsPreferenceKey.self, value: .bounds) { $0 }
+
+                        Spacer()
+
+                        // Options Button (...)
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                viewModel.toggleOptionsMenu()
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 20, height: 20)
+                                .padding(12)
+                                .background(AppColors.neutral900)
+                                .clipShape(Circle())
+                                .foregroundColor(AppColors.textWhite)
+                        }
                     }
-                    .refreshable {
-                        await MainActor.run { viewModel.refreshChallenges() }
+                    .padding(.horizontal, 24)
+                    .padding(.top, 16)
+                    .zIndex(1)
+
+                    // Content
+                    if viewModel.isLoading {
+                        Spacer()
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: AppColors.textWhite))
+                        Spacer()
+                    } else if let errorMessage = viewModel.errorMessage, viewModel.challenges.isEmpty {
+                        Spacer()
+                        Text(errorMessage)
+                            .appText(AppFont.captionM)
+                            .foregroundColor(AppColors.neutral400)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 40)
+                        Spacer()
+                    } else if viewModel.challenges.isEmpty {
+                        Spacer()
+                        Text("No challenges yet")
+                            .appText(AppFont.captionM)
+                            .foregroundColor(AppColors.neutral400)
+                        Spacer()
+                    } else {
+                        ScrollView {
+                            VStack(spacing: 16) {
+                                ForEach(viewModel.challenges) { challenge in
+                                    SwipeableChallengeCard(
+                                        challenge: challenge,
+                                        onTap: {
+                                            selectedChallengeId = challenge.id
+                                            isShowingChallengeDetail = true
+                                        },
+                                        onDelete: {
+                                            viewModel.requestQuit(challenge: challenge)
+                                        }
+                                    )
+                                }
+                            }
+                            .padding(.horizontal, 24)
+                            .padding(.bottom, 100)
+                        }
+                        .refreshable {
+                            await MainActor.run { viewModel.refreshChallenges() }
+                        }
                     }
                 }
+                NavigationLink(
+                    isActive: $isShowingChallengeDetail,
+                    destination: {
+                        Group {
+                            if let challengeId = selectedChallengeId {
+                                ChallengeDetailView(challengeId: challengeId)
+                                    .navBarHidden(true)
+                            } else {
+                                Color.clear
+                            }
+                        }
+                    },
+                    label: {
+                        EmptyView()
+                    }
+                )
+                .hidden()
             }
+            .navigationBarHidden(true)
         }
         .dropdownOverlay(
             isPresented: $viewModel.isDropdownPresented,
@@ -318,6 +344,7 @@ struct ChallengeShakerPreview: View {
 
 struct SwipeableChallengeCard: View {
     let challenge: ChallengeItem
+    let onTap: () -> Void
     let onDelete: () -> Void
 
     @State private var offset: CGFloat = 0
@@ -342,6 +369,7 @@ struct SwipeableChallengeCard: View {
             // Card content
             ChallengeCard(challenge: challenge)
                 .offset(x: offset)
+                .contentShape(Rectangle())
                 .gesture(
                     DragGesture()
                         .onChanged { value in
@@ -374,6 +402,12 @@ struct SwipeableChallengeCard: View {
                                 }
                             }
                         }
+                )
+                .highPriorityGesture(
+                    TapGesture().onEnded {
+                        guard offset == 0 else { return }
+                        onTap()
+                    }
                 )
         }
         .clipped()
