@@ -3,6 +3,7 @@ import SwiftUI
 
 struct TaskView: View {
     @StateObject private var viewModel: TaskListViewModel
+    @StateObject private var trackerViewModel: TrackerViewModel
     @State private var shakerRefreshId = UUID()
     @State private var sheetProgress: CGFloat = 0
     @State private var showingNotesPopup: Bool = false
@@ -41,7 +42,12 @@ struct TaskView: View {
 
     init() {
         let userId = getUserId()
-        _viewModel = StateObject(wrappedValue: TaskListViewModel(userId: userId, date: todayDate()))
+        let tracker = TrackerViewModel(userId: userId)
+        let taskList = TaskListViewModel(userId: userId, date: todayDate())
+
+        _trackerViewModel = StateObject(wrappedValue: tracker)
+        _viewModel = StateObject(wrappedValue: taskList)
+        taskList.trackerViewModel = tracker
     }
 
 //MARK: - main view
@@ -216,6 +222,12 @@ struct TaskView: View {
             shakerRefreshId = UUID()
             viewModel.fetchCategoriesAndTasks()
             viewModel.taskSelectedDate = selectedDate
+            Task {
+                try? await trackerViewModel.fetchShakers()
+            }
+        }
+        .task(id: trackerViewModel.refreshToken) {
+            try? await trackerViewModel.fetchShakers()
         }
         .onChange(of: selectedDate) { newValue in
             viewModel.taskSelectedDate = newValue
@@ -258,6 +270,8 @@ struct TaskView: View {
             if showChangeDateSheet {
                 ChangeDateSheet(
                     initialDate: selectedDate,
+                    calendarStyle: .tracker,
+                    shakerRecords: trackerViewModel.shakersRecord,
                     onConfirm: { picked in
                         selectedDate = picked
                         viewModel.taskSelectedDate = picked
