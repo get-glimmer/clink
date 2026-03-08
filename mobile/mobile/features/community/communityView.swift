@@ -821,19 +821,16 @@ struct LeaveNoteSheet: View {
                             onClose()
                         }) {
                             Image(systemName: "xmark")
-                                .font(.system(size: 15, weight: .medium))
+                                .font(.system(size: 18, weight: .medium))
                                 .foregroundColor(AppColors.neutral1000)
                         }
                     }
-                    .padding(.horizontal, 21)
-                    .padding(.top, 20)
-                    .padding(.bottom, 8)
+                    .padding(.top, 6)
                     
                     // Title
                     Text("Leave a Note for \(friend.name)!")
                         .appFont(AppFont.title3Semibold)
                         .foregroundColor(AppColors.neutral1000)
-                        .padding(.horizontal, 21)
                         .padding(.bottom, 20)
                     
                     VStack(spacing: 20) {
@@ -864,7 +861,6 @@ struct LeaveNoteSheet: View {
                                     .allowsHitTesting(false)
                             }
                         }
-                        .padding(.horizontal, 21)
                         
                         // Emoji Reactions Section
                         VStack(alignment: .leading, spacing: 12) {
@@ -874,7 +870,6 @@ struct LeaveNoteSheet: View {
                                     .foregroundColor(AppColors.neutral1000)
                 Spacer()
                             }
-                            .padding(.horizontal, 21)
                             
                             // Emoji buttons
                             HStack(spacing: 16) {
@@ -931,7 +926,6 @@ struct LeaveNoteSheet: View {
                                 }
                                 .disabled(isSending)
                             }
-                            .padding(.horizontal, 21)
                             // Ensure no implicit animations cause perceived reloads
                             .animation(.none, value: presetEmojis)
                             .animation(.none, value: selectedEmoji)
@@ -976,19 +970,19 @@ struct LeaveNoteSheet: View {
                                         .progressViewStyle(CircularProgressViewStyle(tint: Color.white))
                                 .scaleEffect(0.8)
                         }
-                                Text(isSending ? "Sending..." : "Send")
+                                Text(isSending ? "Sending..." : "Leave Note")
                                     .appFont(AppFont.title3)
                                     .foregroundColor(AppColors.textWhite)
                             }
-                            .frame(width: 212, height: 64)
+                            .frame(maxWidth: .infinity, minHeight: 50, maxHeight: 50)
                             .background(AppColors.neutral900)
-                            .cornerRadius(32)
+                            .cornerRadius(8)
                 }
                 .disabled((noteText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && selectedEmoji == nil) || isSending)
-                        .padding(.horizontal, 21)
-                        .padding(.bottom, 24)
                     }
                 }
+                .padding(.horizontal, 26)
+                .padding(.vertical, 24)
                 // Card color #F1F3EF
                 .background(Color(red: 241.0/255.0, green: 243.0/255.0, blue: 239.0/255.0))
                 .cornerRadius(16)
