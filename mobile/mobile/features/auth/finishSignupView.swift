@@ -118,10 +118,10 @@ struct FinishSignupView: View {
                         }
                         
                         // Full name input field
-                        VStack(alignment: .leading) {
+                        VStack(alignment: .leading, spacing: 8) {
                             Text("Your name")
-                                .padding(.leading, 11)
-                                .appFont(AppFont.labelS)
+                                .padding(.leading, 8)
+                                .appFont(AppFont.labelM)
                                 .foregroundColor(Color("Neutral-300"))
                             
                             TextField("Full name", text: $fullName)
@@ -139,10 +139,10 @@ struct FinishSignupView: View {
                         
                         
                         // Username input field and confirmation
-                        VStack(alignment: .leading) {
+                        VStack(alignment: .leading, spacing: 8) {
                             Text("Username")
-                                .padding(.leading, 11)
-                                .appFont(AppFont.labelS)
+                                .padding(.leading, 8)
+                                .appFont(AppFont.labelM)
                                 .foregroundColor(Color("Neutral-300"))
                             
                             HStack() {
@@ -188,7 +188,7 @@ struct FinishSignupView: View {
                             
                             if let status = usernameStatus {
                                 Text(status)
-                                    .appFont(AppFont.captionXS)
+                                    .appFont(AppFont.captionS)
                                     .foregroundColor(usernameStatusColor)
                                     .padding(.leading, 7)
                                     .padding(.top, 4)
@@ -197,10 +197,10 @@ struct FinishSignupView: View {
                         .padding(.top, 16)
                         
                         // Date of birth picker
-                        VStack(alignment: .leading) {
+                        VStack(alignment: .leading, spacing: 8) {
                             Text("Date of Birth (Optional)")
-                                .padding(.leading, 11)
-                                .appFont(AppFont.labelS)
+                                .padding(.leading, 8)
+                                .appFont(AppFont.labelM)
                                 .foregroundColor(Color("Neutral-300"))
                             
                             Button {
@@ -259,7 +259,7 @@ struct FinishSignupView: View {
                             .animation(.easeInOut(duration: 0.25), value: showChangeDateSheet)
                             
                             Text("Your birthday won’t be shared with other people who use Clink!.")
-                                .appFont(AppFont.captionXS)
+                                .appFont(AppFont.captionS)
                                 .padding(.top, 4)
                                 .padding(.leading, 7)
                                 .foregroundColor(Color("Neutral-400"))

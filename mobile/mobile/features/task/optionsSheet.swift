@@ -22,7 +22,6 @@ struct OptionsSheet: View {
         ZStack(alignment: .topTrailing) {
             // --- Background: transparent tap area (tap to close) ---
             Color.black.opacity(0.0001)
-                .ignoresSafeArea()
                 .onTapGesture { onTapOutside() }
             
             // --- Popup menu ---
