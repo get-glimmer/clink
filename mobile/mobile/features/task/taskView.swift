@@ -37,6 +37,7 @@ struct TaskView: View {
     @State private var selectedNoteId: UUID? = nil
     @State private var selectedNoteContent: String? = nil
     @State private var selectedNote: NoteRecord? = nil
+    @State private var activeTaskMenu: TaskListItem? = nil
 
     init() {
         let userId = getUserId()
@@ -158,7 +159,7 @@ struct TaskView: View {
                 ) {
                     // --Task List Content--
                     ScrollView {
-                        TaskListView(taskSelectedDate: $selectedDate, viewModel: viewModel)
+                        TaskListView(taskSelectedDate: $selectedDate, viewModel: viewModel, activeTask: $activeTaskMenu)
                             .padding(.bottom, 120)
                             //.padding(.top, -6) // for grabber hit area
                     }
@@ -193,11 +194,23 @@ struct TaskView: View {
                     .transition(.scale(scale: 0.9, anchor: .topTrailing).combined(with: .opacity))
                 }
             }
+            .overlay {
+                if let task = activeTaskMenu {
+                    TaskMenuOverlay(
+                        task: task,
+                        viewModel: viewModel,
+                        onClose: { activeTaskMenu = nil }
+                    )
+                    .transition(.identity)
+                    .zIndex(2000)
+                }
+            }
             .zIndex(999)
             .animation(.easeInOut(duration: 0.2), value: showOptionsSheet)
         }
         .background(.neutral1000)
         .ignoresSafeArea(edges: .bottom)
+        .navBarHidden(activeTaskMenu != nil)
         .onAppear {
             sheetProgress = 0
             shakerRefreshId = UUID()

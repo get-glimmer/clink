@@ -53,9 +53,10 @@ struct CategoriesSheet: View {
                 // Daily
                 Section(header:
                     Text("Daily Task")
-                        .appFont(AppFont.labelS)
+                        .appFont(AppFont.labelM)
                         .foregroundColor(Color("Neutral-300"))
                         .padding(.leading, 4)
+                        .padding(.bottom, 1)
                 ) {
                     ForEach(dailyCategories, id: \.id) { catWithTasks in
                         categoryRow(cat: catWithTasks.category)
@@ -77,9 +78,10 @@ struct CategoriesSheet: View {
                 // Archived
                 Section(header:
                     Text("Archived Task")
-                        .appFont(AppFont.labelS)
+                        .appFont(AppFont.labelM)
                         .foregroundColor(Color("Neutral-300"))
                         .padding(.leading, 4)
+                        .padding(.bottom, 1)
                 ) {
                     ForEach(archivedCategories, id: \.id) { catWithTasks in
                         categoryRow(cat: catWithTasks.category)

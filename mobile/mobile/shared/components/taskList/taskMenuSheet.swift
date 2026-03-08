@@ -1,5 +1,134 @@
 import SwiftUI
 
+struct TaskMenuOverlay: View {
+    let task: TaskListItem
+    let viewModel: TaskListViewModel
+    let onClose: () -> Void
+
+    @State private var backdropVisible = false
+    @State private var sheetVisible = false
+
+    private var holder: CategoryWithTasks? {
+        viewModel.categoriesWithTasks.first { $0.tasks.contains { $0.id == task.id } }
+    }
+
+    private var isArchivedTask: Bool {
+        holder?.category.type == .archived
+    }
+
+    private var dailyCategories: [CategoryItem] {
+        viewModel.categoriesWithTasks
+            .filter { $0.category.type == .daily }
+            .map { $0.category }
+    }
+
+    private var archivedCategories: [CategoryItem] {
+        viewModel.categoriesWithTasks
+            .filter { $0.category.type == .archived }
+            .map { $0.category }
+    }
+
+    private var menuHeight: CGFloat {
+        isArchivedTask ? 275 : 340
+    }
+
+    private var isDueToday: Bool {
+        task.dueDate.map { Calendar.current.isDateInToday($0) } ?? false
+    }
+
+    private var tomorrow: Date {
+        Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+    }
+
+    var body: some View {
+        GeometryReader { proxy in
+            let sheetHeight = menuHeight + proxy.safeAreaInsets.bottom
+            let sheetWidth = UIScreen.main.bounds.width + 2
+            let horizontalOverflow = max(0, sheetWidth - proxy.size.width)
+
+            ZStack(alignment: .bottom) {
+                // Standard repo modal backdrop: dark blur plus dim layer.
+                ZStack {
+                    DarkBlurView(style: .systemChromeMaterialDark)
+                        .ignoresSafeArea()
+
+                    Color.black.opacity(0.7)
+                        .ignoresSafeArea()
+                }
+                .opacity(backdropVisible ? 1 : 0)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    dismiss()
+                }
+
+                TaskMenuSheet(
+                    taskTitle: task.title,
+                    isDueToday: isDueToday,
+                    initialDueDate: task.dueDate,
+                    isArchivedTask: isArchivedTask,
+                    dailyCategories: dailyCategories,
+                    archivedCategories: archivedCategories,
+                    onDoToday: {
+                        Task { await viewModel.updateTaskDate(taskId: task.id, newDate: Date()) }
+                        dismiss()
+                    },
+                    onDoTomorrow: {
+                        Task { await viewModel.updateTaskDate(taskId: task.id, newDate: tomorrow) }
+                        dismiss()
+                    },
+                    onConfirmChangeDate: { picked in
+                        Task { await viewModel.updateTaskDate(taskId: task.id, newDate: picked) }
+                        dismiss()
+                    },
+                    onMakeRoutine: {
+                    },
+                    onDelete: {
+                        Task { await viewModel.deleteTask(task: task) }
+                        dismiss()
+                    },
+                    onArchiveToCategory: { selected in
+                        Task { await viewModel.moveTaskToCategory(taskId: task.id, toCategoryId: selected.id) }
+                        dismiss()
+                    },
+                    onReassignToDaily: { selectedDaily in
+                        Task { await viewModel.moveTaskToCategory(taskId: task.id, toCategoryId: selectedDaily.id) }
+                    },
+                    onEditTitle: { newTitle in
+                        Task { await viewModel.updateTaskTitle(taskId: task.id, newTitle: newTitle) }
+                    },
+                    viewModel: viewModel,
+                    baseRoutineCategory: holder?.category
+                )
+                .frame(width: sheetWidth, height: sheetHeight)
+                .offset(x: -horizontalOverflow / 2, y: sheetVisible ? 0 : sheetHeight)
+                .ignoresSafeArea(edges: .bottom)
+            }
+            .ignoresSafeArea()
+            .onAppear {
+                withAnimation(.easeInOut(duration: 0.18)) {
+                    backdropVisible = true
+                }
+                withAnimation(.spring(response: 0.34, dampingFraction: 0.92)) {
+                    sheetVisible = true
+                }
+            }
+        }
+    }
+
+    private func dismiss() {
+        withAnimation(.easeInOut(duration: 0.14)) {
+            backdropVisible = false
+        }
+        withAnimation(.spring(response: 0.26, dampingFraction: 0.96)) {
+            sheetVisible = false
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+            onClose()
+        }
+    }
+}
+
 struct TaskMenuSheet: View {
     // MARK: - Inputs (state from parent)
     let taskTitle: String
@@ -86,51 +215,55 @@ struct TaskMenuSheet: View {
     }
     
     var body: some View {
-        GeometryReader { proxy in
-            ZStack(alignment: .top) {
-                // MARK: BackGround
-                DarkBlurView(style: .systemChromeMaterialDark)
+        let sheetShape = UnevenRoundedRectangle(
+            topLeadingRadius: 32,
+            bottomLeadingRadius: 0,
+            bottomTrailingRadius: 0,
+            topTrailingRadius: 32,
+            style: .continuous
+        )
+
+        ZStack(alignment: .top) {
+            DarkBlurView(style: .systemChromeMaterialDark)
+                .overlay(Color.black.opacity(0.58))
+                .clipShape(sheetShape)
+            .overlay(
+                sheetShape
+                .fill(Color(.neutral1000).opacity(0.2))
+            )
+            .overlay(
+                sheetShape
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            Color(.neutral400).opacity(0.7),
+                            Color(.neutral600).opacity(0.7)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+            )
+            .clipShape(sheetShape)
+            .allowsHitTesting(false)
+
+            VStack(spacing: 0) {
+                grabber
+                    .padding(.top, 9)
+                header
+                Divider()
+                    .background(Color("Neutral-800"))
                     .frame(maxWidth: .infinity)
-                    .frame(height: proxy.size.height+500)
-                    .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-                    .allowsHitTesting(false)
-
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 24, style: .continuous)
-                            .fill(.black.opacity(0.5))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 24, style: .continuous)
-                            .stroke(
-                                LinearGradient(
-                                    colors: [
-                                        Color(.neutral400).opacity(0.7),
-                                        Color(.neutral600).opacity(0.7)
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1
-                            )
-                    )
-
-                // MARK: Contents
-                VStack(spacing: 0) {
-                    grabber
-                      .padding(.top,9)
-                    header
-                    Divider()
-                        .background(Color("Neutral-800"))
-                        .frame(width: .infinity)
-                        .padding(.horizontal, 16)
-                        .padding(.top, 18)
-                    options
-                        .padding(.top, 26)
-                        .padding(.leading, 22)
-                }
-
+                    .padding(.horizontal, 16)
+                    .padding(.top, 14)
+                options
+                    .padding(.top, 18)
+                    .padding(.leading, 22)
+                Spacer(minLength: 0)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         
         // MARK: ChangeDateSheet overlay
         .fullScreenCover(isPresented: $showChangeDateOverlay) {
@@ -257,24 +390,30 @@ struct TaskMenuSheet: View {
                 }
             } label: {
                 Image("pencil")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 24, height: 24)
             }
             .buttonStyle(.plain)
-            .padding(.trailing, 10)
+            .padding(.trailing, 15)
             
             // --- Delete button ---
             Button(action: onDelete) {
                 Image("trashcan")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 24, height: 24)
             }
             .buttonStyle(.plain)
         }
-            .padding(.top, 17)
-            .padding(.leading, 25)
-            .padding(.trailing, 19)
+            .padding(.top, 20)
+            .padding(.leading, 30)
+            .padding(.trailing, 25)
     }
     
     // MARK: - Options
     private var options: some View {
-        return VStack(spacing: 20) {
+        return VStack(spacing: 16) {
             // Do it Today / Tomorrow
             if isDueToday {
                 optionRow(assetIcon: "arrowRight", title: "Do it Tomorrow") {
@@ -344,7 +483,7 @@ struct TaskMenuSheet: View {
                     iconView(systemIcon: systemIcon, assetIcon: assetIcon)
                 }
                 Text(title)
-                    .appFont(AppFont.labelM)
+                    .appFont(AppFont.labelL)
                     .foregroundColor(Color("White"))
                 Spacer()
             }

@@ -154,37 +154,44 @@ struct CommunityView: View {
         // Global blur + bottom sheet overlay for friend menu (above everything including nav)
         .overlay {
             if let menuFriend = activeMenuFriend {
-                ZStack(alignment: .bottom) {
-                    // Dark blur overlay (match Task OptionsSheet look & feel)
-                    ZStack {
-                        DarkBlurView(style: .systemChromeMaterialDark)
-                            .ignoresSafeArea()
-                        Color.black.opacity(0.7)
-                            .ignoresSafeArea()
-                    }
-                    .contentShape(Rectangle())
-                    .transition(.opacity)
-                    .onTapGesture {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            activeMenuFriend = nil
-                            isMenuPresented = false
-                        }
-                    }
+                GeometryReader { proxy in
+                    let sheetWidth = UIScreen.main.bounds.width + 2
+                    let horizontalOverflow = max(0, sheetWidth - proxy.size.width)
 
-                    // Bottom sheet menu
-                    FriendMenuSheet(
-                        friend: menuFriend,
-                        viewModel: viewModel,
-                        onClose: {
+                    ZStack(alignment: .bottom) {
+                        // Dark blur overlay (match Task OptionsSheet look & feel)
+                        ZStack {
+                            DarkBlurView(style: .systemChromeMaterialDark)
+                                .ignoresSafeArea()
+                            Color.black.opacity(0.7)
+                                .ignoresSafeArea()
+                        }
+                        .contentShape(Rectangle())
+                        .transition(.opacity)
+                        .onTapGesture {
                             withAnimation(.easeInOut(duration: 0.2)) {
                                 activeMenuFriend = nil
                                 isMenuPresented = false
                             }
-                        },
-                        handleContent: nil
-                    )
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .ignoresSafeArea(edges: .bottom)
+                        }
+
+                        // Bottom sheet menu
+                        FriendMenuSheet(
+                            friend: menuFriend,
+                            viewModel: viewModel,
+                            onClose: {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    activeMenuFriend = nil
+                                    isMenuPresented = false
+                                }
+                            },
+                            handleContent: nil
+                        )
+                        .frame(width: sheetWidth, height: 208 + bottomSafeAreaInset())
+                        .offset(x: -horizontalOverflow / 2)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .ignoresSafeArea(edges: .bottom)
+                    }
                 }
                 .ignoresSafeArea(.all) // ensure container uses full screen bounds
                 .zIndex(1000)
@@ -397,128 +404,125 @@ struct FriendMenuSheet: View {
     let handleContent: AnyView?
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Handle (customizable)
-            Group {
-                if let handleContent = handleContent {
-                    handleContent
-                } else {
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(Color(UIColor(hex: "373636")!))
-                        .frame(width: 44, height: 3)
-                }
-            }
-            .padding(.top, 10)
-            .padding(.bottom, 17)
-        
-        // Friend name
-        Text(friend.name)
-            .foregroundColor(AppColors.textWhite)
-            .appText(AppFont.title3)
-            .padding(.bottom, 18)
-        
-        // Divider line
-        Rectangle()
-            .fill(AppColors.neutral800)
-            .frame(maxWidth: .infinity)
-            .frame(height: 1)
-            .padding(.horizontal, 16)
-            .padding(.bottom, 22)
-        
-                    // Menu options
-            VStack(spacing: 24) {
-                // Unfollow option
-                Button(action: {
-                    handleUnfollow()
-                }) {
-                    HStack(spacing: 20) {
-                        // Circular icon background
-                        ZStack {
-                            Circle()
-                                .fill(AppColors.neutral800)
-                                .frame(width: 44, height: 44)
-                            
-                            Image("unfollow")
-                                .renderingMode(.original)
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 24, height: 24)
-                        }
-                        
-                        Text("Unfollow")
-                            .foregroundColor(AppColors.textWhite)
-                            .appText(AppFont.labelM)
-                        
-                        Spacer()
+        let sheetShape = UnevenRoundedRectangle(
+            topLeadingRadius: 32,
+            bottomLeadingRadius: 0,
+            bottomTrailingRadius: 0,
+            topTrailingRadius: 32,
+            style: .continuous
+        )
+
+        ZStack(alignment: .top) {
+            DarkBlurView(style: .systemChromeMaterialDark)
+                .overlay(Color.black.opacity(0.58))
+                .clipShape(sheetShape)
+                .overlay(
+                    sheetShape
+                        .fill(Color(.neutral1000).opacity(0.2))
+                )
+                .overlay(
+                    sheetShape
+                        .stroke(
+                            LinearGradient(
+                                colors: [
+                                    Color(.neutral400).opacity(0.7),
+                                    Color(.neutral600).opacity(0.7)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
+                )
+                .clipShape(sheetShape)
+
+            VStack(spacing: 0) {
+                Group {
+                    if let handleContent = handleContent {
+                        handleContent
+                    } else {
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(Color(UIColor(hex: "373636")!))
+                            .frame(width: 44, height: 3)
                     }
-                                                .padding(.horizontal, 26)
                 }
-                
-                // Favorites option (add or remove based on current status)
-                Button(action: {
-                    handleFavoriteToggle()
-                }) {
-                    HStack(spacing: 20) {
-                        // Circular icon background
-                        ZStack {
-                            Circle()
-                                .fill(AppColors.neutral800)
-                                .frame(width: 44, height: 44)
-                            
-                            Image(friend.isFavorite ? "star_on" : "star")
-                                .renderingMode(.original)
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 24, height: 24)
+                .padding(.top, 9)
+
+                Text(friend.name)
+                    .foregroundColor(AppColors.textWhite)
+                    .appText(AppFont.title3)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.top, 23)
+                    .padding(.bottom, 14)
+
+                Divider()
+                    .background(AppColors.neutral800)
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 7)
+
+                VStack(spacing: 16) {
+                    Button(action: {
+                        handleUnfollow()
+                    }) {
+                        HStack(spacing: 16) {
+                            ZStack {
+                                Circle()
+                                    .fill(AppColors.neutral800)
+                                    .frame(width: 44, height: 44)
+
+                                Image("unfollow")
+                                    .renderingMode(.original)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 24, height: 24)
+                            }
+
+                            Text("Unfollow")
+                                .foregroundColor(AppColors.textWhite)
+                                .appText(AppFont.labelL)
+
+                            Spacer()
                         }
-                        
-                        Text(friend.isFavorite ? "Remove from Favorites" : "Add to Favorites")
-                            .foregroundColor(AppColors.textWhite)
-                            .appText(AppFont.labelM)
-                        
-                        Spacer()
+                        .contentShape(Rectangle())
                     }
-                                                .padding(.horizontal, 26)
+                    .buttonStyle(.plain)
+
+                    Button(action: {
+                        handleFavoriteToggle()
+                    }) {
+                        HStack(spacing: 16) {
+                            ZStack {
+                                Circle()
+                                    .fill(AppColors.neutral800)
+                                    .frame(width: 44, height: 44)
+
+                                Image(friend.isFavorite ? "star_on" : "star")
+                                    .renderingMode(.original)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 24, height: 24)
+                            }
+
+                            Text(friend.isFavorite ? "Remove from Favorites" : "Add to Favorites")
+                                .foregroundColor(AppColors.textWhite)
+                                .appText(AppFont.labelL)
+
+                            Spacer()
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
                 }
+                .padding(.top, 25)
+                .padding(.leading, 35)
+                .padding(.trailing, 0)
+
+                Spacer(minLength: max(53, bottomSafeAreaInset()))
             }
         }
-        // Add safe-area aware internal padding so content is not clipped by the home indicator
-        .padding(.bottom, max(53, bottomSafeAreaInset()))
-        .padding(.bottom, 0)
         .frame(maxWidth: .infinity, alignment: .top)
-        .background(Color(red: 32.0/255.0, green: 32.0/255.0, blue: 32.0/255.0).opacity(0.3))
-        .clipShape(
-            UnevenRoundedRectangle(
-                topLeadingRadius: 24,
-                bottomLeadingRadius: 0,
-                bottomTrailingRadius: 0,
-                topTrailingRadius: 24,
-                style: .circular
-            )
-        )
-        .overlay(
-            UnevenRoundedRectangle(
-                topLeadingRadius: 24,
-                bottomLeadingRadius: 0,
-                bottomTrailingRadius: 0,
-                topTrailingRadius: 24,
-                style: .circular
-            )
-            .inset(by: -0.7)
-            .stroke(
-                LinearGradient(
-                    colors: [
-                        Color(red: 0xA1/255.0, green: 0xA1/255.0, blue: 0xA1/255.0).opacity(0.7),
-                        Color(red: 0x5E/255.0, green: 0x5E/255.0, blue: 0x5E/255.0).opacity(0.7)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ),
-                lineWidth: 1
-            )
-        )
         .ignoresSafeArea(edges: .bottom)
-        
     }
     
     private func handleUnfollow() {
