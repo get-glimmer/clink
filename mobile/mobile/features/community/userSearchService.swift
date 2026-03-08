@@ -104,11 +104,11 @@ class UserSearchService: ObservableObject {
         let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
         
         do {
-            // Search profiles by name, username, or email
+            // Search profiles by username only
             let profiles: [UserProfile] = try await supabase
                 .from("profiles")
                 .select("*")
-                .or("name.ilike.%\(trimmedQuery)%,username.ilike.%\(trimmedQuery)%,email.ilike.%\(trimmedQuery)%")
+                .ilike("username", value: "%\(trimmedQuery)%")
                 .neq("id", value: currentUserId) // Exclude current user
                 .limit(20)
                 .execute()

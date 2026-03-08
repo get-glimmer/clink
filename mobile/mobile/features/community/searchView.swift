@@ -81,7 +81,7 @@ struct SearchView: View {
                             VStack(alignment: .leading, spacing: 0) {
                                 Text("Friend Requests")
                                     .foregroundColor(AppColors.neutral300)
-                                    .appFont(AppFont.labelS)
+                                    .appFont(AppFont.labelM)
                                     .padding(.horizontal, 16)
                                     .padding(.top, 24)
                                     .padding(.bottom, 14)
@@ -145,7 +145,7 @@ struct SearchView: View {
                                 HStack {
                                     Text("Suggestion")
                                         .foregroundColor(AppColors.neutral300)
-                                        .appFont(AppFont.labelS)
+                                        .appFont(AppFont.labelM)
                                     Spacer()
                                 }
                                 .padding(.horizontal, 16)
@@ -192,7 +192,7 @@ struct SearchView: View {
                     .foregroundColor(AppColors.neutral400)
                     .font(.system(size: 16))
                 
-                TextField("Search users...", text: $searchText)
+                TextField("Search username..", text: $searchText)
                     .foregroundColor(AppColors.neutral600)
                     .appFont(AppFont.body1)
                     .onChange(of: searchText) { oldValue, newValue in
