@@ -166,8 +166,8 @@ struct TaskView: View {
                 }
             }
             .animation(.easeInOut, value: scale)
-            //MARK: - "Options" sheet
-            .overlay(alignment: .bottomLeading) {
+            //MARK: - "Options" popup
+            .overlay(alignment: .topTrailing) {
                 if showOptionsSheet {
                     OptionsSheet(
                         onTapOutside: { showOptionsSheet = false },
@@ -190,12 +190,11 @@ struct TaskView: View {
                             showAddCategorySheet = true
                         }
                     )
-                    .transition(.opacity)
-                    .ignoresSafeArea()
+                    .transition(.scale(scale: 0.9, anchor: .topTrailing).combined(with: .opacity))
                 }
             }
             .zIndex(999)
-            .animation(.easeInOut(duration: 0.25), value: showOptionsSheet)
+            .animation(.easeInOut(duration: 0.2), value: showOptionsSheet)
         }
         .background(.neutral1000)
         .ignoresSafeArea(edges: .bottom)
