@@ -1,0 +1,702 @@
+import SwiftUI
+import SpriteKit
+import UIKit
+
+struct ChallengeDetailView: View {
+    @Environment(\.dismiss) private var dismiss
+    @StateObject private var viewModel: ChallengeDetailViewModel
+
+    @State private var selectedProofTaskId: UUID?
+    @State private var selectedProofImage: UIImage?
+    @State private var showProofSourceDialog = false
+    @State private var showCameraPicker = false
+    @State private var showPhotoLibraryPicker = false
+    @State private var showAllParticipants = false
+    @State private var showGallerySheet = false
+
+    var onBack: (() -> Void)?
+    var onTapCalendar: (() -> Void)?
+    var onTapFavorite: (() -> Void)?
+
+    init(
+        challengeId: UUID,
+        onBack: (() -> Void)? = nil,
+        onTapCalendar: (() -> Void)? = nil,
+        onTapFavorite: (() -> Void)? = nil
+    ) {
+        _viewModel = StateObject(wrappedValue: ChallengeDetailViewModel(challengeId: challengeId))
+        self.onBack = onBack
+        self.onTapCalendar = onTapCalendar
+        self.onTapFavorite = onTapFavorite
+    }
+
+    var body: some View {
+        ZStack {
+            AppColors.neutral1000.ignoresSafeArea()
+
+            if viewModel.isLoading {
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: AppColors.textWhite))
+            } else {
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 18) {
+                        headerSection
+                            .padding(.top, 8)
+
+                        jarSection
+
+                        challengeInfoSection
+
+                        overallProgressSection
+
+                        weeklyProgressSection
+
+                        todaysTaskSection
+                        
+                        participantsSection
+                        
+                        gallerySection
+                        
+                        communitySupportSection
+                            .padding(.bottom, 28)
+                    }
+                    .padding(.horizontal, 16)
+                }
+            }
+        }
+        .task {
+            await viewModel.load()
+        }
+        .confirmationDialog("Add Proof Photo", isPresented: $showProofSourceDialog, titleVisibility: .visible) {
+            Button("Take Photo") {
+                if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                    showCameraPicker = true
+                } else {
+                    showPhotoLibraryPicker = true
+                }
+            }
+            Button("Choose from Library") {
+                showPhotoLibraryPicker = true
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+        .sheet(isPresented: $showCameraPicker) {
+            ChallengeImagePicker(sourceType: .camera, selectedImage: $selectedProofImage)
+        }
+        .sheet(isPresented: $showPhotoLibraryPicker) {
+            ChallengeImagePicker(sourceType: .photoLibrary, selectedImage: $selectedProofImage)
+        }
+        .onChange(of: selectedProofImage) { image in
+            guard let image, let taskId = selectedProofTaskId else { return }
+            Task {
+                await viewModel.uploadProofImage(taskId: taskId, image: image)
+                await MainActor.run {
+                    selectedProofImage = nil
+                }
+            }
+        }
+        .alert("Error", isPresented: Binding(
+            get: { viewModel.errorMessage != nil },
+            set: { if !$0 { viewModel.errorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { viewModel.errorMessage = nil }
+        } message: {
+            Text(viewModel.errorMessage ?? "")
+        }
+        .sheet(isPresented: $showGallerySheet) {
+            FullGallerySheet(items: viewModel.galleryItems)
+        }
+    }
+}
+
+private extension ChallengeDetailView {
+    var headerSection: some View {
+        HStack {
+            CircleIconButton(systemName: "chevron.left") {
+                if let onBack {
+                    onBack()
+                } else {
+                    dismiss()
+                }
+            }
+
+            Spacer()
+
+            HStack(spacing: 10) {
+                CircleIconButton(systemName: "calendar") {
+                    onTapCalendar?()
+                }
+
+                CircleIconButton(systemName: viewModel.isFavorite ? "star.fill" : "star") {
+                    viewModel.isFavorite.toggle()
+                    onTapFavorite?()
+                }
+            }
+        }
+    }
+
+    var jarSection: some View {
+        ChallengeJarView(
+            jarItems: viewModel.jarItems,
+            isSealed: isSealedTodayFromWeekly(viewModel.weekly)
+        )
+        .frame(height: 380)
+    }
+
+    var challengeInfoSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(viewModel.dateRangeText)
+                .foregroundColor(AppColors.neutral1000)
+                .appText(AppFont.labelS)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(AppColors.green300)
+                .cornerRadius(999)
+
+            Text(viewModel.title)
+                .foregroundColor(AppColors.textWhite)
+                .appText(AppFont.title1)
+
+            Text(viewModel.description)
+                .foregroundColor(AppColors.neutral300)
+                .appText(AppFont.body2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    var overallProgressSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text(viewModel.overallProgressText)
+                    .foregroundColor(AppColors.textWhite)
+                    .appText(AppFont.labelM)
+                Spacer()
+            }
+
+            ProgressBar(value: viewModel.overallProgress)
+
+            HStack {
+                Spacer()
+                Text(viewModel.dayIndexText)
+                    .foregroundColor(AppColors.neutral300)
+                    .appText(AppFont.captionS)
+            }
+        }
+        .padding(.top, 6)
+    }
+
+    var weeklyProgressSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Weekly Progress")
+                .foregroundColor(AppColors.textWhite)
+                .appText(AppFont.labelM)
+
+            HStack(spacing: 12) {
+                ForEach(viewModel.weekly) { day in
+                    WeeklyDayCell(day: day)
+                }
+            }
+        }
+        .padding(.top, 6)
+    }
+
+    var todaysTaskSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Today's Task")
+                .foregroundColor(AppColors.textWhite)
+                .appText(AppFont.labelM)
+
+            VStack(spacing: 10) {
+                ForEach(viewModel.todayTasks) { task in
+                    TodayTaskRow(
+                        title: task.title,
+                        isCompleted: task.isCompleted,
+                        hasProof: task.hasProof,
+                        proofURL: task.proofURL,
+                        onToggle: {
+                            viewModel.toggleTask(taskId: task.id)
+                        },
+                        showAddPhoto: true,
+                        onTapAddPhoto: {
+                            selectedProofTaskId = task.id
+                            showProofSourceDialog = true
+                        }
+                    )
+                    .padding(.leading, 2.84)
+                    .padding(.trailing, 0.4)
+                }
+
+                Button {
+                    Task { await viewModel.submitTodayChallenge() }
+                } label: {
+                    Text("Complete Day’s Challenge")
+                        .foregroundColor(AppColors.textWhite)
+                        .appText(AppFont.labelL)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(viewModel.isCompleteDayButtonEnabled ? AppColors.green300 : AppColors.neutral600)
+                        .cornerRadius(8)
+                }
+                .disabled(!viewModel.isCompleteDayButtonEnabled)
+                .buttonStyle(.plain)
+                .padding(.top, 6)
+            }
+            .padding(14)
+            .background(AppColors.neutral900)
+            .cornerRadius(16)
+        }
+        .padding(.top, 6)
+    }
+    
+    var participantsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Participants")
+                    .foregroundColor(AppColors.textWhite)
+                    .appText(AppFont.labelM)
+                Text("\(viewModel.participants.count)")
+                    .foregroundColor(AppColors.green300)
+                    .appText(AppFont.labelM)
+                
+                Spacer()
+                
+                if viewModel.participants.count > 3 {
+                    Button(showAllParticipants ? "Show less" : "View all") {
+                        showAllParticipants.toggle()
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundColor(AppColors.green300)
+                    .appText(AppFont.buttonM)
+                }
+            }
+            
+            let shown = showAllParticipants ? viewModel.participants : Array(viewModel.participants.prefix(3))
+            let topDays = viewModel.participants.map(\.joinedDays).max() ?? 0
+            ForEach(shown) { participant in
+                ParticipantRow(
+                    participant: participant,
+                    showCrown: participant.joinedDays == topDays && topDays > 0
+                )
+            }
+        }
+        .padding(.top, 6)
+    }
+    
+    var gallerySection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Gallery")
+                    .foregroundColor(AppColors.textWhite)
+                    .appText(AppFont.labelM)
+                
+                Spacer()
+                
+                Button("View all") {
+                    showGallerySheet = true
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(AppColors.green300)
+                .appText(AppFont.buttonM)
+            }
+            
+            if viewModel.galleryItems.isEmpty {
+                Text("No proof photos yet.")
+                    .foregroundColor(AppColors.neutral400)
+                    .appText(AppFont.captionM)
+            } else {
+                HStack(spacing: 8) {
+                    ForEach(Array(viewModel.galleryItems.prefix(4))) { item in
+                        GalleryThumb(imageURL: item.imageURL)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .padding(.top, 6)
+    }
+    
+    var communitySupportSection: some View {
+        HStack {
+            Text("Community Support")
+                .foregroundColor(AppColors.textWhite)
+                .appText(AppFont.labelM)
+            
+            Spacer()
+            
+            Text("View all")
+                .foregroundColor(AppColors.green300)
+                .appText(AppFont.buttonM)
+        }
+        .padding(.top, 6)
+    }
+
+    func isSealedTodayFromWeekly(_ weekly: [WeeklyDayUI]) -> Bool {
+        weekly.first(where: { $0.isToday })?.status == .all
+    }
+}
+
+private struct CircleIconButton: View {
+    let systemName: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            ZStack {
+                Circle()
+                    .fill(Color.white.opacity(0.08))
+                    .frame(width: 40, height: 40)
+                    .overlay(
+                        Circle()
+                            .stroke(Color.white.opacity(0.10), lineWidth: 1)
+                    )
+                Image(systemName: systemName)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(AppColors.textWhite)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct ProgressBar: View {
+    let value: Double
+
+    var body: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(AppColors.neutral800)
+                Capsule()
+                    .fill(AppColors.green300)
+                    .frame(width: max(0, geo.size.width * CGFloat(min(max(value, 0), 1))))
+            }
+        }
+        .frame(height: 10)
+    }
+}
+
+private struct WeeklyDayCell: View {
+    let day: WeeklyDayUI
+
+    var body: some View {
+        VStack(spacing: 6) {
+            Text(day.weekday)
+                .foregroundColor(AppColors.neutral400)
+                .appText(AppFont.captionXS)
+
+            ShakerBarView(shakerRecord: shakerRecord(for: day.status))
+                .frame(width: 34, height: 34)
+
+            Text(day.day)
+                .foregroundColor(day.isToday ? AppColors.neutral1000 : AppColors.neutral400)
+                .appText(AppFont.captionS)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 2)
+                .background(day.isToday ? AppColors.green300 : Color.clear)
+                .cornerRadius(999)
+        }
+        .frame(width: 40)
+    }
+
+    private func shakerRecord(for status: WeeklyDayUI.Status) -> ShakerRecord {
+        switch status {
+        case .all:
+            return ShakerRecord(
+                progress: 100,
+                completedCount: 1,
+                totalCount: 1,
+                lidColor: LinearGradient(colors: [AppColors.green300, AppColors.green200], startPoint: .leading, endPoint: .trailing)
+            )
+        case .partial:
+            return ShakerRecord(
+                progress: 50,
+                completedCount: 1,
+                totalCount: 2,
+                lidColor: LinearGradient(colors: [AppColors.neutral500, AppColors.neutral500], startPoint: .leading, endPoint: .trailing)
+            )
+        case .none:
+            return ShakerRecord(
+                progress: 0,
+                completedCount: 0,
+                totalCount: 1,
+                lidColor: LinearGradient(colors: [AppColors.neutral500, AppColors.neutral500], startPoint: .leading, endPoint: .trailing)
+            )
+        }
+    }
+}
+
+private struct TodayTaskRow: View {
+    let title: String
+    let isCompleted: Bool
+    let hasProof: Bool
+    let proofURL: String?
+    let onToggle: () -> Void
+
+    let showAddPhoto: Bool
+    let onTapAddPhoto: (() -> Void)?
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Button(action: onToggle) {
+                Image(isCompleted ? "checkboxFilled" : "checkboxEmpty")
+                    .foregroundColor(.primary)
+                    .imageScale(.large)
+            }
+            .buttonStyle(.plain)
+
+            Text(title)
+                .foregroundColor(AppColors.textWhite)
+                .appText(AppFont.body1)
+                .strikethrough(isCompleted, color: AppColors.neutral400)
+                .padding(.leading, 13.42)
+
+            Spacer()
+
+            if showAddPhoto {
+                Button(action: { onTapAddPhoto?() }) {
+                    Group {
+                        if let proofURL,
+                           let url = URL(string: proofURL),
+                           hasProof {
+                            AsyncImage(url: url) { phase in
+                                switch phase {
+                                case .success(let image):
+                                    image
+                                        .resizable()
+                                        .scaledToFill()
+                                default:
+                                    Image("addPhoto")
+                                        .resizable()
+                                        .scaledToFit()
+                                }
+                            }
+                        } else {
+                            Image("addPhoto")
+                                .resizable()
+                                .scaledToFit()
+                        }
+                    }
+                    .frame(width: 36, height: 36)
+                    .clipShape(Circle())
+                    .id(proofURL ?? "addPhoto")
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .contentShape(Rectangle())
+    }
+}
+
+private struct ParticipantRow: View {
+    let participant: ChallengeParticipantUI
+    let showCrown: Bool
+
+    var body: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(AppColors.neutral900)
+                    .frame(width: 40, height: 40)
+                Text(participant.emoji)
+                    .font(.system(size: 22))
+            }
+            
+            HStack(spacing: 6) {
+                Text(participant.name)
+                    .foregroundColor(AppColors.textWhite)
+                    .appText(AppFont.captionM)
+                if showCrown {
+                    Image("challengeCrown")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 14, height: 10)
+                }
+            }
+            
+            Spacer()
+            
+            Text("\(participant.joinedDays) day\(participant.joinedDays == 1 ? "" : "s")")
+                .foregroundColor(AppColors.neutral300)
+                .appText(AppFont.captionM)
+                .frame(width: 63, height: 26)
+                .background(AppColors.neutral900)
+                .cornerRadius(8)
+        }
+    }
+}
+
+private struct GalleryThumb: View {
+    let imageURL: String
+
+    var body: some View {
+        AsyncImage(url: URL(string: imageURL)) { phase in
+            switch phase {
+            case .success(let image):
+                image
+                    .resizable()
+                    .scaledToFill()
+            default:
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(AppColors.neutral900)
+                    .overlay(
+                        Image(systemName: "photo")
+                            .foregroundColor(AppColors.neutral400)
+                    )
+            }
+        }
+        .frame(width: 89, height: 89)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+private struct FullGallerySheet: View {
+    let items: [ChallengeGalleryItemUI]
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                    ForEach(items) { item in
+                        GalleryThumb(imageURL: item.imageURL)
+                    }
+                }
+                .padding(16)
+            }
+            .background(AppColors.neutral1000)
+            .navigationTitle("Gallery")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+    }
+}
+
+private struct ChallengeImagePicker: UIViewControllerRepresentable {
+    let sourceType: UIImagePickerController.SourceType
+    @Binding var selectedImage: UIImage?
+    @Environment(\.dismiss) private var dismiss
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = sourceType
+        picker.delegate = context.coordinator
+        picker.allowsEditing = false
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
+    }
+
+    final class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let parent: ChallengeImagePicker
+
+        init(parent: ChallengeImagePicker) {
+            self.parent = parent
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            parent.dismiss()
+        }
+
+        func imagePickerController(
+            _ picker: UIImagePickerController,
+            didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]
+        ) {
+            if let image = info[.originalImage] as? UIImage {
+                parent.selectedImage = image
+            }
+            parent.dismiss()
+        }
+    }
+}
+
+private struct ChallengeJarView: View {
+    let jarItems: [JarItemUI]
+    let isSealed: Bool
+
+    @State private var scene = ShakerScene(size: .zero)
+    @State private var didConfigure = false
+
+    private let lidHeightRatio: CGFloat = 46.0 / 270.0
+    private let lidCornerRatio: CGFloat = 13.0 / 270.0
+    private let lidTopInsetRatio: CGFloat = 23.5 / 270.0
+
+    var body: some View {
+        GeometryReader { geo in
+            let side = min(geo.size.width, geo.size.height)
+            let jarSize = CGSize(width: side, height: side)
+
+            ZStack {
+                Image("jarBase")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: jarSize.width, height: jarSize.height)
+                    .allowsHitTesting(false)
+
+                Rectangle()
+                    .fill(
+                        LinearGradient(
+                            colors: [AppColors.green300, AppColors.green300.opacity(0.7)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(width: jarSize.width, height: jarSize.height * lidHeightRatio)
+                    .cornerRadius(jarSize.height * lidCornerRatio)
+                    .offset(y: -jarSize.height / 2 + jarSize.height * lidTopInsetRatio)
+                    .opacity(isSealed ? 1 : 0)
+                    .animation(.easeInOut(duration: 0.25), value: isSealed)
+                    .allowsHitTesting(false)
+
+                SpriteView(scene: scene, options: [.allowsTransparency])
+                    .frame(width: jarSize.width, height: jarSize.height)
+                    .allowsHitTesting(false)
+
+                Image("glitchLid")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: jarSize.width, height: jarSize.height)
+                    .allowsHitTesting(false)
+            }
+            .frame(width: geo.size.width, height: geo.size.height, alignment: .center)
+            .onAppear {
+                if scene.size == .zero {
+                    scene = ShakerScene(size: jarSize)
+                }
+
+                scene.setEmojiScale(1.0)
+                scene.setMotionEnabled(true)
+                scene.configureBoundaries(inset: 12, lidHeight: 40)
+                scene.setHapticsEnabled(false)
+
+                syncJarItemsToScene()
+                didConfigure = true
+            }
+            .onChange(of: jarItems.map { "\($0.id.uuidString):\($0.emoji)" }.joined(separator: ",")) { _ in
+                guard didConfigure else { return }
+                syncJarItemsToScene()
+            }
+        }
+        .aspectRatio(1, contentMode: .fit)
+    }
+
+    private func syncJarItemsToScene() {
+        scene.resetScene()
+        for item in jarItems {
+            scene.addEmoji(item.emoji, for: item.id)
+        }
+    }
+}
+
+#Preview {
+    ChallengeDetailView(challengeId: UUID())
+}
