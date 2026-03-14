@@ -34,7 +34,7 @@ struct Profile: Codable, Identifiable, Equatable {
 
     /// Specifies the keys to be used for encoding and decoding, excluding `friendsCount`.
     private enum CodingKeys: String, CodingKey {
-        case id, name, avatar_url, bio, email, phoneNumber
+        case id, name, username, avatar_url, bio, email, phoneNumber
     }
 }
 

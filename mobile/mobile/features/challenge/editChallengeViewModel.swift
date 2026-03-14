@@ -29,6 +29,9 @@ class EditChallengeViewModel: ObservableObject {
     @Published var members: [MemberInfo] = []
     @Published var pendingInvites: [PendingInviteInfo] = []
 
+    // New friend IDs selected via InviteFriendsView to be invited on save.
+    @Published var invitedFriendIds: Set<String> = []
+
     // Status
     @Published var isLoading: Bool = false
     @Published var isSaving: Bool = false
@@ -226,6 +229,30 @@ class EditChallengeViewModel: ObservableObject {
                     .execute()
             }
 
+            // Insert pending invites for newly selected friends (skip already invited or already joined).
+            if !invitedFriendIds.isEmpty,
+               let session = try? await client.auth.session {
+                let inviterUserId = session.user.id
+                let existingInviteeIds = Set(pendingInvites.compactMap { $0.userId?.uuidString })
+                let existingMemberIds = Set(members.map { $0.userId.uuidString })
+
+                for friendIdString in invitedFriendIds {
+                    guard !existingInviteeIds.contains(friendIdString),
+                          !existingMemberIds.contains(friendIdString),
+                          let friendUUID = UUID(uuidString: friendIdString) else { continue }
+
+                    let invite = ChallengeInviteInsert(
+                        challenge_id: challengeId,
+                        inviter_user_id: inviterUserId,
+                        invitee_user_id: friendUUID
+                    )
+                    try await client
+                        .from("challenge_invites")
+                        .insert(invite)
+                        .execute()
+                }
+            }
+
             didSaveSuccessfully = true
 
         } catch {
@@ -252,6 +279,39 @@ class EditChallengeViewModel: ObservableObject {
         } catch {
             errorMessage = "Failed to delete challenge: \(error.localizedDescription)"
             print("❌ deleteChallenge error: \(error)")
+        }
+    }
+
+    // MARK: - Remove member
+
+    func removeMember(userId: UUID) async {
+        guard let client = client else { return }
+        do {
+            try await client
+                .from("challenge_members")
+                .delete()
+                .eq("challenge_id", value: challengeId.uuidString)
+                .eq("user_id", value: userId.uuidString)
+                .execute()
+            members.removeAll { $0.userId == userId }
+        } catch {
+            errorMessage = "Failed to remove member: \(error.localizedDescription)"
+        }
+    }
+
+    // MARK: - Delete invite
+
+    func deleteInvite(inviteId: UUID) async {
+        guard let client = client else { return }
+        do {
+            try await client
+                .from("challenge_invites")
+                .delete()
+                .eq("id", value: inviteId.uuidString)
+                .execute()
+            pendingInvites.removeAll { $0.id == inviteId }
+        } catch {
+            errorMessage = "Failed to remove invite: \(error.localizedDescription)"
         }
     }
 

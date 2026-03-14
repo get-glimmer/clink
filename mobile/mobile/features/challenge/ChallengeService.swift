@@ -27,7 +27,7 @@ class ChallengeService: ObservableObject {
         }
     }
 
-    // MARK: - Fetch All Challenges (owned + accepted invite)
+    // MARK: - Fetch All Challenges (owned only)
 
     func fetchChallenges() async throws -> [ChallengeItem] {
         guard let supabase = supabase,
@@ -36,46 +36,16 @@ class ChallengeService: ObservableObject {
                           userInfo: [NSLocalizedDescriptionKey: "Service not properly initialized"])
         }
 
-        // 1. Challenges owned by the current user
-        let owned: [ChallengeData] = try await supabase
+        let challenges: [ChallengeData] = try await supabase
             .from("challenges")
             .select("*")
             .eq("owner_user_id", value: currentUserId)
+            .order("end_date", ascending: true)
             .execute()
             .value
-        let ownedIds = Set(owned.map { $0.id })
 
-        // 2. Challenges where the user has an accepted invite
-        struct InviteRow: Decodable { let challenge_id: UUID }
-        let accepted: [InviteRow] = try await supabase
-            .from("challenge_invites")
-            .select("challenge_id")
-            .eq("invitee_user_id", value: currentUserId)
-            .eq("status", value: "accepted")
-            .execute()
-            .value
-        let acceptedIds = Set(accepted.map { $0.challenge_id })
-
-        // 3. Merge, deduplicate, fetch any rows not already in owned
-        guard !ownedIds.union(acceptedIds).isEmpty else { return [] }
-
-        var allChallenges = owned
-        let missingIds = acceptedIds.subtracting(ownedIds)
-        if !missingIds.isEmpty {
-            let extra: [ChallengeData] = try await supabase
-                .from("challenges")
-                .select("*")
-                .in("id", value: missingIds.map { $0.uuidString })
-                .execute()
-                .value
-            allChallenges += extra
-        }
-
-        allChallenges.sort { ($0.end_date ?? "") < ($1.end_date ?? "") }
-
-        // 4. Assemble UI items
         var items: [ChallengeItem] = []
-        for challenge in allChallenges {
+        for challenge in challenges {
             let item = try await assembleItem(challenge: challenge, supabase: supabase)
             items.append(item)
         }
