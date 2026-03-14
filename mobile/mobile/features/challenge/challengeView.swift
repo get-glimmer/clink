@@ -172,11 +172,23 @@ struct ChallengeView: View {
                 viewModel.refreshChallenges()
             }
         }
+        // DEV ONLY: edit challenge sheet, triggered by tapping the shaker
+        .fullScreenCover(isPresented: $viewModel.showEditChallenge) {
+            if let challengeId = viewModel.selectedChallengeId {
+                EditChallengeView(challengeId: challengeId)
+            }
+        }
+        .onChange(of: viewModel.showEditChallenge) { isShowing in
+            if !isShowing {
+                viewModel.refreshChallenges()
+            }
+        }
     }
 }
 
 struct ChallengeCard: View {
     let challenge: ChallengeItem
+    var onTapShaker: (() -> Void)? = nil
 
     var body: some View {
         HStack(spacing: 0) {
@@ -241,6 +253,7 @@ struct ChallengeCard: View {
             // Right: Shaker Preview
             ChallengeShakerPreview(challenge: challenge)
                 .frame(width: 100, height: 100)
+                .onTapGesture { onTapShaker?() }
         }
         .padding(16)
         .background(AppColors.neutral900)
@@ -346,6 +359,7 @@ struct SwipeableChallengeCard: View {
     let challenge: ChallengeItem
     let onTap: () -> Void
     let onDelete: () -> Void
+    var onTapShaker: (() -> Void)? = nil
 
     @State private var offset: CGFloat = 0
     @State private var showingTrash: Bool = false
@@ -367,7 +381,7 @@ struct SwipeableChallengeCard: View {
             }
 
             // Card content
-            ChallengeCard(challenge: challenge)
+            ChallengeCard(challenge: challenge, onTapShaker: onTapShaker)
                 .offset(x: offset)
                 .contentShape(Rectangle())
                 .gesture(

@@ -95,3 +95,10 @@ struct ChallengeMemberInsert: Encodable {
     let user_id: UUID
     let role: String
 }
+
+// Payload for inserting a pending invite into challenge_invites.
+struct ChallengeInviteInsert: Encodable {
+    let challenge_id: UUID
+    let inviter_user_id: UUID
+    let invitee_user_id: UUID
+}

@@ -25,6 +25,9 @@ class CreateChallengeViewModel: ObservableObject {
     @Published var selectedWeeklyDays: Set<Int> = []   // 0 = Sun … 6 = Sat
     @Published var selectedMonthlyDays: Set<Int> = []  // 1 … 31
 
+    // User IDs selected in InviteFriendsView; persisted here so state survives sheet dismissal.
+    @Published var invitedFriendIds: Set<String> = []
+
     // Status
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
@@ -141,6 +144,23 @@ class CreateChallengeViewModel: ObservableObject {
                 .from("challenge_members")
                 .insert(memberPayload)
                 .execute()
+
+            print("[Challenges] ✅ Challenge created: '\(challengeTitle.trimmingCharacters(in: .whitespacesAndNewlines))' (id: \(inserted.id))")
+
+            // Insert a pending invite row in challenge_invites for each selected friend.
+            for friendIdString in invitedFriendIds {
+                guard let friendUUID = UUID(uuidString: friendIdString) else { continue }
+                let invite = ChallengeInviteInsert(
+                    challenge_id: inserted.id,
+                    inviter_user_id: userId,
+                    invitee_user_id: friendUUID
+                )
+                try await client
+                    .from("challenge_invites")
+                    .insert(invite)
+                    .execute()
+                print("[Challenges] 📨 Invite sent to userId: \(friendIdString) for challenge id: \(inserted.id)")
+            }
 
             didCreateSuccessfully = true
 

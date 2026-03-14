@@ -21,6 +21,22 @@ struct ChallengeTaskRecord: Decodable {
     let sortorder: Int?
 }
 
+// Read model for challenge_invites rows; includes status to display invite lifecycle.
+struct ChallengeInviteRecord: Decodable {
+    let id: UUID
+    let invitee_user_id: UUID?
+    let status: String
+}
+
+// UI-ready model for a challenge invite with resolved profile data.
+struct PendingInviteInfo: Identifiable {
+    let id: UUID        // invite record id
+    let userId: UUID?
+    let name: String?
+    let avatarUrl: String?
+    let status: String  // raw value from challenge_invites.status (e.g. "pending", "accepted")
+}
+
 struct ChallengeUpdate: Encodable {
     let title: String
     let description: String?

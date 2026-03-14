@@ -9,19 +9,7 @@ struct EditChallengeView: View {
     @State private var showToDateSheet: Bool = false
     @State private var monthCursor: Date = Date()           // Tracks which month is visible in the monthly day picker.
     @State private var showDeleteConfirmation: Bool = false // Guards the destructive delete action.
-
-    private struct InvitedFriend: Identifiable {
-        let id = UUID()
-        let name: String
-        let status: String
-        let isPending: Bool
-    }
-
-    private let invitedFriends: [InvitedFriend] = [
-        InvitedFriend(name: "Seeunne", status: "Joined",  isPending: false),
-        InvitedFriend(name: "Seeunne", status: "Joined",  isPending: false),
-        InvitedFriend(name: "Seeunne", status: "Pending", isPending: true)
-    ]
+    @State private var showInviteFriends: Bool = false
 
     // Custom init required to forward challengeId into the @StateObject at creation time.
     init(challengeId: UUID) {
@@ -121,6 +109,9 @@ struct EditChallengeView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: showToDateSheet)
+        .sheet(isPresented: $showInviteFriends) {
+            InviteFriendsView(invitedIds: $viewModel.invitedFriendIds)
+        }
     }
 
     // MARK: - Header bar
@@ -452,28 +443,72 @@ struct EditChallengeView: View {
         }
     }
 
-    // MARK: - Invited friends list
+    // MARK: - Members + pending invites
+    @ViewBuilder
     private var invitedSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            sectionLabel("Invited Friends")
+        if !viewModel.members.isEmpty || !viewModel.pendingInvites.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                sectionLabel("Members")
 
-            VStack(spacing: 10) {
-                ForEach(invitedFriends) { friend in
-                    HStack(spacing: 10) {
-                        Image("friends")
-                        Text(friend.name)
-                            .appFont(AppFont.labelM)
-                            .foregroundColor(.white)
-                        Spacer()
-                        Text(friend.status)
-                            .appFont(AppFont.captionS)
-                            .foregroundColor(friend.isPending ? Color("Neutral-500") : Color("Neutral-200"))
+                let rowHeight: CGFloat = 60  // 50 item + 10 bottom spacing
+                let totalCount = viewModel.members.count + viewModel.pendingInvites.count
+
+                List {
+                    ForEach(viewModel.members, id: \.userId) { member in
+                        HStack(spacing: 10) {
+                            AvatarView(imageURLOrName: member.avatarUrl, size: 36)
+                            Text(member.name ?? "Unknown")
+                                .appFont(AppFont.labelM)
+                                .foregroundColor(.white)
+                            Spacer()
+                            Text(member.role == "owner" ? "Owner" : "Joined")
+                                .appFont(AppFont.captionS)
+                                .foregroundColor(member.role == "owner" ? Color("Neutral-200") : Color("Neutral-500"))
+                        }
+                        .padding(.horizontal, 14)
+                        .frame(height: 50)
+                        .listRowBackground(Color("Neutral-900").clipShape(RoundedRectangle(cornerRadius: 10)))
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 10, trailing: 0))
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            if member.role != "owner" {
+                                Button(role: .destructive) {
+                                    Task { await viewModel.removeMember(userId: member.userId) }
+                                } label: {
+                                    Label("Remove", systemImage: "trash")
+                                }
+                            }
+                        }
                     }
-                    .padding(.horizontal, 14)
-                    .frame(height: 44)
-                    .background(Color("Neutral-900"))
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                    ForEach(viewModel.pendingInvites) { invite in
+                        HStack(spacing: 10) {
+                            AvatarView(imageURLOrName: invite.avatarUrl, size: 36)
+                            Text(invite.name ?? "Unknown")
+                                .appFont(AppFont.labelM)
+                                .foregroundColor(.white)
+                            Spacer()
+                            Text(invite.status.capitalized)
+                                .appFont(AppFont.captionS)
+                                .foregroundColor(Color("Neutral-500"))
+                        }
+                        .padding(.horizontal, 14)
+                        .frame(height: 50)
+                        .listRowBackground(Color("Neutral-900").clipShape(RoundedRectangle(cornerRadius: 10)))
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 10, trailing: 0))
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) {
+                                Task { await viewModel.deleteInvite(inviteId: invite.id) }
+                            } label: {
+                                Label("Remove", systemImage: "trash")
+                            }
+                        }
+                    }
                 }
+                .listStyle(.plain)
+                .scrollDisabled(true)
+                .frame(height: CGFloat(totalCount) * rowHeight)
             }
         }
     }
@@ -481,7 +516,35 @@ struct EditChallengeView: View {
     // MARK: - Invite action buttons
     private var inviteActions: some View {
         VStack(alignment: .leading, spacing: 10) {
-            outlineButton(title: "Add Friends",    iconName: "friends",        isSystem: false, isDashed: true)  {}
+            if !viewModel.invitedFriendIds.isEmpty {
+                HStack {
+                    Image("friends")
+                    Text("\(viewModel.invitedFriendIds.count) friend\(viewModel.invitedFriendIds.count == 1 ? "" : "s") invited")
+                        .appFont(AppFont.labelM)
+                        .foregroundColor(Color("White"))
+                    Spacer()
+                    Button {
+                        showInviteFriends = true
+                    } label: {
+                        Text("Edit")
+                            .appFont(AppFont.captionS)
+                            .foregroundColor(Color("Neutral-400"))
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 14)
+                .frame(height: 44)
+                .background(Color("Neutral-900"))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .strokeBorder(Color("Neutral-700"), lineWidth: 1)
+                )
+            }
+
+            outlineButton(title: "Add Friends", iconName: "friends", isSystem: false, isDashed: true) {
+                showInviteFriends = true
+            }
             outlineButton(title: "Invite via Link", iconName: "arrowsCircular", isSystem: false, isDashed: false) {}
         }
     }

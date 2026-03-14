@@ -27,7 +27,7 @@ class ChallengeService: ObservableObject {
         }
     }
 
-    // MARK: - Fetch All Challenges (current user is a member)
+    // MARK: - Fetch All Challenges (owned only)
 
     func fetchChallenges() async throws -> [ChallengeItem] {
         guard let supabase = supabase,
@@ -36,36 +36,21 @@ class ChallengeService: ObservableObject {
                           userInfo: [NSLocalizedDescriptionKey: "Service not properly initialized"])
         }
 
-        // 1. Get challenge IDs where the current user is an active member
-        let allMemberships: [ChallengeMemberData] = try await supabase
-            .from("challenge_members")
-            .select("*")
-            .eq("user_id", value: currentUserId)
-            .execute()
-            .value
-
-        // Filter to active members (left_at is nil)
-        let memberships = allMemberships.filter { $0.left_at == nil }
-        let challengeIds = memberships.map { $0.challenge_id.uuidString }
-
-        guard !challengeIds.isEmpty else { return [] }
-
-        // 2. Fetch the challenge rows
         let challenges: [ChallengeData] = try await supabase
             .from("challenges")
             .select("*")
-            .in("id", value: challengeIds)
+            .eq("owner_user_id", value: currentUserId)
             .order("end_date", ascending: true)
             .execute()
             .value
 
-        // 3. Assemble ChallengeItems
         var items: [ChallengeItem] = []
         for challenge in challenges {
             let item = try await assembleItem(challenge: challenge, supabase: supabase)
             items.append(item)
         }
 
+        print("[Challenges] fetchChallenges: \(items.count) challenge(s) for userId: \(currentUserId)")
         return items
     }
 
