@@ -205,7 +205,7 @@ struct CreateChallengeView: View {
                 }
 
                 if viewModel.dailyTasks.count < 5 {
-                    outlineButton(title: "Add Task", iconName: "plus", isSystem: true, isDashed: false) {
+                    outlineButton(title: "Add Task", iconName: "addTask", isSystem: false, isDashed: false, iconSize: CGSize(width: 14, height: 14)) {
                         viewModel.dailyTasks.append("")
                     }
                 }
@@ -221,7 +221,7 @@ struct CreateChallengeView: View {
             VStack(spacing: 0) {
                 Button { showFromDateSheet = true } label: {
                     selectionRow(
-                        iconName: "calendar",
+                        iconName: "duration",
                         title: "From",
                         value: viewModel.fromDateSelected ? dateFormatter.string(from: viewModel.fromDate) : "None",
                         trailingIconName: "chevronRight"
@@ -233,7 +233,7 @@ struct CreateChallengeView: View {
 
                 Button { showToDateSheet = true } label: {
                     selectionRow(
-                        iconName: "calendar",
+                        iconName: "duration",
                         title: "To",
                         value: viewModel.toDateSelected ? dateFormatter.string(from: viewModel.toDate) : "None",
                         trailingIconName: "chevronRight"
@@ -257,6 +257,9 @@ struct CreateChallengeView: View {
                 HStack {
                     HStack {
                         Image("repeat")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 24, height: 24)
                         Text("Repeat")
                             .appFont(AppFont.labelM)
                             .foregroundColor(Color("Neutral-300"))
@@ -341,7 +344,10 @@ struct CreateChallengeView: View {
                         viewModel.selectedProof = .photo
                     } label: {
                         HStack(spacing: 8) {
-                            Image(systemName: "photo")
+                            Image("camera")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 24, height: 24)
                             Text("Photo Upload")
                                 .appFont(AppFont.labelM)
                         }
@@ -361,8 +367,10 @@ struct CreateChallengeView: View {
                             } label: {
                                 HStack(spacing: 6) {
                                     if viewModel.isProofRequired {
-                                        Image(systemName: "checkmark.circle.fill")
-                                            .foregroundColor(Color("Green-300"))
+                                        Image("proofTypeSelected")
+                                            .resizable()
+                                            .scaledToFit()
+                                            .frame(width: 16, height: 16)
                                     }
                                     Text("Required")
                                         .appFont(AppFont.labelM)
@@ -377,12 +385,20 @@ struct CreateChallengeView: View {
                             Button {
                                 viewModel.isProofRequired = false
                             } label: {
-                                Text("Optional")
-                                    .appFont(AppFont.labelM)
-                                    .foregroundColor(viewModel.isProofRequired ? Color("Neutral-400") : Color("White"))
-                                    .frame(maxWidth: .infinity, minHeight: 36)
-                                    .background(viewModel.isProofRequired ? Color.clear : Color("Neutral-800"))
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                                HStack(spacing: 6) {
+                                    if !viewModel.isProofRequired {
+                                        Image("proofTypeSelected")
+                                            .resizable()
+                                            .scaledToFit()
+                                            .frame(width: 16, height: 16)
+                                    }
+                                    Text("Optional")
+                                        .appFont(AppFont.labelM)
+                                }
+                                .foregroundColor(viewModel.isProofRequired ? Color("Neutral-400") : Color("White"))
+                                .frame(maxWidth: .infinity, minHeight: 36)
+                                .background(viewModel.isProofRequired ? Color.clear : Color("Neutral-800"))
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
                             }
                             .buttonStyle(.plain)
                         }
@@ -417,9 +433,19 @@ struct CreateChallengeView: View {
                     viewModel.selectedProof = .checklist
                 } label: {
                     HStack(spacing: 8) {
-                        Image("checkboxEmpty")
+                        Image("checklist")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 20, height: 20)
                         Text("Checklist")
                             .appFont(AppFont.labelM)
+                        Spacer()
+                        if viewModel.selectedProof == .checklist {
+                            Image("proofTypeSelected")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 16, height: 16)
+                        }
                     }
                     .foregroundColor(viewModel.selectedProof == .checklist ? Color("White") : Color("Neutral-400"))
                     .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
@@ -468,10 +494,10 @@ struct CreateChallengeView: View {
                     )
                 }
 
-                outlineButton(title: "Add Friends", iconName: "friends", isSystem: false, isDashed: true) {
+                outlineButton(title: "Add Friends", iconName: "addFriends", isSystem: false, isDashed: true, iconSize: CGSize(width: 14, height: 14)) {
                     showInviteFriends = true
                 }
-                outlineButton(title: "Invite via Link", iconName: "arrowsCircular", isSystem: false, isDashed: false) {}
+                outlineButton(title: "Invite via Link", iconName: "inviteViaLink", isSystem: false, isDashed: false, iconSize: CGSize(width: 16, height: 8)) {}
             }
         }
     }
@@ -490,9 +516,9 @@ struct CreateChallengeView: View {
             } else {
                 Text("Create Challenge")
                     .appFont(AppFont.title3)
-                    .foregroundColor(viewModel.isCreateEnabled ? .white : Color("Neutral-500"))
+                    .foregroundColor(viewModel.isCreateEnabled ? Color("Neutral-1000") : Color("Neutral-500"))
                     .frame(maxWidth: .infinity, minHeight: 56)
-                    .background(viewModel.isCreateEnabled ? Color("Neutral-700") : Color("Neutral-800"))
+                    .background(viewModel.isCreateEnabled ? Color("Green-300") : Color("Neutral-800"))
                     .clipShape(RoundedRectangle(cornerRadius: 12))
             }
         }
@@ -524,6 +550,9 @@ struct CreateChallengeView: View {
     private func selectionRow(iconName: String, title: String, value: String, trailingIconName: String) -> some View {
         HStack(spacing: 12) {
             Image(iconName)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 24, height: 24)
             Text(title)
                 .appFont(AppFont.labelM)
                 .foregroundColor(Color("Neutral-300"))
@@ -541,11 +570,16 @@ struct CreateChallengeView: View {
         .frame(height: 52)
     }
 
-    private func outlineButton(title: String, iconName: String, isSystem: Bool, isDashed: Bool, action: @escaping () -> Void) -> some View {
+    private func outlineButton(title: String, iconName: String, isSystem: Bool, isDashed: Bool, iconSize: CGSize? = nil, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 10) {
                 if isSystem {
                     Image(systemName: iconName)
+                } else if let size = iconSize {
+                    Image(iconName)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: size.width, height: size.height)
                 } else {
                     Image(iconName)
                 }

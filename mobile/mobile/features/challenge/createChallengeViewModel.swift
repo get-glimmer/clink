@@ -35,9 +35,13 @@ class CreateChallengeViewModel: ObservableObject {
 
     private let client = SupabaseClientManager.shared.client
 
-    // Create button is active only when the title is non-empty.
+    // Create button is active only when all required fields are filled.
     var isCreateEnabled: Bool {
         !challengeTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !descriptionText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && dailyTasks.contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            && fromDateSelected
+            && toDateSelected
     }
 
     // Human-readable label shown in the Repeat row (e.g. "Mon, Wed" or "1, 15").

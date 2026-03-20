@@ -42,13 +42,50 @@ class EditChallengeViewModel: ObservableObject {
     let challengeId: UUID
     private let client = SupabaseClientManager.shared.client
 
+    // Snapshot of values as loaded — used to detect unsaved changes.
+    private var _snapshotTitle: String = ""
+    private var _snapshotDescription: String = ""
+    private var _snapshotDailyTasks: [String] = []
+    private var _snapshotFromDate: Date = Date()
+    private var _snapshotFromDateSelected: Bool = false
+    private var _snapshotToDate: Date = Date()
+    private var _snapshotToDateSelected: Bool = false
+    private var _snapshotRepeatType: RepeatType = .everyday
+    private var _snapshotWeeklyDays: Set<Int> = []
+    private var _snapshotMonthlyDays: Set<Int> = []
+    private var _snapshotSelectedProof: ProofType = .photo
+    private var _snapshotIsProofRequired: Bool = true
+
     init(challengeId: UUID) {
         self.challengeId = challengeId
         Task { await loadChallenge() }  // Pre-populate form fields as soon as the VM is created.
     }
 
-    var isSaveEnabled: Bool {
+    var allInputsFilled: Bool {
         !challengeTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !descriptionText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && dailyTasks.contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            && fromDateSelected
+            && toDateSelected
+    }
+
+    var hasChanges: Bool {
+        challengeTitle != _snapshotTitle
+            || descriptionText != _snapshotDescription
+            || dailyTasks != _snapshotDailyTasks
+            || fromDate != _snapshotFromDate
+            || fromDateSelected != _snapshotFromDateSelected
+            || toDate != _snapshotToDate
+            || toDateSelected != _snapshotToDateSelected
+            || repeatType != _snapshotRepeatType
+            || selectedWeeklyDays != _snapshotWeeklyDays
+            || selectedMonthlyDays != _snapshotMonthlyDays
+            || selectedProof != _snapshotSelectedProof
+            || isProofRequired != _snapshotIsProofRequired
+    }
+
+    var isSaveEnabled: Bool {
+        hasChanges && allInputsFilled
     }
 
     // MARK: - Load existing challenge
@@ -164,6 +201,20 @@ class EditChallengeViewModel: ObservableObject {
                     status: invite.status
                 )
             }
+
+            // Snapshot all loaded values so hasChanges can detect edits.
+            _snapshotTitle = challengeTitle
+            _snapshotDescription = descriptionText
+            _snapshotDailyTasks = dailyTasks
+            _snapshotFromDate = fromDate
+            _snapshotFromDateSelected = fromDateSelected
+            _snapshotToDate = toDate
+            _snapshotToDateSelected = toDateSelected
+            _snapshotRepeatType = repeatType
+            _snapshotWeeklyDays = selectedWeeklyDays
+            _snapshotMonthlyDays = selectedMonthlyDays
+            _snapshotSelectedProof = selectedProof
+            _snapshotIsProofRequired = isProofRequired
 
         } catch {
             errorMessage = "Failed to load challenge: \(error.localizedDescription)"
