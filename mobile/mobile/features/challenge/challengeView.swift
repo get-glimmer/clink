@@ -232,6 +232,9 @@ struct ChallengeView: View {
                         withAnimation(.easeInOut(duration: 0.2)) {
                             viewModel.dismissPendingInviteOverlay()
                         }
+                    },
+                    onJoined: {
+                        viewModel.refreshChallenges()
                     }
                 )
                 .navBarHidden(true)
