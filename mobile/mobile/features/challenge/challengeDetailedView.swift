@@ -13,6 +13,8 @@ struct ChallengeDetailView: View {
     @State private var showPhotoLibraryPicker = false
     @State private var showAllParticipants = false
     @State private var showGallerySheet = false
+    @State private var showAllCommentsSheet = false
+    @State private var jarRemountToken = UUID()
     @State private var showEditChallenge = false
 
     var onBack: (() -> Void)?
@@ -56,7 +58,9 @@ struct ChallengeDetailView: View {
                         
                         participantsSection
                         
-                        gallerySection
+                        if viewModel.isPhotoProofEnabled {
+                            gallerySection
+                        }
                         
                         communitySupportSection
                             .padding(.bottom, 28)
@@ -67,6 +71,12 @@ struct ChallengeDetailView: View {
         }
         .task {
             await viewModel.load()
+        }
+        .onChange(of: viewModel.jarItems.count) { count in
+            // Force remount only when jar should become empty.
+            if count == 0 {
+                jarRemountToken = UUID()
+            }
         }
         .confirmationDialog("Add Proof Photo", isPresented: $showProofSourceDialog, titleVisibility: .visible) {
             Button("Take Photo") {
@@ -107,6 +117,8 @@ struct ChallengeDetailView: View {
         .sheet(isPresented: $showGallerySheet) {
             FullGallerySheet(items: viewModel.galleryItems)
         }
+        .sheet(isPresented: $showAllCommentsSheet) {
+            FullCommunityCommentsSheet(viewModel: viewModel)
         .fullScreenCover(isPresented: $showEditChallenge) {
             EditChallengeView(challengeId: viewModel.challengeId)
         }
@@ -151,6 +163,7 @@ private extension ChallengeDetailView {
             jarItems: viewModel.jarItems,
             isSealed: isSealedTodayFromWeekly(viewModel.weekly)
         )
+        .id(viewModel.jarItems.isEmpty ? "jar-empty-\(jarRemountToken.uuidString)" : "jar-active")
         .frame(height: 380)
     }
 
@@ -228,7 +241,7 @@ private extension ChallengeDetailView {
                         onToggle: {
                             viewModel.toggleTask(taskId: task.id)
                         },
-                        showAddPhoto: true,
+                        showAddPhoto: viewModel.isPhotoProofEnabled,
                         onTapAddPhoto: {
                             selectedProofTaskId = task.id
                             showProofSourceDialog = true
@@ -329,16 +342,42 @@ private extension ChallengeDetailView {
     }
     
     var communitySupportSection: some View {
-        HStack {
-            Text("Community Support")
-                .foregroundColor(AppColors.textWhite)
-                .appText(AppFont.labelM)
-            
-            Spacer()
-            
-            Text("View all")
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Community Support")
+                    .foregroundColor(AppColors.textWhite)
+                    .appText(AppFont.buttonM)
+
+                Spacer()
+
+                Button("View all") {
+                    showAllCommentsSheet = true
+                }
+                .buttonStyle(.plain)
                 .foregroundColor(AppColors.green300)
                 .appText(AppFont.buttonM)
+            }
+
+            if viewModel.communityComments.isEmpty {
+                Text("No comments yet. Leave encouragement first.")
+                    .foregroundColor(AppColors.neutral400)
+                    .appText(AppFont.captionM)
+                    .padding(.vertical, 8)
+            } else {
+                ForEach(Array(viewModel.communityComments.prefix(2))) { item in
+                    CommunityCommentRow(item: item)
+                }
+            }
+
+            CommunityComposerRow(
+                avatarURL: viewModel.currentUserAvatarURL,
+                text: $viewModel.commentDraft,
+                isSending: viewModel.isSendingComment
+            ) {
+                Task {
+                    await viewModel.submitComment()
+                }
+            }
         }
         .padding(.top, 6)
     }
@@ -588,6 +627,230 @@ private struct FullGallerySheet: View {
     }
 }
 
+private struct FullCommunityCommentsSheet: View {
+    @ObservedObject var viewModel: ChallengeDetailViewModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var pendingDeleteCommentId: Int64?
+    @State private var showDeleteConfirm = false
+
+    var body: some View {
+        ZStack {
+            AppColors.neutral1000.ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                HStack {
+                    Button(action: { dismiss() }) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.white.opacity(0.08))
+                                .frame(width: 40, height: 40)
+                                .overlay(
+                                    Circle()
+                                        .stroke(Color.white.opacity(0.10), lineWidth: 1)
+                                )
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(AppColors.textWhite)
+                        }
+                    }
+                    .buttonStyle(.plain)
+
+                    Spacer()
+
+                    Text("Community")
+                        .foregroundColor(AppColors.textWhite)
+                        .appText(AppFont.title2)
+
+                    Spacer()
+
+                    Color.clear
+                        .frame(width: 40, height: 40)
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .padding(.bottom, 16)
+
+                ScrollView(showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        ForEach(viewModel.communityComments) { item in
+                            CommunityCommentRow(
+                                item: item,
+                                showDelete: viewModel.isMyComment(item),
+                                onDelete: {
+                                    pendingDeleteCommentId = item.id
+                                    showDeleteConfirm = true
+                                }
+                            )
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 24)
+                }
+            }
+            .safeAreaInset(edge: .bottom) {
+                VStack(spacing: 0) {
+                    Rectangle()
+                        .fill(AppColors.neutral800)
+                        .frame(height: 1)
+
+                    CommunityComposerRow(
+                        avatarURL: viewModel.currentUserAvatarURL,
+                        text: $viewModel.commentDraft,
+                        isSending: viewModel.isSendingComment
+                    ) {
+                        Task {
+                            await viewModel.submitComment()
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(AppColors.neutral1000)
+                }
+            }
+        }
+        .confirmationDialog(
+            "Delete this comment?",
+            isPresented: $showDeleteConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                guard let id = pendingDeleteCommentId else { return }
+                Task {
+                    await viewModel.deleteComment(commentId: id)
+                }
+                pendingDeleteCommentId = nil
+            }
+            Button("Cancel", role: .cancel) {
+                pendingDeleteCommentId = nil
+            }
+        }
+    }
+}
+
+private struct CommentAvatarView: View {
+    let avatarURL: String?
+
+    var body: some View {
+        Group {
+            if let avatarURL,
+               let url = URL(string: avatarURL) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFill()
+                    default:
+                        Circle()
+                            .fill(AppColors.neutral900)
+                    }
+                }
+            } else {
+                Circle()
+                    .fill(AppColors.neutral900)
+            }
+        }
+        .frame(width: 40, height: 40)
+        .clipShape(Circle())
+    }
+}
+
+private struct CommunityCommentRow: View {
+    let item: ChallengeCommentUI
+    var showDelete: Bool = false
+    var onDelete: (() -> Void)? = nil
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            CommentAvatarView(avatarURL: item.commenterAvatarURL)
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text(item.comment)
+                    .foregroundColor(AppColors.textWhite)
+                    .appText(AppFont.body2)
+                    .lineLimit(1)
+                    .padding(.horizontal, 16)
+                    .frame(width: 322, height: 44, alignment: .leading)
+                    .background(AppColors.neutral900)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                HStack {
+                    HStack(spacing: 8) {
+                        Text(item.commenterName)
+                            .foregroundColor(AppColors.neutral400)
+                            .appText(AppFont.captionXS_M)
+                        Text("·")
+                            .foregroundColor(AppColors.neutral400)
+                            .appText(AppFont.captionXS_M)
+                        Text(item.relativeTimeText)
+                            .foregroundColor(AppColors.neutral400)
+                            .appText(AppFont.captionXS_M)
+                    }
+                    Spacer()
+                    if showDelete {
+                        Button("Delete") {
+                            onDelete?()
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundColor(Color("Red-300"))
+                        .appText(AppFont.buttonM)
+                    }
+                }
+                .padding(.leading, 12)
+            }
+        }
+    }
+}
+
+private struct CommunityComposerRow: View {
+    let avatarURL: String?
+    @Binding var text: String
+    let isSending: Bool
+    let onSend: () -> Void
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            CommentAvatarView(avatarURL: avatarURL)
+
+            HStack(spacing: 10) {
+                TextField("Add encouragement...", text: $text)
+                    .foregroundColor(AppColors.textWhite)
+                    .appText(AppFont.body2)
+                    .textInputAutocapitalization(.sentences)
+                    .disableAutocorrection(false)
+                    .submitLabel(.send)
+                    .onSubmit {
+                        if canSend {
+                            onSend()
+                        }
+                    }
+
+                Button(action: onSend) {
+                    Image("paperPlane")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 15, height: 14)
+                        .opacity(canSend ? 1 : 0.4)
+                }
+                .buttonStyle(.plain)
+                .disabled(!canSend)
+            }
+            .padding(.horizontal, 16)
+            .frame(width: 322, height: 44)
+            .background(AppColors.neutral900)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(AppColors.neutral800, lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
+    }
+
+    private var canSend: Bool {
+        !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isSending
+    }
+}
+
 private struct ChallengeImagePicker: UIViewControllerRepresentable {
     let sourceType: UIImagePickerController.SourceType
     @Binding var selectedImage: UIImage?
@@ -706,8 +969,4 @@ private struct ChallengeJarView: View {
             scene.addEmoji(item.emoji, for: item.id)
         }
     }
-}
-
-#Preview {
-    ChallengeDetailView(challengeId: UUID())
 }
