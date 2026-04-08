@@ -753,20 +753,20 @@ private extension ChallengeInvitationOverlay {
                     Group {
                         if isSelected {
                             ZStack {
-                                Color.white.opacity(0.22)
-                                    .frame(width: 36, height: 36)
+                                Color.white.opacity(0.23)
+                                    .frame(width: 33, height: 33)
                                     .mask(
                                         Text(emoji)
                                             .font(.system(size: 32))
                                     )
-                                    .blur(radius: 8)
+                                    .blur(radius: 6)
                                 Color.white.opacity(0.13)
-                                    .frame(width: 40, height: 40)
+                                    .frame(width: 33, height: 33)
                                     .mask(
                                         Text(emoji)
                                             .font(.system(size: 34))
                                     )
-                                    .blur(radius: 12)
+                                    .blur(radius: 9)
                             }
                         }
                     }
