@@ -36,10 +36,26 @@ class ChallengeService: ObservableObject {
                           userInfo: [NSLocalizedDescriptionKey: "Service not properly initialized"])
         }
 
+        // Challenges tab should include all active participations (owner + member).
+        let allMemberships: [ChallengeMemberData] = try await supabase
+            .from("challenge_members")
+            .select("*")
+            .eq("user_id", value: currentUserId)
+            .execute()
+            .value
+
+        let activeIds = Set(
+            allMemberships
+                .filter { $0.left_at == nil }
+                .map(\.challenge_id.uuidString)
+        )
+        let challengeIds = Array(activeIds)
+        guard !challengeIds.isEmpty else { return [] }
+
         let challenges: [ChallengeData] = try await supabase
             .from("challenges")
             .select("*")
-            .eq("owner_user_id", value: currentUserId)
+            .in("id", value: challengeIds)
             .order("end_date", ascending: true)
             .execute()
             .value
