@@ -72,15 +72,53 @@ struct ChallengeView: View {
                         .foregroundColor(AppColors.neutral400)
                     Spacer()
                 } else {
+                        let now = Date()
+                        let userId = getUserId()
+                        let active = viewModel.challenges.filter { challenge in
+                            guard let end = challenge.endDate else { return true }
+                            let isMember = challenge.members.contains { $0.userId.uuidString == userId }
+                            return end >= now && isMember
+                        }
+                        let completed = viewModel.challenges.filter { challenge in
+                            guard let end = challenge.endDate else { return false }
+                            let isMember = challenge.members.contains { $0.userId.uuidString == userId }
+                            return end < now && isMember
+                        }
+
                     ScrollView {
-                        VStack(spacing: 16) {
-                            ForEach(viewModel.challenges) { challenge in
-                                SwipeableChallengeCard(
-                                    challenge: challenge,
-                                    onDelete: {
-                                        viewModel.requestQuit(challenge: challenge)
-                                    }
-                                )
+                        VStack(alignment: .leading, spacing: 16) {
+                            // Active Challenges
+                            if !active.isEmpty {
+                                Text("Active Challenges")
+                                    .appFont(AppFont.labelM)
+                                    .foregroundColor(Color("Neutral-300"))
+                                    .padding(.top, 16)
+
+                                ForEach(active) { challenge in
+                                    SwipeableChallengeCard(
+                                        challenge: challenge,
+                                        onDelete: {
+                                            viewModel.requestQuit(challenge: challenge)
+                                        }
+                                    )
+                                }
+                            }
+
+                            // Completed
+                            if !completed.isEmpty {
+                                Text("Completed")
+                                    .appFont(AppFont.labelM)
+                                    .foregroundColor(Color("Neutral-300"))
+                                    .padding(.top, 16)
+
+                                ForEach(completed) { challenge in
+                                    SwipeableChallengeCard(
+                                        challenge: challenge,
+                                        onDelete: {
+                                            viewModel.requestQuit(challenge: challenge)
+                                        }
+                                    )
+                                }
                             }
                         }
                         .padding(.horizontal, 24)

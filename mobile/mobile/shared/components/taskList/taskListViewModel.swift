@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import WidgetKit
 
 @MainActor
 class TaskListViewModel: ObservableObject {
@@ -335,6 +336,8 @@ class TaskListViewModel: ObservableObject {
                 }
                 suppressSync = false
 
+                // Push complete snapshot (tasks + lid colors) to widget
+                pushWidgetData()
 
                 // Also brings shaker data that will be applied to tracker
                 try? await trackerViewModel?.fetchShakers()
@@ -383,6 +386,7 @@ class TaskListViewModel: ObservableObject {
             }
         }
         updateAllCompleted()
+        pushWidgetData()
         categoriesWithTasks = categoriesWithTasks
     }
     
@@ -425,6 +429,43 @@ class TaskListViewModel: ObservableObject {
             .filter { $0.category.type == .daily }
             .flatMap { $0.tasks }
         isAllCompleted = !dailyTasks.isEmpty && dailyTasks.allSatisfy { $0.isCompleted }
+    }
+
+    // MARK: - Widget data bridge
+    /// Snapshots current shaker state into App Group shared storage so the widget can display it.
+    private func pushWidgetData() {
+        // Only push for the current user viewing their own tasks today
+        guard viewerId == userId,
+              Calendar.current.isDateInToday(taskSelectedDate) else {
+            print("🟡 [WidgetPush] Skipped – viewerId=\(viewerId ?? "nil") userId=\(userId ?? "nil") isToday=\(Calendar.current.isDateInToday(taskSelectedDate))")
+            return
+        }
+        print("🟢 [WidgetPush] Pushing widget data...")
+
+        let dailyCategories = categoriesWithTasks.filter { $0.category.type == .daily }
+        let allDailyTasks = dailyCategories.flatMap { $0.tasks }
+        let completedTasks = allDailyTasks.filter { $0.isCompleted }
+
+        // Collect emojis for completed tasks (one per completed task, using date-aware emoji)
+        var emojis: [String] = []
+        for cat in dailyCategories {
+            let emoji = emojiFor(categoryId: cat.category.id, defaultEmoji: cat.category.emoji)
+            let count = cat.tasks.filter { $0.isCompleted }.count
+            for _ in 0..<count {
+                emojis.append(emoji)
+            }
+        }
+
+        let payload = ShakerWidgetPayload(
+            emojis: emojis,
+            totalTasks: allDailyTasks.count,
+            completedTasks: completedTasks.count,
+            lidColorStartHex: isAllCompleted ? lidColorStart : nil,
+            lidColorEndHex: isAllCompleted ? lidColorEnd : nil,
+            lastUpdated: Date()
+        )
+        ShakerWidgetDataProvider.write(payload)
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     // Supabase: shaker table sync
@@ -471,6 +512,7 @@ class TaskListViewModel: ObservableObject {
             await MainActor.run {
                 lidColorStart = start
                 lidColorEnd   = end
+                pushWidgetData()
             }
         } catch { print("[ShakerSync] colour update failed:", error) }
     }
