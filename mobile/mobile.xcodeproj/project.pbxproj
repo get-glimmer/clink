@@ -582,7 +582,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = Soohyeuk.mobile12;
+				PRODUCT_BUNDLE_IDENTIFIER = group.com.glimmer.shared;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPABASE_PUBLIC_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zZ29ra2xlYndqc3FjYWl6eW5xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk4NjU5MjEsImV4cCI6MjA2NTQ0MTkyMX0.hoFbrGyd8ZQIMf6rB2-mRn3xlHWBo4UvxnIkBSOxpf4";
 				SUPABASE_URL_KEY = "https://msgokklebwjsqcaizynq.supabase.co";
@@ -616,7 +616,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = Soohyeuk.mobile12;
+				PRODUCT_BUNDLE_IDENTIFIER = group.com.glimmer.shared;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPABASE_PUBLIC_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zZ29ra2xlYndqc3FjYWl6eW5xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk4NjU5MjEsImV4cCI6MjA2NTQ0MTkyMX0.hoFbrGyd8ZQIMf6rB2-mRn3xlHWBo4UvxnIkBSOxpf4";
 				SUPABASE_URL_KEY = "https://msgokklebwjsqcaizynq.supabase.co";
@@ -715,7 +715,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = Soohyeuk.mobile12.GlimmerWidget;
+				PRODUCT_BUNDLE_IDENTIFIER = group.com.glimmer.shared;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -746,7 +746,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = Soohyeuk.mobile12.GlimmerWidget;
+				PRODUCT_BUNDLE_IDENTIFIER = group.com.glimmer.shared;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
