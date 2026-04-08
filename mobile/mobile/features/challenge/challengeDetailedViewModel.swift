@@ -40,6 +40,16 @@ struct ChallengeGalleryItemUI: Identifiable {
     let createdAt: Date
 }
 
+struct ChallengeCommentUI: Identifiable {
+    let id: Int64
+    let commenterId: UUID
+    let commenterName: String
+    let commenterAvatarURL: String?
+    let comment: String
+    let createdAt: Date
+    let relativeTimeText: String
+}
+
 struct ChallengeTaskProofPhotoData: Codable, Identifiable {
     let id: UUID
     let challenge_id: UUID
@@ -49,6 +59,14 @@ struct ChallengeTaskProofPhotoData: Codable, Identifiable {
     let storage_path: String
     let proof_url: String
     let created_at: String?
+}
+
+struct ChallengeCommentData: Codable, Identifiable {
+    let id: Int64
+    let created_at: String?
+    let challenge_id: UUID
+    let commenter_id: UUID?
+    let comment: String?
 }
 
 @MainActor
@@ -71,6 +89,11 @@ final class ChallengeDetailViewModel: ObservableObject {
     @Published var todayTasks: [TodayTaskUI] = []
     @Published var participants: [ChallengeParticipantUI] = []
     @Published var galleryItems: [ChallengeGalleryItemUI] = []
+    @Published var communityComments: [ChallengeCommentUI] = []
+    @Published var commentDraft: String = ""
+    @Published var isSendingComment = false
+    @Published var currentUserAvatarURL: String?
+    @Published var isPhotoProofEnabled = true
 
     @Published var isFavorite = false
 
@@ -84,6 +107,7 @@ final class ChallengeDetailViewModel: ObservableObject {
     private var tasks: [ChallengeTaskData] = []
     private var completions: [ChallengeTaskCompletionData] = []
     private var proofPhotos: [ChallengeTaskProofPhotoData] = []
+    private var comments: [ChallengeCommentData] = []
     private var profilesByUserId: [UUID: ProfileData] = [:]
     private var persistedTodayCompletionByTask: [UUID: Bool] = [:]
 
@@ -100,6 +124,7 @@ final class ChallengeDetailViewModel: ObservableObject {
     }
 
     func toggleTask(taskId: UUID) {
+        guard isTaskToggleAllowed(on: Date()) else { return }
         guard let idx = todayTasks.firstIndex(where: { $0.id == taskId }) else { return }
         todayTasks[idx].isCompleted.toggle()
     }
@@ -217,7 +242,6 @@ final class ChallengeDetailViewModel: ObservableObject {
     func submitTodayChallenge() async {
         guard let client, let userId = currentUserId, isCompleteDayButtonEnabled else { return }
         isSubmittingDay = true
-        defer { isSubmittingDay = false }
 
         do {
             let today = formattedDate(Date())
@@ -267,10 +291,72 @@ final class ChallengeDetailViewModel: ObservableObject {
                         .execute()
                 }
             }
+            // Optimistic local update for immediate jar/progress refresh.
+            applyTodayCompletionOptimistically(userId: userId, date: today)
+            buildUI()
+            isSubmittingDay = false
 
+            // Keep server truth in sync without blocking UI responsiveness.
+            Task { [weak self] in
+                guard let self else { return }
+                await self.refreshAfterMutation()
+            }
+        } catch {
+            isSubmittingDay = false
+            errorMessage = "Failed to save today's challenge: \(error.localizedDescription)"
+        }
+    }
+
+    func submitComment() async {
+        let trimmed = commentDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        guard let client, let userId = currentUserId else { return }
+
+        isSendingComment = true
+        defer { isSendingComment = false }
+
+        do {
+            struct CommentInsertPayload: Encodable {
+                let challenge_id: UUID
+                let commenter_id: UUID
+                let comment: String
+            }
+
+            let payload = CommentInsertPayload(
+                challenge_id: challengeId,
+                commenter_id: userId,
+                comment: trimmed
+            )
+
+            try await client
+                .from("challenge_comment")
+                .insert(payload)
+                .execute()
+
+            commentDraft = ""
             await refreshAfterMutation()
         } catch {
-            errorMessage = "Failed to save today's challenge: \(error.localizedDescription)"
+            errorMessage = "Failed to send comment: \(error.localizedDescription)"
+        }
+    }
+
+    func isMyComment(_ item: ChallengeCommentUI) -> Bool {
+        guard let currentUserId else { return false }
+        return item.commenterId == currentUserId
+    }
+
+    func deleteComment(commentId: Int64) async {
+        guard let client, let userId = currentUserId else { return }
+        do {
+            try await client
+                .from("challenge_comment")
+                .delete()
+                .eq("id", value: String(commentId))
+                .eq("commenter_id", value: userId.uuidString)
+                .execute()
+            await refreshAfterMutation()
+        } catch {
+            errorMessage = "Failed to delete comment: \(error.localizedDescription)"
         }
     }
 
@@ -318,6 +404,15 @@ final class ChallengeDetailViewModel: ObservableObject {
                 .eq("challenge_id", value: challengeId.uuidString)
                 .execute()
                 .value
+            
+            async let commentRows: [ChallengeCommentData] = client
+                .from("challenge_comment")
+                .select("*")
+                .eq("challenge_id", value: challengeId.uuidString)
+                .order("created_at", ascending: false)
+                .limit(200)
+                .execute()
+                .value
 
             let loadedChallengeRows = try await challengeRows
             guard let loadedChallenge = loadedChallengeRows.first else {
@@ -332,8 +427,14 @@ final class ChallengeDetailViewModel: ObservableObject {
             members = try await memberRows
             tasks = try await taskRows
             completions = try await completionRows
+            comments = (try? await commentRows) ?? []
             proofPhotos = await fetchProofRowsSafely(client: client)
-            profilesByUserId = await fetchProfilesMapSafely(client: client, members: members)
+            let commenterIds = comments.compactMap { $0.commenter_id }
+            profilesByUserId = await fetchProfilesMapSafely(
+                client: client,
+                members: members,
+                additionalUserIds: commenterIds
+            )
 
             buildUI()
         } catch {
@@ -354,6 +455,7 @@ final class ChallengeDetailViewModel: ObservableObject {
         let endDate = dateFromPostgreSQL(challenge.end_date)
 
         title = challenge.title
+        isPhotoProofEnabled = challenge.proof_type.lowercased() == "photo_upload"
         if let rawDescription = challenge.description?.trimmingCharacters(in: .whitespacesAndNewlines),
            !rawDescription.isEmpty {
             description = rawDescription
@@ -414,16 +516,44 @@ final class ChallengeDetailViewModel: ObservableObject {
                 )
             }
             .sorted { $0.createdAt > $1.createdAt }
+        
+        communityComments = comments
+            .compactMap { commentData in
+                guard let commenterId = commentData.commenter_id else { return nil }
+                let commentText = (commentData.comment ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !commentText.isEmpty else { return nil }
 
-        jarItems = normalizedCompletions
-            .filter { $0.date == todayString && $0.isCompleted }
-            .compactMap { row in
-                guard let emoji = activeMembers.first(where: { $0.user_id == row.userId })?.member_emoji,
-                      !emoji.isEmpty else {
-                    return JarItemUI(id: UUID(), emoji: "✨")
-                }
-                return JarItemUI(id: UUID(), emoji: emoji)
+                let profile = profilesByUserId[commenterId]
+                let name = profile?.name?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+                    ? (profile?.name ?? "Unknown")
+                    : "Unknown"
+                let createdAt = parseDateTime(commentData.created_at) ?? Date()
+
+                return ChallengeCommentUI(
+                    id: commentData.id,
+                    commenterId: commenterId,
+                    commenterName: name,
+                    commenterAvatarURL: profile?.avatar_url,
+                    comment: commentText,
+                    createdAt: createdAt,
+                    relativeTimeText: relativeTimeString(from: createdAt)
+                )
             }
+            .sorted { $0.createdAt > $1.createdAt }
+        
+        if let currentUserId {
+            currentUserAvatarURL = profilesByUserId[currentUserId]?.avatar_url
+        } else {
+            currentUserAvatarURL = nil
+        }
+
+        jarItems = buildCumulativeJarItems(
+            normalizedCompletions: normalizedCompletions,
+            activeMembers: activeMembers,
+            startDate: startDate,
+            endDate: endDate,
+            today: today
+        )
 
         weekly = buildWeeklyRows(
             normalizedCompletions: normalizedCompletions,
@@ -527,6 +657,36 @@ final class ChallengeDetailViewModel: ObservableObject {
         return Array(dedup.values)
     }
 
+    private func applyTodayCompletionOptimistically(userId: UUID, date: String) {
+        var rows = completions
+
+        // Remove all possibly duplicated rows for today's current user's tasks first.
+        let todayTaskIds = Set(todayTasks.map(\.id))
+        rows.removeAll {
+            guard let taskId = $0.task_id, let rowUserId = $0.user_id, let rowDate = $0.date else { return false }
+            return rowUserId == userId && rowDate == date && todayTaskIds.contains(taskId)
+        }
+
+        // Rebuild one normalized row per task with current toggle state.
+        for task in todayTasks {
+            rows.append(
+                ChallengeTaskCompletionData(
+                    id: UUID(),
+                    challenge_id: challengeId,
+                    task_id: task.id,
+                    user_id: userId,
+                    date: date,
+                    is_completed: task.isCompleted
+                )
+            )
+        }
+
+        completions = rows
+        persistedTodayCompletionByTask = Dictionary(
+            uniqueKeysWithValues: todayTasks.map { ($0.id, $0.isCompleted) }
+        )
+    }
+
     private struct NormalizedCompletion {
         let taskId: UUID
         let userId: UUID
@@ -551,11 +711,17 @@ final class ChallengeDetailViewModel: ObservableObject {
         }
     }
 
-    private func fetchProfilesMapSafely(client: SupabaseClient, members: [ChallengeMemberData]) async -> [UUID: ProfileData] {
-        let userIds = members
+    private func fetchProfilesMapSafely(
+        client: SupabaseClient,
+        members: [ChallengeMemberData],
+        additionalUserIds: [UUID] = []
+    ) async -> [UUID: ProfileData] {
+        let memberUserIds = members
             .filter { $0.left_at == nil }
-            .map { $0.user_id.uuidString }
-        guard !userIds.isEmpty else { return [:] }
+            .map { $0.user_id }
+        let allUserIds = Set(memberUserIds + additionalUserIds)
+        guard !allUserIds.isEmpty else { return [:] }
+        let userIds = allUserIds.map(\.uuidString)
 
         do {
             let profiles: [ProfileData] = try await client
@@ -599,8 +765,132 @@ final class ChallengeDetailViewModel: ObservableObject {
         return result
     }
 
+    private func buildCumulativeJarItems(
+        normalizedCompletions: [NormalizedCompletion],
+        activeMembers: [ChallengeMemberData],
+        startDate: Date?,
+        endDate: Date?,
+        today: Date
+    ) -> [JarItemUI] {
+        let cal = Calendar.current
+        let activeUserIds = Set(activeMembers.map(\.user_id))
+        let normalizedStart = startDate.map { cal.startOfDay(for: $0) }
+        let normalizedToday = cal.startOfDay(for: today)
+        let normalizedEnd = endDate.map { cal.startOfDay(for: $0) }
+        let effectiveEnd = min(normalizedEnd ?? normalizedToday, normalizedToday)
+
+        var countsByUser: [UUID: Int] = [:]
+        for row in normalizedCompletions where row.isCompleted {
+            guard activeUserIds.contains(row.userId),
+                  let rowDate = dateFromPostgreSQL(row.date).map({ cal.startOfDay(for: $0) })
+            else { continue }
+
+            if let normalizedStart, rowDate < normalizedStart { continue }
+            if rowDate > effectiveEnd { continue }
+            countsByUser[row.userId, default: 0] += 1
+        }
+
+        var result: [JarItemUI] = []
+        for member in activeMembers.sorted(by: { $0.user_id.uuidString < $1.user_id.uuidString }) {
+            let count = countsByUser[member.user_id] ?? 0
+            guard count > 0 else { continue }
+            let emoji = (member.member_emoji?.isEmpty == false) ? (member.member_emoji ?? "🙂") : "🙂"
+            for _ in 0..<count {
+                result.append(JarItemUI(id: UUID(), emoji: emoji))
+            }
+        }
+        return result
+    }
+
+    private func isTaskToggleAllowed(on date: Date) -> Bool {
+        guard let challenge else { return false }
+        let cal = Calendar.current
+        let targetDay = cal.startOfDay(for: date)
+
+        if let start = dateFromPostgreSQL(challenge.start_date).map({ cal.startOfDay(for: $0) }),
+           targetDay < start {
+            return false
+        }
+
+        if let end = dateFromPostgreSQL(challenge.end_date).map({ cal.startOfDay(for: $0) }),
+           targetDay > end {
+            return false
+        }
+
+        switch challenge.repeat_type.lowercased() {
+        case "everyday", "daily":
+            return true
+        case "weekly":
+            guard let weeklyDays = challenge.weekly_days, !weeklyDays.isEmpty else { return false }
+            // DB convention: 0=Sun ... 6=Sat
+            let weekday = cal.component(.weekday, from: targetDay) - 1
+            return weeklyDays.contains(weekday)
+        case "monthly":
+            guard let monthlyDays = challenge.monthly_days, !monthlyDays.isEmpty else { return false }
+            let dayOfMonth = cal.component(.day, from: targetDay)
+            return monthlyDays.contains(dayOfMonth)
+        default:
+            return true
+        }
+    }
+
     private func parseDateTime(_ value: String?) -> Date? {
         guard let value else { return nil }
-        return ISO8601DateFormatter().date(from: value)
+        let isoWithFraction = ISO8601DateFormatter()
+        isoWithFraction.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let d = isoWithFraction.date(from: value) {
+            return d
+        }
+
+        let isoBasic = ISO8601DateFormatter()
+        isoBasic.formatOptions = [.withInternetDateTime]
+        if let d = isoBasic.date(from: value) {
+            return d
+        }
+
+        // Postgres timestamptz can arrive as "yyyy-MM-dd HH:mm:ss.SSSSSS+00"
+        let f1 = DateFormatter()
+        f1.locale = Locale(identifier: "en_US_POSIX")
+        f1.timeZone = TimeZone(secondsFromGMT: 0)
+        f1.dateFormat = "yyyy-MM-dd HH:mm:ss.SSSSSSXXXXX"
+        if let d = f1.date(from: value) {
+            return d
+        }
+
+        let f2 = DateFormatter()
+        f2.locale = Locale(identifier: "en_US_POSIX")
+        f2.timeZone = TimeZone(secondsFromGMT: 0)
+        f2.dateFormat = "yyyy-MM-dd HH:mm:ssXXXXX"
+        if let d = f2.date(from: value) {
+            return d
+        }
+
+        let f3 = DateFormatter()
+        f3.locale = Locale(identifier: "en_US_POSIX")
+        f3.timeZone = TimeZone(secondsFromGMT: 0)
+        f3.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSSSSXXXXX"
+        if let d = f3.date(from: value) {
+            return d
+        }
+
+        return nil
+    }
+
+    private func relativeTimeString(from date: Date) -> String {
+        let now = Date()
+        let cal = Calendar.current
+
+        if cal.isDate(date, inSameDayAs: now) {
+            let formatter = DateFormatter()
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            formatter.dateFormat = "h:mm a"
+            return formatter.string(from: date)
+        }
+
+        let startDate = cal.startOfDay(for: date)
+        let startNow = cal.startOfDay(for: now)
+        let rawDays = cal.dateComponents([.day], from: startDate, to: startNow).day ?? 0
+        let days = max(1, rawDays)
+        return "\(days) day\(days == 1 ? "" : "s") ago"
     }
 }
