@@ -3,6 +3,7 @@ import Supabase
 
 class ChallengeViewModel: ObservableObject {
     @Published var challenges: [ChallengeItem] = []
+    @Published var pendingInvites: [InvitedChallengeItem] = []
     @Published var selectedCategory: String = "Challenges"
     @Published var isDropdownPresented: Bool = false
     @Published var isLoading: Bool = false
@@ -16,7 +17,14 @@ class ChallengeViewModel: ObservableObject {
     @Published var challengeToQuit: ChallengeItem? = nil
     @Published var showQuitConfirmation: Bool = false
 
-    let categories = ["Challenges", "My Challenges", "Completed"]
+    // DEV ONLY: edit challenge state
+    @Published var showEditChallenge: Bool = false
+    @Published var selectedChallengeId: UUID? = nil
+
+    // Used to determine ownership for edit access.
+    private(set) var currentUserId: UUID? = nil
+
+    let categories = ["Challenges", "My Challenges", "Completed", "Invited"]
     private let challengeService = ChallengeService()
 
     init() {
@@ -87,19 +95,31 @@ class ChallengeViewModel: ObservableObject {
                 // Make sure the service has the current user
                 await challengeService.initializeService()
 
-                let fetched: [ChallengeItem]
-                switch self.selectedCategory {
-                case "My Challenges":
-                    fetched = try await challengeService.fetchMyChallenges()
-                case "Completed":
-                    fetched = try await challengeService.fetchCompletedChallenges()
-                default:
-                    fetched = try await challengeService.fetchChallenges()
+                if self.currentUserId == nil,
+                   let session = try? await SupabaseClientManager.shared.client?.auth.session {
+                    await MainActor.run { self.currentUserId = session.user.id }
                 }
 
-                await MainActor.run {
-                    self.challenges = fetched
-                    self.isLoading = false
+                if self.selectedCategory == "Invited" {
+                    let invites = try await challengeService.fetchPendingInvites()
+                    await MainActor.run {
+                        self.pendingInvites = invites
+                        self.isLoading = false
+                    }
+                } else {
+                    let fetched: [ChallengeItem]
+                    switch self.selectedCategory {
+                    case "My Challenges":
+                        fetched = try await challengeService.fetchMyChallenges()
+                    case "Completed":
+                        fetched = try await challengeService.fetchCompletedChallenges()
+                    default:
+                        fetched = try await challengeService.fetchChallenges()
+                    }
+                    await MainActor.run {
+                        self.challenges = fetched
+                        self.isLoading = false
+                    }
                 }
             } catch {
                 await MainActor.run {

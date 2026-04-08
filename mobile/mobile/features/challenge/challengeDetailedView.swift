@@ -15,6 +15,7 @@ struct ChallengeDetailView: View {
     @State private var showGallerySheet = false
     @State private var showAllCommentsSheet = false
     @State private var jarRemountToken = UUID()
+    @State private var showEditChallenge = false
 
     var onBack: (() -> Void)?
     var onTapCalendar: (() -> Void)?
@@ -118,6 +119,11 @@ struct ChallengeDetailView: View {
         }
         .sheet(isPresented: $showAllCommentsSheet) {
             FullCommunityCommentsSheet(viewModel: viewModel)
+        .fullScreenCover(isPresented: $showEditChallenge) {
+            EditChallengeView(challengeId: viewModel.challengeId)
+        }
+        .onChange(of: showEditChallenge) { isShowing in
+            if !isShowing { Task { await viewModel.load() } }
         }
     }
 }
@@ -136,6 +142,10 @@ private extension ChallengeDetailView {
             Spacer()
 
             HStack(spacing: 10) {
+                CircleIconButton(systemName: "pencil") {
+                    showEditChallenge = true
+                }
+
                 CircleIconButton(systemName: "calendar") {
                     onTapCalendar?()
                 }
