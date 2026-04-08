@@ -407,12 +407,15 @@ struct ChallengeShakerPreview: View {
                     .frame(width: jarSize.width, height: jarSize.height)
                     .allowsHitTesting(false)
 
-                // Lid gradient (when completed)
+                // Lid gradient (when completed) — hardcoded green to match
+                // ChallengeJarView in the detail view.
                 Rectangle()
                     .fill(
-                        LinearGradient(colors: lidColors,
-                                       startPoint: .leading,
-                                       endPoint: .trailing)
+                        LinearGradient(
+                            colors: [AppColors.green300, AppColors.green300.opacity(0.7)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
                     )
                     .frame(
                         width: jarSize.width,
@@ -485,15 +488,9 @@ struct ChallengeShakerPreview: View {
     }
 
     private func applyLid() {
-        if challenge.shakerIsCompleted {
-            if let c0 = Color(hex: challenge.shakerLidColorStart),
-               let c1 = Color(hex: challenge.shakerLidColorEnd) {
-                lidColors = [c0, c1]
-            }
-            lidOpacity = 1
-        } else {
-            lidOpacity = 0
-        }
+        // Lid color is hardcoded in the gradient view; this just toggles
+        // visibility based on whether today's challenge is fully sealed.
+        lidOpacity = challenge.shakerIsCompleted ? 1 : 0
     }
 }
 

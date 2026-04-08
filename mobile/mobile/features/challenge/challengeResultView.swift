@@ -127,54 +127,74 @@ final class ChallengeResultViewModel: ObservableObject {
             participantsCount = activeMembers.count
             totalDays = totalDaysComputed
 
-            // Build the set of "should-have-happened" dates: schedule ∩ (≤ today).
+            let validTaskIds = Set(tasks.map { $0.task_id })
+            let normalized = dedupCompletions(completions)
+
+            // Scheduled dates within the full challenge window — used as
+            // the per-user target denominator. No clamp-to-today: result
+            // view shows the final tally for an already-ended challenge.
             let scheduledDates = scheduledDateStrings(
                 start: startDate,
                 end: endDate,
                 repeatType: challenge.repeat_type,
                 weeklyDays: challenge.weekly_days,
                 monthlyDays: challenge.monthly_days,
-                clampToToday: true
+                clampToToday: false
             )
-            let validTaskIds = Set(tasks.map { $0.task_id })
-
-            // Per-user completed counts: only count rows whose task still exists
-            // and whose date is part of the active schedule up to today.
-            let normalized = dedupCompletions(completions)
             let perUserTarget = max(1, tasks.count * max(scheduledDates.count, 1))
 
+            // Per-user completed = is_completed rows whose task still
+            // exists and whose date falls inside [start, end] (string
+            // compare works because dates are "yyyy-MM-dd").
+            let startStr = startDate.map { formattedDate($0) }
+            let endStr = endDate.map { formattedDate($0) }
             var completedByUser: [UUID: Int] = [:]
-            for row in normalized where row.isCompleted
-                && validTaskIds.contains(row.taskId)
-                && scheduledDates.contains(row.date) {
+            for row in normalized where row.isCompleted && validTaskIds.contains(row.taskId) {
+                if let s = startStr, row.date < s { continue }
+                if let e = endStr, row.date > e { continue }
                 completedByUser[row.userId, default: 0] += 1
             }
 
             // Overall percent across the whole team
-            let totalTarget = perUserTarget * activeMembers.count
+            let totalTarget = perUserTarget * max(activeMembers.count, 1)
             let totalCompleted = completedByUser.values.reduce(0, +)
             overallPercent = totalTarget > 0
                 ? Int((Double(totalCompleted) / Double(totalTarget)) * 100.0)
                 : 0
 
-            // My personal percent + emoji
+            // My personal percent + emoji — current user's completions
+            // within the challenge window divided by their personal target.
             let myCompleted = completedByUser[currentUserId] ?? 0
-            myPercent = Int((Double(myCompleted) / Double(perUserTarget)) * 100.0)
+            myPercent = perUserTarget > 0
+                ? Int((Double(myCompleted) / Double(perUserTarget)) * 100.0)
+                : 0
             if let mine = activeMembers.first(where: { $0.user_id == currentUserId }),
                let emoji = mine.member_emoji, !emoji.isEmpty {
                 myEmoji = emoji
             }
+            print("[ChallengeResult] challenge=\(challengeId) myCompleted=\(myCompleted) perUserTarget=\(perUserTarget) myPercent=\(myPercent) overallPercent=\(overallPercent) range=\(startStr ?? "nil")..\(endStr ?? "nil") scheduledDays=\(scheduledDates.count)")
 
-            // Jar = the most recent challenge_shaker row on/before the
-            // challenge's last day (so the result view always shows the
-            // final-day jar state, not whatever happened to be latest today).
-            // user_emojis is the authoritative per-day emoji list.
-            let upperBound = endDate ?? Date()
-            let latestShaker = await fetchLatestShakerOnOrBefore(date: upperBound, client: client)
-            jarItems = (latestShaker?.user_emojis ?? []).map { JarItemUI(id: UUID(), emoji: $0) }
-            lidColorStart = latestShaker?.lid_color_start
-            lidColorEnd = latestShaker?.lid_color_end
-            isSealed = latestShaker?.iscompleted ?? false
+            // Jar = LAST DAY's state — every member's completion on
+            // end_date contributes one of their emojis to the jar.
+            jarItems = buildLastDayJarItems(
+                completions: normalized,
+                activeMembers: activeMembers,
+                endDate: endDate
+            )
+            // Lid: hardcoded green gradient (ChallengeJarView style),
+            // sealed when every active member completed every task on
+            // end_date — same "all green" condition the detail view uses
+            // for today, applied to the challenge's last day.
+            lidColorStart = nil
+            lidColorEnd = nil
+            if let endStr {
+                let lastDayCompleted = normalized.filter { $0.isCompleted && $0.date == endStr && validTaskIds.contains($0.taskId) }.count
+                let lastDayRequired = activeMembers.count * tasks.count
+                isSealed = lastDayRequired > 0 && lastDayCompleted >= lastDayRequired
+                print("[ChallengeResult] lastDay=\(endStr) completed=\(lastDayCompleted)/\(lastDayRequired) sealed=\(isSealed) jarItems=\(jarItems.count)")
+            } else {
+                isSealed = false
+            }
 
             // Dream team: top 5 by personal percent
             dreamTeam = activeMembers
@@ -263,6 +283,42 @@ final class ChallengeResultViewModel: ObservableObject {
         } catch {
             return [:]
         }
+    }
+
+    private func buildLastDayJarItems(
+        completions: [NormalizedRow],
+        activeMembers: [ChallengeMemberData],
+        endDate: Date?
+    ) -> [JarItemUI] {
+        guard let endDate else { return [] }
+        let endStr = formattedDate(endDate)
+        let activeUserIds = Set(activeMembers.map(\.user_id))
+        let emojiByUser: [UUID: String] = Dictionary(
+            uniqueKeysWithValues: activeMembers.map { member in
+                let emoji = (member.member_emoji?.isEmpty == false) ? (member.member_emoji ?? "🙂") : "🙂"
+                return (member.user_id, emoji)
+            }
+        )
+
+        // Count each member's completed tasks on the last day, then repeat
+        // their emoji that many times — same shape as the detail view's
+        // jar, but scoped to date == end_date.
+        var countsByUser: [UUID: Int] = [:]
+        for row in completions where row.isCompleted && row.date == endStr {
+            guard activeUserIds.contains(row.userId) else { continue }
+            countsByUser[row.userId, default: 0] += 1
+        }
+
+        var result: [JarItemUI] = []
+        for member in activeMembers.sorted(by: { $0.user_id.uuidString < $1.user_id.uuidString }) {
+            let count = countsByUser[member.user_id] ?? 0
+            guard count > 0 else { continue }
+            let emoji = emojiByUser[member.user_id] ?? "🙂"
+            for _ in 0..<count {
+                result.append(JarItemUI(id: UUID(), emoji: emoji))
+            }
+        }
+        return result
     }
 
     private func fetchLatestShakerOnOrBefore(date: Date, client: SupabaseClient) async -> ChallengeShakerData? {
@@ -432,17 +488,11 @@ struct ChallengeResultJarView: View {
     }
 
     private func applyLid() {
-        if isSealed {
-            if let c0 = Color(hex: lidColorStart),
-               let c1 = Color(hex: lidColorEnd) {
-                lidColors = [c0, c1]
-            } else {
-                lidColors = [AppColors.green300, AppColors.green200]
-            }
-            lidOpacity = 1
-        } else {
-            lidOpacity = 0
-        }
+        // Hardcoded green gradient to match ChallengeJarView in the detail
+        // view. lidColorStart/End are still accepted for backwards-compat
+        // but ignored.
+        lidColors = [AppColors.green300, AppColors.green300.opacity(0.7)]
+        lidOpacity = isSealed ? 1 : 0
     }
 }
 

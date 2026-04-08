@@ -268,76 +268,33 @@ class ChallengeService: ObservableObject {
             .execute()
             .value
 
-        // Challenge Shaker (for current user, today)
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
         let todayStr = dateFormatter.string(from: Date())
 
-        // challenge_shaker has no user_id column — it's per challenge per
-        // date, so we don't need (and shouldn't gate on) currentUserId.
-        var shakerRow: ChallengeShakerData? = nil
-        do {
-            // Use the challenge's end date as the upper bound when the
-            // challenge is already over, otherwise today. This way the
-            // preview reflects the final jar state for completed
-            // challenges and the most recent state for in-progress ones.
-            let upperBoundStr: String = {
-                if let end = challenge.end_date.flatMap({ dateFormatter.date(from: $0) }),
-                   Calendar.current.startOfDay(for: end) < Calendar.current.startOfDay(for: Date()) {
-                    return dateFormatter.string(from: end)
-                }
-                return todayStr
-            }()
-
-            let shakerRows: [ChallengeShakerData] = try await supabase
-                .from("challenge_shaker")
-                .select("*")
-                .eq("challenge_id", value: challenge.id.uuidString)
-                .lte("date", value: upperBoundStr)
-                .order("date", ascending: false)
-                .limit(1)
-                .execute()
-                .value
-            shakerRow = shakerRows.first
-            print("[ChallengeShaker] challenge=\(challenge.id) title=\(challenge.title) upper=\(upperBoundStr) rows=\(shakerRows.count) isCompleted=\(shakerRow?.iscompleted ?? false) emojis=\(shakerRow?.user_emojis ?? []) lidStart=\(shakerRow?.lid_color_start ?? "nil") lidEnd=\(shakerRow?.lid_color_end ?? "nil")")
-        } catch {
-            print("[ChallengeShaker] fetch FAILED for challenge=\(challenge.id): \(error)")
-        }
-
         // Parse dates
         let startDate = challenge.start_date.flatMap { dateFormatter.date(from: $0) }
         let endDate = challenge.end_date.flatMap { dateFormatter.date(from: $0) }
+
+        // Jar emoji list — cumulative across [start, min(end, today)],
+        // mirroring ChallengeDetailViewModel.buildCumulativeJarItems.
+        // challenge_shaker is never written by the app, so we no longer
+        // read from it for jar/lid state.
         let cumulativeEmojis = cumulativeJarEmojis(
             challenge: challenge,
             activeMembers: activeMembers,
             completions: completions
         )
 
-        // Build jar emoji list from completions, the same way the detail
-        // view does. challenge_shaker.user_emojis is never written by the
-        // app, so we compute the preview jar from challenge_task_completion:
-        // one emoji per completed task, mapped to that member's member_emoji.
-        // Range = [start_date, min(end_date, today)] (inclusive on both ends).
-        let upperJarBoundStr: String = {
-            if let end = endDate,
-               Calendar.current.startOfDay(for: end) < Calendar.current.startOfDay(for: Date()) {
-                return dateFormatter.string(from: end)
-            }
-            return todayStr
-        }()
-        let lowerJarBoundStr: String = startDate.map { dateFormatter.string(from: $0) } ?? ""
+        // Lid sealed state — mirrors ChallengeJarView's `isSealed` for the
+        // detail view: true when every active member has completed every
+        // task today. Hardcoded green gradient (lid colors are not pulled
+        // from challenge_shaker anymore).
+        let requiredToday = activeMembers.count * tasks.count
+        let completedToday = completions.filter { ($0.is_completed ?? false) && $0.date == todayStr }.count
+        let isSealedToday = requiredToday > 0 && completedToday >= requiredToday
 
-        let memberEmojiByUser: [UUID: String] = Dictionary(
-            uniqueKeysWithValues: activeMembers.map { ($0.user_id, ($0.member_emoji?.isEmpty == false) ? ($0.member_emoji ?? "🙂") : "🙂") }
-        )
-
-        let jarEmojis: [String] = completions.compactMap { row in
-            guard let userId = row.user_id, let date = row.date else { return nil }
-            if !lowerJarBoundStr.isEmpty, date < lowerJarBoundStr { return nil }
-            if date > upperJarBoundStr { return nil }
-            return memberEmojiByUser[userId] ?? "🙂"
-        }
-        print("[ChallengeJar] challenge=\(challenge.id) title=\(challenge.title) range=\(lowerJarBoundStr)..\(upperJarBoundStr) completions=\(completions.count) jarEmojis=\(jarEmojis)")
+        print("[ChallengeJar] challenge=\(challenge.id) title=\(challenge.title) cumulativeJarEmojis=\(cumulativeEmojis) sealedToday=\(isSealedToday) (\(completedToday)/\(requiredToday))")
 
         return ChallengeItem(
             id: challenge.id,
@@ -352,14 +309,10 @@ class ChallengeService: ObservableObject {
             members: members,
             taskCount: tasks.count,
             completedTaskCount: completions.count,
-            shakerIsCompleted: shakerRow?.iscompleted ?? false,
-<<<<<<< HEAD
-            shakerUserEmojis: jarEmojis,
-=======
+            shakerIsCompleted: isSealedToday,
             shakerUserEmojis: cumulativeEmojis,
->>>>>>> 74bec639382cf05e6e8c133201bca42e7f9b881a
-            shakerLidColorStart: shakerRow?.lid_color_start,
-            shakerLidColorEnd: shakerRow?.lid_color_end
+            shakerLidColorStart: nil,
+            shakerLidColorEnd: nil
         )
     }
 
@@ -372,6 +325,8 @@ class ChallengeService: ObservableObject {
         let today = calendar.startOfDay(for: Date())
         let startDate = dateFromPostgreSQL(challenge.start_date).map { calendar.startOfDay(for: $0) }
         let endDate = dateFromPostgreSQL(challenge.end_date).map { calendar.startOfDay(for: $0) }
+        // Cumulative range = [start, min(end, today)], matching
+        // ChallengeDetailViewModel.buildCumulativeJarItems.
         let effectiveEnd = min(endDate ?? today, today)
 
         let activeUserIds = Set(activeMembers.map(\.user_id))
