@@ -119,6 +119,7 @@ struct ChallengeDetailView: View {
         }
         .sheet(isPresented: $showAllCommentsSheet) {
             FullCommunityCommentsSheet(viewModel: viewModel)
+        }
         .fullScreenCover(isPresented: $showEditChallenge) {
             EditChallengeView(challengeId: viewModel.challengeId)
         }

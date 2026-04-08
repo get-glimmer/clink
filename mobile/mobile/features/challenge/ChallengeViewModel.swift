@@ -4,6 +4,8 @@ import Supabase
 class ChallengeViewModel: ObservableObject {
     @Published var challenges: [ChallengeItem] = []
     @Published var pendingInvites: [InvitedChallengeItem] = []
+    @Published var pendingInviteForOverlay: InvitedChallengeItem? = nil
+    @Published var showPendingInviteOverlay: Bool = false
     @Published var selectedCategory: String = "Challenges"
     @Published var isDropdownPresented: Bool = false
     @Published var isLoading: Bool = false
@@ -23,6 +25,7 @@ class ChallengeViewModel: ObservableObject {
 
     // Used to determine ownership for edit access.
     private(set) var currentUserId: UUID? = nil
+    private var didDismissPendingInviteOverlay = false
 
     let categories = ["Challenges", "My Challenges", "Completed", "Invited"]
     private let challengeService = ChallengeService()
@@ -82,6 +85,11 @@ class ChallengeViewModel: ObservableObject {
         showQuitConfirmation = false
     }
 
+    func dismissPendingInviteOverlay() {
+        showPendingInviteOverlay = false
+        didDismissPendingInviteOverlay = true
+    }
+
     // MARK: - Private
 
     private func loadChallenges(refresh: Bool) {
@@ -100,10 +108,14 @@ class ChallengeViewModel: ObservableObject {
                     await MainActor.run { self.currentUserId = session.user.id }
                 }
 
+                async let pendingInvitesTask: [InvitedChallengeItem] = {
+                    (try? await challengeService.fetchPendingInvites()) ?? []
+                }()
+
                 if self.selectedCategory == "Invited" {
-                    let invites = try await challengeService.fetchPendingInvites()
+                    let invites = await pendingInvitesTask
                     await MainActor.run {
-                        self.pendingInvites = invites
+                        self.updatePendingInvites(invites)
                         self.isLoading = false
                     }
                 } else {
@@ -116,8 +128,11 @@ class ChallengeViewModel: ObservableObject {
                     default:
                         fetched = try await challengeService.fetchChallenges()
                     }
+
+                    let invites = await pendingInvitesTask
                     await MainActor.run {
                         self.challenges = fetched
+                        self.updatePendingInvites(invites)
                         self.isLoading = false
                     }
                 }
@@ -127,6 +142,22 @@ class ChallengeViewModel: ObservableObject {
                     self.isLoading = false
                 }
             }
+        }
+    }
+
+    private func updatePendingInvites(_ invites: [InvitedChallengeItem]) {
+        pendingInvites = invites
+
+        guard let first = invites.first else {
+            pendingInviteForOverlay = nil
+            showPendingInviteOverlay = false
+            didDismissPendingInviteOverlay = false
+            return
+        }
+
+        pendingInviteForOverlay = first
+        if !didDismissPendingInviteOverlay {
+            showPendingInviteOverlay = true
         }
     }
 

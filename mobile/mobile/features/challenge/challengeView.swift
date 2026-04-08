@@ -224,6 +224,25 @@ struct ChallengeView: View {
                 viewModel.refreshChallenges()
             }
         }
+        .overlay {
+            if viewModel.showPendingInviteOverlay, let invite = viewModel.pendingInviteForOverlay {
+                ChallengeInvitationOverlay(
+                    invite: invite,
+                    onClose: {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            viewModel.dismissPendingInviteOverlay()
+                        }
+                    }
+                )
+                .navBarHidden(true)
+                .transition(.opacity)
+                .zIndex(2000)
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: viewModel.showPendingInviteOverlay)
+        .toolbar(viewModel.showPendingInviteOverlay ? .hidden : .visible, for: .navigationBar)
+        .navigationBarHidden(viewModel.showPendingInviteOverlay)
+        .navigationBarBackButtonHidden(viewModel.showPendingInviteOverlay)
     }
 }
 
