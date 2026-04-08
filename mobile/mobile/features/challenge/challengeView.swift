@@ -130,8 +130,18 @@ struct ChallengeView: View {
                     destination: {
                         Group {
                             if let challengeId = selectedChallengeId {
-                                ChallengeDetailView(challengeId: challengeId)
-                                    .navBarHidden(true)
+                                let selected = viewModel.challenges.first(where: { $0.id == challengeId })
+                                let isOver: Bool = {
+                                    guard let end = selected?.endDate else { return false }
+                                    return Calendar.current.startOfDay(for: end) < Calendar.current.startOfDay(for: Date())
+                                }()
+                                if isOver {
+                                    ChallengeResultView(challengeId: challengeId)
+                                        .navBarHidden(true)
+                                } else {
+                                    ChallengeDetailView(challengeId: challengeId)
+                                        .navBarHidden(true)
+                                }
                             } else {
                                 Color.clear
                             }

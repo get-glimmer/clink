@@ -10,7 +10,7 @@ class EditChallengeViewModel: ObservableObject {
     @Published var challengeTitle: String = ""
     @Published var descriptionText: String = ""
     @Published var selectedShaker: ShakerType = .jar
-    @Published var selectedProof: ProofType = .photo
+    @Published var selectedProof: ProofType = .photoOptional
     @Published var isProofRequired: Bool = true
     @Published var dailyTasks: [String] = [""]
 
@@ -57,7 +57,7 @@ class EditChallengeViewModel: ObservableObject {
     private var _snapshotRepeatType: RepeatType = .everyday
     private var _snapshotWeeklyDays: Set<Int> = []
     private var _snapshotMonthlyDays: Set<Int> = []
-    private var _snapshotSelectedProof: ProofType = .photo
+    private var _snapshotSelectedProof: ProofType = .photoOptional
     private var _snapshotIsProofRequired: Bool = true
     private var _snapshotPresetEmojis: [String] = []
 
