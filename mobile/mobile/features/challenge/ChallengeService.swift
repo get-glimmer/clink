@@ -119,6 +119,80 @@ class ChallengeService: ObservableObject {
         return items
     }
 
+    // MARK: - Fetch Pending Invites (challenges this user was invited to but hasn't accepted)
+
+    func fetchPendingInvites() async throws -> [InvitedChallengeItem] {
+        guard let supabase = supabase,
+              let currentUserId = currentUserId else {
+            throw NSError(domain: "ChallengeService", code: 1,
+                          userInfo: [NSLocalizedDescriptionKey: "Service not properly initialized"])
+        }
+
+        let invites: [InviteData] = try await supabase
+            .from("challenge_invites")
+            .select("id, challenge_id, inviter_user_id, message, status")
+            .eq("invitee_user_id", value: currentUserId)
+            .eq("status", value: "pending")
+            .execute()
+            .value
+
+        guard !invites.isEmpty else { return [] }
+
+        let challengeIds = invites.map { $0.challenge_id.uuidString }
+        let challenges: [ChallengeData] = try await supabase
+            .from("challenges")
+            .select("*")
+            .in("id", value: challengeIds)
+            .execute()
+            .value
+
+        let inviterIds = invites.map { $0.inviter_user_id.uuidString }
+        let inviterProfiles: [ProfileData] = try await supabase
+            .from("profiles")
+            .select("id, name, avatar_url")
+            .in("id", value: inviterIds)
+            .execute()
+            .value
+        let profilesMap = Dictionary(uniqueKeysWithValues: inviterProfiles.map { ($0.id.uuidString, $0) })
+
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+
+        var items: [InvitedChallengeItem] = []
+        for invite in invites {
+            guard let challenge = challenges.first(where: { $0.id == invite.challenge_id }) else { continue }
+
+            let allMembers: [ChallengeMemberData] = try await supabase
+                .from("challenge_members")
+                .select("*")
+                .eq("challenge_id", value: challenge.id.uuidString)
+                .execute()
+                .value
+            let activeMemberCount = allMembers.filter { $0.left_at == nil }.count
+
+            let emojiRule = EmojiRule(rawValue: challenge.emoji_rule ?? "selected_only") ?? .selectedOnly
+            let inviterName = profilesMap[invite.inviter_user_id.uuidString]?.name
+
+            items.append(InvitedChallengeItem(
+                id: invite.id,
+                challengeId: challenge.id,
+                title: challenge.title,
+                description: challenge.description,
+                startDate: challenge.start_date.flatMap { dateFormatter.date(from: $0) },
+                endDate: challenge.end_date.flatMap { dateFormatter.date(from: $0) },
+                frequency: challenge.frequencyText,
+                emojiRule: emojiRule,
+                presetEmojis: challenge.preset_emojis ?? [],
+                memberCount: activeMemberCount,
+                inviterName: inviterName,
+                message: invite.message
+            ))
+        }
+
+        print("[Challenges] fetchPendingInvites: \(items.count) pending invite(s)")
+        return items
+    }
+
     // MARK: - Quit Challenge (set left_at on the current user's membership)
 
     func quitChallenge(_ challengeId: UUID) async throws {

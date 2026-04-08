@@ -65,6 +65,11 @@ enum RepeatType: String, CaseIterable, Codable {
     }
 }
 
+enum EmojiRule: String, CaseIterable, Codable {
+    case selectedOnly = "selected_only"
+    case anyEmoji     = "any_emoji"
+}
+
 // MARK: - DB payload types
 
 struct ChallengeInsert: Encodable {
@@ -78,6 +83,8 @@ struct ChallengeInsert: Encodable {
     let repeat_type: String
     let weekly_days: [Int]?
     let monthly_days: [Int]?
+    let emoji_rule: String
+    let preset_emojis: [String]?
 }
 
 struct ChallengeResponse: Decodable {
@@ -101,4 +108,5 @@ struct ChallengeInviteInsert: Encodable {
     let challenge_id: UUID
     let inviter_user_id: UUID
     let invitee_user_id: UUID
+    let message: String?
 }

@@ -1,4 +1,5 @@
 import SwiftUI
+import MCEmojiPicker
 
 struct EditChallengeView: View {
     @StateObject private var viewModel: EditChallengeViewModel
@@ -10,6 +11,8 @@ struct EditChallengeView: View {
     @State private var monthCursor: Date = Date()           // Tracks which month is visible in the monthly day picker.
     @State private var showDeleteConfirmation: Bool = false // Guards the destructive delete action.
     @State private var showInviteFriends: Bool = false
+    @State private var showEmojiPicker: Bool = false
+    @State private var pickerEmoji: String = ""
 
     // Custom init required to forward challengeId into the @StateObject at creation time.
     init(challengeId: UUID) {
@@ -19,6 +22,21 @@ struct EditChallengeView: View {
     var body: some View {
         ZStack {
             AppColors.neutral1000.ignoresSafeArea()
+
+            // Invisible anchor for the emoji picker popup
+            Rectangle()
+                .fill(.clear)
+                .frame(height: 1)
+                .emojiPicker(
+                    isPresented: $showEmojiPicker,
+                    selectedEmoji: $pickerEmoji,
+                    arrowDirection: .up,
+                    customHeight: 380,
+                    horizontalInset: .zero,
+                    isDismissAfterChoosing: true,
+                    selectedEmojiCategoryTintColor: .white,
+                    feedBackGeneratorStyle: .light
+                )
 
             VStack(spacing: 0) {
                 headerBar
@@ -41,6 +59,7 @@ struct EditChallengeView: View {
                             proofSection
                             invitedSection
                             inviteActions
+                            emojiSetupSection
                             saveChangesButton
                         }
                         .padding(.horizontal, 16)
@@ -50,6 +69,18 @@ struct EditChallengeView: View {
             }
         }
         .navBarHidden(true)
+        .onChange(of: pickerEmoji) { emoji in
+            guard !emoji.isEmpty else { return }
+            switch viewModel.emojiRule {
+            case .selectedOnly:
+                if viewModel.presetEmojis.count < 10 {
+                    viewModel.presetEmojis.append(emoji)
+                }
+            case .anyEmoji:
+                viewModel.presetEmojis = [emoji]
+            }
+            pickerEmoji = ""
+        }
         .onChange(of: viewModel.didSaveSuccessfully) { saved in
             if saved { dismiss() }
         }
@@ -110,7 +141,7 @@ struct EditChallengeView: View {
         }
         .animation(.easeInOut(duration: 0.25), value: showToDateSheet)
         .sheet(isPresented: $showInviteFriends) {
-            InviteFriendsView(invitedIds: $viewModel.invitedFriendIds)
+            InviteFriendsView(invitedFriends: $viewModel.invitedFriends, challengeId: viewModel.challengeId)
         }
     }
 
@@ -231,7 +262,7 @@ struct EditChallengeView: View {
                 }
 
                 if viewModel.dailyTasks.count < 5 {
-                    outlineButton(title: "Add Task", iconName: "plus", isSystem: true, isDashed: false) {
+                    outlineButton(title: "Add Task", iconName: "addTask", isSystem: false, isDashed: false, iconSize: CGSize(width: 14, height: 14)) {
                         viewModel.dailyTasks.append("")
                     }
                 }
@@ -247,7 +278,7 @@ struct EditChallengeView: View {
             VStack(spacing: 0) {
                 Button { showFromDateSheet = true } label: {
                     selectionRow(
-                        iconName: "calendar",
+                        iconName: "duration",
                         title: "From",
                         value: viewModel.fromDateSelected ? dateFormatter.string(from: viewModel.fromDate) : "None",
                         trailingIconName: "chevronRight"
@@ -259,7 +290,7 @@ struct EditChallengeView: View {
 
                 Button { showToDateSheet = true } label: {
                     selectionRow(
-                        iconName: "calendar",
+                        iconName: "duration",
                         title: "To",
                         value: viewModel.toDateSelected ? dateFormatter.string(from: viewModel.toDate) : "None",
                         trailingIconName: "chevronRight"
@@ -283,6 +314,9 @@ struct EditChallengeView: View {
                 HStack {
                     HStack {
                         Image("repeat")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 16, height: 16)
                         Text("Repeat")
                             .appFont(AppFont.labelM)
                             .foregroundColor(Color("Neutral-300"))
@@ -362,7 +396,10 @@ struct EditChallengeView: View {
                 VStack(spacing: 0) {
                     Button { viewModel.selectedProof = .photo } label: {
                         HStack(spacing: 8) {
-                            Image(systemName: "photo")
+                            Image("camera")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 20, height: 20)
                             Text("Photo Upload").appFont(AppFont.labelM)
                         }
                         .foregroundColor(viewModel.selectedProof == .photo ? Color("White") : Color("Neutral-400"))
@@ -378,8 +415,10 @@ struct EditChallengeView: View {
                             Button { viewModel.isProofRequired = true } label: {
                                 HStack(spacing: 6) {
                                     if viewModel.isProofRequired {
-                                        Image(systemName: "checkmark.circle.fill")
-                                            .foregroundColor(Color("Green-300"))
+                                        Image("proofTypeSelected")
+                                            .resizable()
+                                            .scaledToFit()
+                                            .frame(width: 16, height: 16)
                                     }
                                     Text("Required").appFont(AppFont.labelM)
                                 }
@@ -391,11 +430,19 @@ struct EditChallengeView: View {
                             .buttonStyle(.plain)
 
                             Button { viewModel.isProofRequired = false } label: {
-                                Text("Optional").appFont(AppFont.labelM)
-                                    .foregroundColor(viewModel.isProofRequired ? Color("Neutral-400") : Color("White"))
-                                    .frame(maxWidth: .infinity, minHeight: 36)
-                                    .background(viewModel.isProofRequired ? Color.clear : Color("Neutral-800"))
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                                HStack(spacing: 6) {
+                                    if !viewModel.isProofRequired {
+                                        Image("proofTypeSelected")
+                                            .resizable()
+                                            .scaledToFit()
+                                            .frame(width: 16, height: 16)
+                                    }
+                                    Text("Optional").appFont(AppFont.labelM)
+                                }
+                                .foregroundColor(viewModel.isProofRequired ? Color("Neutral-400") : Color("White"))
+                                .frame(maxWidth: .infinity, minHeight: 36)
+                                .background(viewModel.isProofRequired ? Color.clear : Color("Neutral-800"))
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
                             }
                             .buttonStyle(.plain)
                         }
@@ -426,8 +473,18 @@ struct EditChallengeView: View {
 
                 Button { viewModel.selectedProof = .checklist } label: {
                     HStack(spacing: 8) {
-                        Image("checkboxEmpty")
+                        Image("checklist")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 20, height: 20)
                         Text("Checklist").appFont(AppFont.labelM)
+                        Spacer()
+                        if viewModel.selectedProof == .checklist {
+                            Image("proofTypeSelected")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 16, height: 16)
+                        }
                     }
                     .foregroundColor(viewModel.selectedProof == .checklist ? Color("White") : Color("Neutral-400"))
                     .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
@@ -516,10 +573,10 @@ struct EditChallengeView: View {
     // MARK: - Invite action buttons
     private var inviteActions: some View {
         VStack(alignment: .leading, spacing: 10) {
-            if !viewModel.invitedFriendIds.isEmpty {
+            if !viewModel.invitedFriends.isEmpty {
                 HStack {
                     Image("friends")
-                    Text("\(viewModel.invitedFriendIds.count) friend\(viewModel.invitedFriendIds.count == 1 ? "" : "s") invited")
+                    Text("\(viewModel.invitedFriends.count) friend\(viewModel.invitedFriends.count == 1 ? "" : "s") invited")
                         .appFont(AppFont.labelM)
                         .foregroundColor(Color("White"))
                     Spacer()
@@ -542,11 +599,78 @@ struct EditChallengeView: View {
                 )
             }
 
-            outlineButton(title: "Add Friends", iconName: "friends", isSystem: false, isDashed: true) {
+            outlineButton(title: "Add Friends", iconName: "addFriends", isSystem: false, isDashed: true, iconSize: CGSize(width: 14, height: 14)) {
                 showInviteFriends = true
             }
-            outlineButton(title: "Invite via Link", iconName: "arrowsCircular", isSystem: false, isDashed: false) {}
+            outlineButton(title: "Invite via Link", iconName: "inviteViaLink", isSystem: false, isDashed: false, iconSize: CGSize(width: 16, height: 8)) {}
         }
+    }
+
+    // MARK: - Emoji Setup section
+
+    private var emojiSetupSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionLabel("Emoji Setup")
+
+            switch viewModel.emojiRule {
+            case .selectedOnly:
+                selectedOnlyEmojiGrid
+            case .anyEmoji:
+                anyEmojiSelector
+            }
+        }
+    }
+
+    private var selectedOnlyEmojiGrid: some View {
+        let columns = [GridItem(.adaptive(minimum: 60, maximum: 72), spacing: 12)]
+        return LazyVGrid(columns: columns, spacing: 12) {
+            ForEach(viewModel.presetEmojis.indices, id: \.self) { i in
+                ZStack(alignment: .topTrailing) {
+                    Text(viewModel.presetEmojis[i])
+                        .font(.system(size: 48))
+                        .frame(width: 64, height: 64)
+
+                    Button {
+                        viewModel.presetEmojis.remove(at: i)
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(Color("Red-500"))
+                            .background(Circle().fill(Color("Neutral-1000")).padding(3))
+                    }
+                    .buttonStyle(.plain)
+                    .offset(x: 4, y: -4)
+                }
+            }
+
+            if viewModel.canAddEmoji {
+                Button { showEmojiPicker = true } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundColor(.white)
+                        .frame(width: 64, height: 64)
+                        .background(Circle().fill(Color("Neutral-800")))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private var anyEmojiSelector: some View {
+        Button { showEmojiPicker = true } label: {
+            if let emoji = viewModel.presetEmojis.first, !emoji.isEmpty {
+                Text(emoji)
+                    .font(.system(size: 56))
+                    .frame(width: 72, height: 72)
+            } else {
+                Image(systemName: "plus")
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundColor(.white)
+                    .frame(width: 64, height: 64)
+                    .background(Circle().fill(Color("Neutral-800")))
+            }
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Save button
@@ -563,7 +687,7 @@ struct EditChallengeView: View {
             } else {
                 Text("Save Changes")
                     .appFont(AppFont.title3)
-                    .foregroundColor(viewModel.isSaveEnabled ? .black : Color("Neutral-500"))
+                    .foregroundColor(viewModel.isSaveEnabled ? Color("Neutral-1000") : Color("Neutral-600"))
                     .frame(maxWidth: .infinity, minHeight: 56)
                     .background(viewModel.isSaveEnabled ? Color("Green-300") : Color("Neutral-800"))
                     .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -599,6 +723,9 @@ struct EditChallengeView: View {
     private func selectionRow(iconName: String, title: String, value: String, trailingIconName: String) -> some View {
         HStack(spacing: 12) {
             Image(iconName)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 16, height: 16)
             Text(title)
                 .appFont(AppFont.labelM)
                 .foregroundColor(Color("Neutral-300"))
@@ -613,10 +740,19 @@ struct EditChallengeView: View {
         .frame(height: 52)
     }
 
-    private func outlineButton(title: String, iconName: String, isSystem: Bool, isDashed: Bool, action: @escaping () -> Void) -> some View {
+    private func outlineButton(title: String, iconName: String, isSystem: Bool, isDashed: Bool, iconSize: CGSize? = nil, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 10) {
-                if isSystem { Image(systemName: iconName) } else { Image(iconName) }
+                if isSystem {
+                    Image(systemName: iconName)
+                } else if let size = iconSize {
+                    Image(iconName)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: size.width, height: size.height)
+                } else {
+                    Image(iconName)
+                }
                 Text(title).appFont(AppFont.labelM)
             }
             .foregroundColor(Color("White"))
