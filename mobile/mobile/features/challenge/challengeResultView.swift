@@ -165,9 +165,12 @@ final class ChallengeResultViewModel: ObservableObject {
                 myEmoji = emoji
             }
 
-            // Jar = the most recent challenge_shaker row on/before today.
+            // Jar = the most recent challenge_shaker row on/before the
+            // challenge's last day (so the result view always shows the
+            // final-day jar state, not whatever happened to be latest today).
             // user_emojis is the authoritative per-day emoji list.
-            let latestShaker = await fetchLatestShakerOnOrBeforeToday(client: client)
+            let upperBound = endDate ?? Date()
+            let latestShaker = await fetchLatestShakerOnOrBefore(date: upperBound, client: client)
             jarItems = (latestShaker?.user_emojis ?? []).map { JarItemUI(id: UUID(), emoji: $0) }
             lidColorStart = latestShaker?.lid_color_start
             lidColorEnd = latestShaker?.lid_color_end
@@ -262,14 +265,14 @@ final class ChallengeResultViewModel: ObservableObject {
         }
     }
 
-    private func fetchLatestShakerOnOrBeforeToday(client: SupabaseClient) async -> ChallengeShakerData? {
-        let today = formattedDate(Date())
+    private func fetchLatestShakerOnOrBefore(date: Date, client: SupabaseClient) async -> ChallengeShakerData? {
+        let upper = formattedDate(date)
         do {
             let rows: [ChallengeShakerData] = try await client
                 .from("challenge_shaker")
                 .select("*")
                 .eq("challenge_id", value: challengeId.uuidString)
-                .lte("date", value: today)
+                .lte("date", value: upper)
                 .order("date", ascending: false)
                 .limit(1)
                 .execute()

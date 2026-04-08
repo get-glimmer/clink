@@ -273,29 +273,66 @@ class ChallengeService: ObservableObject {
         dateFormatter.dateFormat = "yyyy-MM-dd"
         let todayStr = dateFormatter.string(from: Date())
 
+        // challenge_shaker has no user_id column — it's per challenge per
+        // date, so we don't need (and shouldn't gate on) currentUserId.
         var shakerRow: ChallengeShakerData? = nil
-        if let currentUserId = currentUserId {
-            do {
-                let shakerRows: [ChallengeShakerData] = try await supabase
-                    .from("challenge_shaker")
-                    .select("*")
-                    .eq("challenge_id", value: challenge.id.uuidString)
-                    .eq("date", value: todayStr)
-                    .limit(1)
-                    .execute()
-                    .value
-                shakerRow = shakerRows.first
-                print("[ChallengeShaker] challenge=\(challenge.id), user=\(currentUserId), date=\(todayStr), rows=\(shakerRows.count), isCompleted=\(shakerRow?.iscompleted ?? false), emojis=\(shakerRow?.user_emojis ?? []), lidStart=\(shakerRow?.lid_color_start ?? "nil"), lidEnd=\(shakerRow?.lid_color_end ?? "nil")")
-            } catch {
-                print("[ChallengeShaker] fetch FAILED for challenge=\(challenge.id): \(error)")
-            }
-        } else {
-            print("[ChallengeShaker] skipped — currentUserId is nil")
+        do {
+            // Use the challenge's end date as the upper bound when the
+            // challenge is already over, otherwise today. This way the
+            // preview reflects the final jar state for completed
+            // challenges and the most recent state for in-progress ones.
+            let upperBoundStr: String = {
+                if let end = challenge.end_date.flatMap({ dateFormatter.date(from: $0) }),
+                   Calendar.current.startOfDay(for: end) < Calendar.current.startOfDay(for: Date()) {
+                    return dateFormatter.string(from: end)
+                }
+                return todayStr
+            }()
+
+            let shakerRows: [ChallengeShakerData] = try await supabase
+                .from("challenge_shaker")
+                .select("*")
+                .eq("challenge_id", value: challenge.id.uuidString)
+                .lte("date", value: upperBoundStr)
+                .order("date", ascending: false)
+                .limit(1)
+                .execute()
+                .value
+            shakerRow = shakerRows.first
+            print("[ChallengeShaker] challenge=\(challenge.id) title=\(challenge.title) upper=\(upperBoundStr) rows=\(shakerRows.count) isCompleted=\(shakerRow?.iscompleted ?? false) emojis=\(shakerRow?.user_emojis ?? []) lidStart=\(shakerRow?.lid_color_start ?? "nil") lidEnd=\(shakerRow?.lid_color_end ?? "nil")")
+        } catch {
+            print("[ChallengeShaker] fetch FAILED for challenge=\(challenge.id): \(error)")
         }
 
         // Parse dates
         let startDate = challenge.start_date.flatMap { dateFormatter.date(from: $0) }
         let endDate = challenge.end_date.flatMap { dateFormatter.date(from: $0) }
+
+        // Build jar emoji list from completions, the same way the detail
+        // view does. challenge_shaker.user_emojis is never written by the
+        // app, so we compute the preview jar from challenge_task_completion:
+        // one emoji per completed task, mapped to that member's member_emoji.
+        // Range = [start_date, min(end_date, today)] (inclusive on both ends).
+        let upperJarBoundStr: String = {
+            if let end = endDate,
+               Calendar.current.startOfDay(for: end) < Calendar.current.startOfDay(for: Date()) {
+                return dateFormatter.string(from: end)
+            }
+            return todayStr
+        }()
+        let lowerJarBoundStr: String = startDate.map { dateFormatter.string(from: $0) } ?? ""
+
+        let memberEmojiByUser: [UUID: String] = Dictionary(
+            uniqueKeysWithValues: activeMembers.map { ($0.user_id, ($0.member_emoji?.isEmpty == false) ? ($0.member_emoji ?? "🙂") : "🙂") }
+        )
+
+        let jarEmojis: [String] = completions.compactMap { row in
+            guard let userId = row.user_id, let date = row.date else { return nil }
+            if !lowerJarBoundStr.isEmpty, date < lowerJarBoundStr { return nil }
+            if date > upperJarBoundStr { return nil }
+            return memberEmojiByUser[userId] ?? "🙂"
+        }
+        print("[ChallengeJar] challenge=\(challenge.id) title=\(challenge.title) range=\(lowerJarBoundStr)..\(upperJarBoundStr) completions=\(completions.count) jarEmojis=\(jarEmojis)")
 
         return ChallengeItem(
             id: challenge.id,
@@ -311,7 +348,7 @@ class ChallengeService: ObservableObject {
             taskCount: tasks.count,
             completedTaskCount: completions.count,
             shakerIsCompleted: shakerRow?.iscompleted ?? false,
-            shakerUserEmojis: shakerRow?.user_emojis ?? [],
+            shakerUserEmojis: jarEmojis,
             shakerLidColorStart: shakerRow?.lid_color_start,
             shakerLidColorEnd: shakerRow?.lid_color_end
         )
