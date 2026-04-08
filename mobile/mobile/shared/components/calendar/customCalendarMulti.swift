@@ -156,10 +156,23 @@ public struct CustomCalendarMulti: View {
         let leading = (firstWeekday + 6) % 7
 
         // prev month tail
-        let prevMonth = calendar.date(byAdding: .month, value: -1, to: start)!
-        let prevCount = calendar.range(of: .day, in: .month, for: prevMonth)!.count
-        var days: [Date] = (prevCount - leading + 1...prevCount).compactMap { d in
-            date(year: year(prevMonth), month: month(prevMonth), day: d)
+        guard let prevMonth = calendar.date(byAdding: .month, value: -1, to: start),
+              let prevRange = calendar.range(of: .day, in: .month, for: prevMonth)
+        else {
+            return []
+        }
+
+        let prevCount = prevRange.count
+        var days: [Date] = []
+
+        // avoid invalid range when leading == 0 (month starts on Sunday)
+        if leading > 0 {
+            let startDay = prevCount - leading + 1
+            if startDay <= prevCount {
+                days = (startDay...prevCount).compactMap { d in
+                    date(year: year(prevMonth), month: month(prevMonth), day: d)
+                }
+            }
         }
 
         // current month

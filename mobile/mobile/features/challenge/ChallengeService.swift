@@ -307,6 +307,11 @@ class ChallengeService: ObservableObject {
         // Parse dates
         let startDate = challenge.start_date.flatMap { dateFormatter.date(from: $0) }
         let endDate = challenge.end_date.flatMap { dateFormatter.date(from: $0) }
+        let cumulativeEmojis = cumulativeJarEmojis(
+            challenge: challenge,
+            activeMembers: activeMembers,
+            completions: completions
+        )
 
         // Build jar emoji list from completions, the same way the detail
         // view does. challenge_shaker.user_emojis is never written by the
@@ -348,9 +353,56 @@ class ChallengeService: ObservableObject {
             taskCount: tasks.count,
             completedTaskCount: completions.count,
             shakerIsCompleted: shakerRow?.iscompleted ?? false,
+<<<<<<< HEAD
             shakerUserEmojis: jarEmojis,
+=======
+            shakerUserEmojis: cumulativeEmojis,
+>>>>>>> 74bec639382cf05e6e8c133201bca42e7f9b881a
             shakerLidColorStart: shakerRow?.lid_color_start,
             shakerLidColorEnd: shakerRow?.lid_color_end
         )
+    }
+
+    private func cumulativeJarEmojis(
+        challenge: ChallengeData,
+        activeMembers: [ChallengeMemberData],
+        completions: [ChallengeTaskCompletionData]
+    ) -> [String] {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let startDate = dateFromPostgreSQL(challenge.start_date).map { calendar.startOfDay(for: $0) }
+        let endDate = dateFromPostgreSQL(challenge.end_date).map { calendar.startOfDay(for: $0) }
+        let effectiveEnd = min(endDate ?? today, today)
+
+        let activeUserIds = Set(activeMembers.map(\.user_id))
+        let emojiByUser: [UUID: String] = Dictionary(
+            uniqueKeysWithValues: activeMembers.map { member in
+                let emoji = (member.member_emoji?.isEmpty == false) ? (member.member_emoji ?? "🙂") : "🙂"
+                return (member.user_id, emoji)
+            }
+        )
+
+        var completionCountByUser: [UUID: Int] = [:]
+        for row in completions {
+            guard row.is_completed == true,
+                  let userId = row.user_id,
+                  activeUserIds.contains(userId),
+                  let dateString = row.date,
+                  let completionDate = dateFromPostgreSQL(dateString).map({ calendar.startOfDay(for: $0) })
+            else { continue }
+
+            if let startDate, completionDate < startDate { continue }
+            if completionDate > effectiveEnd { continue }
+            completionCountByUser[userId, default: 0] += 1
+        }
+
+        var result: [String] = []
+        for member in activeMembers.sorted(by: { $0.user_id.uuidString < $1.user_id.uuidString }) {
+            let count = completionCountByUser[member.user_id] ?? 0
+            guard count > 0 else { continue }
+            let emoji = emojiByUser[member.user_id] ?? "🙂"
+            result.append(contentsOf: Array(repeating: emoji, count: count))
+        }
+        return result
     }
 }
