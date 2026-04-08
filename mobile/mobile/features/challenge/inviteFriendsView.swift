@@ -16,8 +16,10 @@ class InviteFriendsViewModel: ObservableObject {
     @Published var friends: [FriendInviteItem] = []
     @Published var searchText: String = ""
     @Published var isLoading: Bool = false
+    @Published var excludedIds: Set<String> = []   // lowercased user IDs already in the challenge
 
     private let service = CommunityService()
+    private let client = SupabaseClientManager.shared.client
 
     // Filters friends by username; returns all when search is empty.
     var filteredFriends: [FriendInviteItem] {
@@ -25,8 +27,9 @@ class InviteFriendsViewModel: ObservableObject {
         return friends.filter { $0.username.localizedCaseInsensitiveContains(searchText) }
     }
 
-    // Reuses CommunityService to load the current user's accepted friends.
-    func loadFriends() {
+    // Loads friends and, when a challengeId is provided, fetches current members + pending
+    // invites from the DB to populate excludedIds.
+    func load(challengeId: UUID?) {
         isLoading = true
         Task {
             do {
@@ -34,8 +37,33 @@ class InviteFriendsViewModel: ObservableObject {
                 friends = loaded.map {
                     FriendInviteItem(id: $0.userId, username: $0.name, avatarUrl: $0.profileImageName)
                 }
+
+                if let challengeId, let client {
+                    struct MemberRow: Decodable { let user_id: String; let left_at: String? }
+                    struct InviteRow: Decodable { let invitee_user_id: String? }
+
+                    let allMembers: [MemberRow] = try await client
+                        .from("challenge_members")
+                        .select("user_id, left_at")
+                        .eq("challenge_id", value: challengeId.uuidString)
+                        .execute()
+                        .value
+
+                    let members = allMembers.filter { $0.left_at == nil }
+
+                    let invites: [InviteRow] = try await client
+                        .from("challenge_invites")
+                        .select("invitee_user_id")
+                        .eq("challenge_id", value: challengeId.uuidString)
+                        .execute()
+                        .value
+
+                    let memberIds = members.map { $0.user_id.lowercased() }
+                    let inviteIds = invites.compactMap { $0.invitee_user_id?.lowercased() }
+                    excludedIds = Set(memberIds + inviteIds)
+                }
             } catch {
-                print("[Challenges] ❌ InviteFriendsViewModel failed to load friends: \(error)")
+                print("[Challenges] ❌ InviteFriendsViewModel failed to load: \(error)")
             }
             isLoading = false
         }
@@ -45,9 +73,11 @@ class InviteFriendsViewModel: ObservableObject {
 // MARK: - View
 
 struct InviteFriendsView: View {
-    @Binding var invitedIds: Set<String>
+    @Binding var invitedFriends: [String: String]   // friendId → message
+    var challengeId: UUID? = nil                    // when editing, filters already-joined/invited
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel = InviteFriendsViewModel()
+    @State private var pendingFriend: FriendInviteItem? = nil
 
     var body: some View {
         ZStack {
@@ -121,29 +151,32 @@ struct InviteFriendsView: View {
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 0) {
                             ForEach(viewModel.filteredFriends) { friend in
-                                let isInvited = invitedIds.contains(friend.id)
+                                let isExcluded = viewModel.excludedIds.contains(friend.id.lowercased())
+                                let isInvited = invitedFriends[friend.id] != nil
 
                                 HStack(spacing: 12) {
                                     AvatarView(imageURLOrName: friend.avatarUrl, size: 44)
+                                        .opacity(isExcluded ? 0.5 : 1)
 
                                     Text(friend.username)
                                         .appFont(AppFont.labelM)
-                                        .foregroundColor(.white)
+                                        .foregroundColor(isExcluded ? Color("Neutral-500") : .white)
 
                                     Spacer()
 
                                     Button {
                                         if isInvited {
-                                            invitedIds.remove(friend.id)
+                                            invitedFriends.removeValue(forKey: friend.id)
                                         } else {
-                                            invitedIds.insert(friend.id)
+                                            pendingFriend = friend
                                         }
                                     } label: {
-                                        Text(isInvited ? "Invited" : "Invite")
+                                        Text(isExcluded ? "Joined" : (isInvited ? "Invited" : "Invite"))
                                             .appFont(AppFont.labelM)
-                                            .foregroundColor(isInvited ? Color("Neutral-500") : .white)
+                                            .foregroundColor(Color("Neutral-500"))
                                     }
                                     .buttonStyle(.plain)
+                                    .disabled(isExcluded || isInvited)
                                 }
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 12)
@@ -154,6 +187,76 @@ struct InviteFriendsView: View {
             }
         }
         .navBarHidden(true)
-        .onAppear { viewModel.loadFriends() }
+        .onAppear { viewModel.load(challengeId: challengeId) }
+        .sheet(item: $pendingFriend) { friend in
+            InviteMessageSheet(friend: friend) { message in
+                invitedFriends[friend.id] = message
+                pendingFriend = nil
+            }
+            .presentationDetents([.height(300)])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(Color("Neutral-900"))
+        }
+    }
+}
+
+// MARK: - Invite Message Sheet
+
+private struct InviteMessageSheet: View {
+    let friend: FriendInviteItem
+    let onSend: (String) -> Void
+
+    @State private var message: String = "Join me for this challenge.."
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Invite \(friend.username)")
+                .appFont(AppFont.title2)
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 8)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Add a Message")
+                    .appFont(AppFont.captionM)
+                    .foregroundColor(Color("Neutral-400"))
+
+                // Use .font() directly — appFont applies .fixedSize(vertical:true)
+                // which collapses the TextEditor's interactive area.
+                TextEditor(text: $message)
+                    .font(AppFont.body2.font)
+                    .foregroundColor(Color("White"))
+                    .scrollContentBackground(.hidden)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .frame(height: 88)
+                    .background(Color("Neutral-800"))
+                    .cornerRadius(12)
+                    .onChange(of: message) { newValue in
+                        // Limit to 3 lines via newline count
+                        let lines = newValue.components(separatedBy: "\n")
+                        if lines.count > 3 {
+                            message = lines.prefix(3).joined(separator: "\n")
+                        }
+                    }
+            }
+
+            Button {
+                onSend(message)
+                dismiss()
+            } label: {
+                Text("Send Invite")
+                    .appFont(AppFont.labelL)
+                    .foregroundColor(Color("Neutral-1000"))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 56)
+                    .background(Color("Green-300"))
+                    .cornerRadius(16)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 20)
+        .padding(.bottom, 16)
     }
 }

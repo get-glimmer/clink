@@ -1,4 +1,5 @@
 import SwiftUI
+import MCEmojiPicker
 
 struct EditChallengeView: View {
     @StateObject private var viewModel: EditChallengeViewModel
@@ -10,6 +11,8 @@ struct EditChallengeView: View {
     @State private var monthCursor: Date = Date()           // Tracks which month is visible in the monthly day picker.
     @State private var showDeleteConfirmation: Bool = false // Guards the destructive delete action.
     @State private var showInviteFriends: Bool = false
+    @State private var showEmojiPicker: Bool = false
+    @State private var pickerEmoji: String = ""
 
     // Custom init required to forward challengeId into the @StateObject at creation time.
     init(challengeId: UUID) {
@@ -19,6 +22,21 @@ struct EditChallengeView: View {
     var body: some View {
         ZStack {
             AppColors.neutral1000.ignoresSafeArea()
+
+            // Invisible anchor for the emoji picker popup
+            Rectangle()
+                .fill(.clear)
+                .frame(height: 1)
+                .emojiPicker(
+                    isPresented: $showEmojiPicker,
+                    selectedEmoji: $pickerEmoji,
+                    arrowDirection: .up,
+                    customHeight: 380,
+                    horizontalInset: .zero,
+                    isDismissAfterChoosing: true,
+                    selectedEmojiCategoryTintColor: .white,
+                    feedBackGeneratorStyle: .light
+                )
 
             VStack(spacing: 0) {
                 headerBar
@@ -41,6 +59,7 @@ struct EditChallengeView: View {
                             proofSection
                             invitedSection
                             inviteActions
+                            emojiSetupSection
                             saveChangesButton
                         }
                         .padding(.horizontal, 16)
@@ -50,6 +69,18 @@ struct EditChallengeView: View {
             }
         }
         .navBarHidden(true)
+        .onChange(of: pickerEmoji) { emoji in
+            guard !emoji.isEmpty else { return }
+            switch viewModel.emojiRule {
+            case .selectedOnly:
+                if viewModel.presetEmojis.count < 10 {
+                    viewModel.presetEmojis.append(emoji)
+                }
+            case .anyEmoji:
+                viewModel.presetEmojis = [emoji]
+            }
+            pickerEmoji = ""
+        }
         .onChange(of: viewModel.didSaveSuccessfully) { saved in
             if saved { dismiss() }
         }
@@ -110,7 +141,7 @@ struct EditChallengeView: View {
         }
         .animation(.easeInOut(duration: 0.25), value: showToDateSheet)
         .sheet(isPresented: $showInviteFriends) {
-            InviteFriendsView(invitedIds: $viewModel.invitedFriendIds)
+            InviteFriendsView(invitedFriends: $viewModel.invitedFriends, challengeId: viewModel.challengeId)
         }
     }
 
@@ -542,10 +573,10 @@ struct EditChallengeView: View {
     // MARK: - Invite action buttons
     private var inviteActions: some View {
         VStack(alignment: .leading, spacing: 10) {
-            if !viewModel.invitedFriendIds.isEmpty {
+            if !viewModel.invitedFriends.isEmpty {
                 HStack {
                     Image("friends")
-                    Text("\(viewModel.invitedFriendIds.count) friend\(viewModel.invitedFriendIds.count == 1 ? "" : "s") invited")
+                    Text("\(viewModel.invitedFriends.count) friend\(viewModel.invitedFriends.count == 1 ? "" : "s") invited")
                         .appFont(AppFont.labelM)
                         .foregroundColor(Color("White"))
                     Spacer()
@@ -573,6 +604,73 @@ struct EditChallengeView: View {
             }
             outlineButton(title: "Invite via Link", iconName: "inviteViaLink", isSystem: false, isDashed: false, iconSize: CGSize(width: 16, height: 8)) {}
         }
+    }
+
+    // MARK: - Emoji Setup section
+
+    private var emojiSetupSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionLabel("Emoji Setup")
+
+            switch viewModel.emojiRule {
+            case .selectedOnly:
+                selectedOnlyEmojiGrid
+            case .anyEmoji:
+                anyEmojiSelector
+            }
+        }
+    }
+
+    private var selectedOnlyEmojiGrid: some View {
+        let columns = [GridItem(.adaptive(minimum: 60, maximum: 72), spacing: 12)]
+        return LazyVGrid(columns: columns, spacing: 12) {
+            ForEach(viewModel.presetEmojis.indices, id: \.self) { i in
+                ZStack(alignment: .topTrailing) {
+                    Text(viewModel.presetEmojis[i])
+                        .font(.system(size: 48))
+                        .frame(width: 64, height: 64)
+
+                    Button {
+                        viewModel.presetEmojis.remove(at: i)
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(Color("Red-500"))
+                            .background(Circle().fill(Color("Neutral-1000")).padding(3))
+                    }
+                    .buttonStyle(.plain)
+                    .offset(x: 4, y: -4)
+                }
+            }
+
+            if viewModel.canAddEmoji {
+                Button { showEmojiPicker = true } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundColor(.white)
+                        .frame(width: 64, height: 64)
+                        .background(Circle().fill(Color("Neutral-800")))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private var anyEmojiSelector: some View {
+        Button { showEmojiPicker = true } label: {
+            if let emoji = viewModel.presetEmojis.first, !emoji.isEmpty {
+                Text(emoji)
+                    .font(.system(size: 56))
+                    .frame(width: 72, height: 72)
+            } else {
+                Image(systemName: "plus")
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundColor(.white)
+                    .frame(width: 64, height: 64)
+                    .background(Circle().fill(Color("Neutral-800")))
+            }
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Save button

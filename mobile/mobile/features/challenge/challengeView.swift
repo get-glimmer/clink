@@ -5,6 +5,8 @@ struct ChallengeView: View {
     @StateObject private var viewModel = ChallengeViewModel()
     @State private var selectedChallengeId: UUID?
     @State private var isShowingChallengeDetail = false
+    @State private var selectedInvite: InvitedChallengeItem? = nil
+    @State private var showMemberEmojiSetup = false
 
     var body: some View {
         NavigationStack {
@@ -68,6 +70,31 @@ struct ChallengeView: View {
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 40)
                         Spacer()
+                    } else if viewModel.selectedCategory == "Invited" {
+                        if viewModel.pendingInvites.isEmpty {
+                            Spacer()
+                            Text("No pending invitations")
+                                .appText(AppFont.captionM)
+                                .foregroundColor(AppColors.neutral400)
+                            Spacer()
+                        } else {
+                            ScrollView {
+                                VStack(spacing: 16) {
+                                    ForEach(viewModel.pendingInvites) { invite in
+                                        InvitedChallengeCard(invite: invite)
+                                            .onTapGesture {
+                                                selectedInvite = invite
+                                                showMemberEmojiSetup = true
+                                            }
+                                    }
+                                }
+                                .padding(.horizontal, 24)
+                                .padding(.bottom, 100)
+                            }
+                            .refreshable {
+                                await MainActor.run { viewModel.refreshChallenges() }
+                            }
+                        }
                     } else if viewModel.challenges.isEmpty {
                         Spacer()
                         Text("No challenges yet")
@@ -172,6 +199,20 @@ struct ChallengeView: View {
                 viewModel.refreshChallenges()
             }
         }
+        .fullScreenCover(isPresented: $showMemberEmojiSetup) {
+            if let invite = selectedInvite {
+                MemberEmojiSetupView(
+                    challengeId: invite.challengeId,
+                    emojiRule: invite.emojiRule,
+                    presetEmojis: invite.presetEmojis,
+                    representativeEmoji: invite.presetEmojis.first ?? "",
+                    isOwner: false
+                )
+            }
+        }
+        .onChange(of: showMemberEmojiSetup) { isShowing in
+            if !isShowing { viewModel.refreshChallenges() }
+        }
         // DEV ONLY: edit challenge sheet, triggered by tapping the shaker
         .fullScreenCover(isPresented: $viewModel.showEditChallenge) {
             if let challengeId = viewModel.selectedChallengeId {
@@ -183,6 +224,74 @@ struct ChallengeView: View {
                 viewModel.refreshChallenges()
             }
         }
+    }
+}
+
+// MARK: - Invited Challenge Card
+
+struct InvitedChallengeCard: View {
+    let invite: InvitedChallengeItem
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text(invite.dateRangeText)
+                    .appText(AppFont.captionS)
+                    .foregroundColor(.black)
+                    .padding(.vertical, 4)
+                    .padding(.horizontal, 12)
+                    .background(AppColors.green300)
+                    .clipShape(Capsule())
+
+                Spacer()
+
+                Text("Pending")
+                    .appText(AppFont.captionS)
+                    .foregroundColor(AppColors.neutral400)
+                    .padding(.vertical, 4)
+                    .padding(.horizontal, 10)
+                    .background(AppColors.neutral800)
+                    .clipShape(Capsule())
+            }
+
+            Text(invite.title)
+                .appText(AppFont.title3)
+                .foregroundColor(AppColors.textWhite)
+                .lineLimit(2)
+
+            if let inviterName = invite.inviterName {
+                Text("Invited by \(inviterName)")
+                    .appText(AppFont.captionS)
+                    .foregroundColor(AppColors.neutral400)
+            }
+
+            if let message = invite.message,
+               !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Text("\"\(message)\"")
+                    .appText(AppFont.captionM)
+                    .foregroundColor(AppColors.neutral300)
+                    .lineLimit(2)
+            }
+
+            HStack {
+                Image(systemName: "calendar")
+                    .resizable()
+                    .frame(width: 14, height: 14)
+                    .foregroundColor(AppColors.neutral400)
+                Text(invite.frequency)
+                    .appText(AppFont.captionS)
+                    .foregroundColor(AppColors.neutral400)
+
+                Spacer()
+
+                Text("\(invite.memberCount) member\(invite.memberCount == 1 ? "" : "s")")
+                    .appText(AppFont.captionS)
+                    .foregroundColor(AppColors.neutral400)
+            }
+        }
+        .padding(16)
+        .background(AppColors.neutral900)
+        .cornerRadius(16)
     }
 }
 

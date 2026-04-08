@@ -29,8 +29,12 @@ class EditChallengeViewModel: ObservableObject {
     @Published var members: [MemberInfo] = []
     @Published var pendingInvites: [PendingInviteInfo] = []
 
-    // New friend IDs selected via InviteFriendsView to be invited on save.
-    @Published var invitedFriendIds: Set<String> = []
+    // friendId → invite message; new friends to invite on save.
+    @Published var invitedFriends: [String: String] = [:]
+
+    // Emoji Setup
+    @Published var emojiRule: EmojiRule = .selectedOnly
+    @Published var presetEmojis: [String] = []
 
     // Status
     @Published var isLoading: Bool = false
@@ -55,6 +59,7 @@ class EditChallengeViewModel: ObservableObject {
     private var _snapshotMonthlyDays: Set<Int> = []
     private var _snapshotSelectedProof: ProofType = .photo
     private var _snapshotIsProofRequired: Bool = true
+    private var _snapshotPresetEmojis: [String] = []
 
     init(challengeId: UUID) {
         self.challengeId = challengeId
@@ -82,6 +87,20 @@ class EditChallengeViewModel: ObservableObject {
             || selectedMonthlyDays != _snapshotMonthlyDays
             || selectedProof != _snapshotSelectedProof
             || isProofRequired != _snapshotIsProofRequired
+            || presetEmojis != _snapshotPresetEmojis
+            || !invitedFriends.isEmpty
+    }
+
+    // Total participants = active members + pending invites + newly added friends this session.
+    var totalParticipantCount: Int {
+        members.count + pendingInvites.count + invitedFriends.count
+    }
+
+    // "+" is shown only when there's room for a new participant's emoji slot.
+    var canAddEmoji: Bool {
+        emojiRule == .selectedOnly
+            && totalParticipantCount > presetEmojis.count
+            && presetEmojis.count < 10
     }
 
     var isSaveEnabled: Bool {
@@ -122,6 +141,8 @@ class EditChallengeViewModel: ObservableObject {
 
             if let wd = challenge.weekly_days  { selectedWeeklyDays  = Set(wd) }
             if let md = challenge.monthly_days { selectedMonthlyDays = Set(md) }
+            emojiRule    = EmojiRule(rawValue: challenge.emoji_rule ?? "selected_only") ?? .selectedOnly
+            presetEmojis = challenge.preset_emojis ?? []
 
             let tasks: [ChallengeTaskRecord] = try await client
                 .from("challenge_task")
@@ -215,6 +236,7 @@ class EditChallengeViewModel: ObservableObject {
             _snapshotMonthlyDays = selectedMonthlyDays
             _snapshotSelectedProof = selectedProof
             _snapshotIsProofRequired = isProofRequired
+            _snapshotPresetEmojis = presetEmojis
 
         } catch {
             errorMessage = "Failed to load challenge: \(error.localizedDescription)"
@@ -248,7 +270,8 @@ class EditChallengeViewModel: ObservableObject {
                 end_date:    endDate,
                 repeat_type: repeatType.rawValue,
                 weekly_days:  repeatType == .weekly  ? selectedWeeklyDays.sorted()  : nil,
-                monthly_days: repeatType == .monthly ? selectedMonthlyDays.sorted() : nil
+                monthly_days: repeatType == .monthly ? selectedMonthlyDays.sorted() : nil,
+                preset_emojis: presetEmojis.isEmpty ? nil : presetEmojis
             )
 
             try await client
@@ -256,6 +279,21 @@ class EditChallengeViewModel: ObservableObject {
                 .update(payload)
                 .eq("id", value: challengeId.uuidString)
                 .execute()
+
+            // For any_emoji rule, the owner's chosen emoji IS the representative emoji —
+            // keep challenge_members.member_emoji in sync when it changes.
+            if emojiRule == .anyEmoji,
+               let newEmoji = presetEmojis.first,
+               !newEmoji.isEmpty,
+               newEmoji != _snapshotPresetEmojis.first,
+               let session = try? await client.auth.session {
+                try await client
+                    .from("challenge_members")
+                    .update(["member_emoji": newEmoji])
+                    .eq("challenge_id", value: challengeId.uuidString)
+                    .eq("user_id", value: session.user.id.uuidString)
+                    .execute()
+            }
 
             // Simpler than diffing individual rows: delete all existing tasks and re-insert
             // with fresh sequential sortorders (0, 1, 2…).
@@ -281,13 +319,13 @@ class EditChallengeViewModel: ObservableObject {
             }
 
             // Insert pending invites for newly selected friends (skip already invited or already joined).
-            if !invitedFriendIds.isEmpty,
+            if !invitedFriends.isEmpty,
                let session = try? await client.auth.session {
                 let inviterUserId = session.user.id
                 let existingInviteeIds = Set(pendingInvites.compactMap { $0.userId?.uuidString })
                 let existingMemberIds = Set(members.map { $0.userId.uuidString })
 
-                for friendIdString in invitedFriendIds {
+                for (friendIdString, message) in invitedFriends {
                     guard !existingInviteeIds.contains(friendIdString),
                           !existingMemberIds.contains(friendIdString),
                           let friendUUID = UUID(uuidString: friendIdString) else { continue }
@@ -295,7 +333,8 @@ class EditChallengeViewModel: ObservableObject {
                     let invite = ChallengeInviteInsert(
                         challenge_id: challengeId,
                         inviter_user_id: inviterUserId,
-                        invitee_user_id: friendUUID
+                        invitee_user_id: friendUUID,
+                        message: message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : message
                     )
                     try await client
                         .from("challenge_invites")

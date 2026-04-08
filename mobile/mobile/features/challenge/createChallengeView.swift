@@ -8,6 +8,7 @@ struct CreateChallengeView: View {
     @State private var showFromDateSheet: Bool = false
     @State private var showToDateSheet: Bool = false
     @State private var showInviteFriends: Bool = false
+    @State private var showEmojiSetup: Bool = false
     @State private var monthCursor: Date = Date()  // Tracks which month is visible in the monthly day picker.
 
     var body: some View {
@@ -39,6 +40,10 @@ struct CreateChallengeView: View {
         .navBarHidden(true)
         .onChange(of: viewModel.didCreateSuccessfully) { didCreate in
             if didCreate { dismiss() }
+        }
+        // MARK: - Emoji Setup screen
+        .fullScreenCover(isPresented: $showEmojiSetup) {
+            EmojiSetupView(viewModel: viewModel)
         }
         .alert("Error", isPresented: Binding(
             get: { viewModel.errorMessage != nil },
@@ -87,7 +92,7 @@ struct CreateChallengeView: View {
         .animation(.easeInOut(duration: 0.25), value: showToDateSheet)
         // MARK: - Invite friends sheet
         .fullScreenCover(isPresented: $showInviteFriends) {
-            InviteFriendsView(invitedIds: $viewModel.invitedFriendIds)
+            InviteFriendsView(invitedFriends: $viewModel.invitedFriends)
         }
     }
 
@@ -162,7 +167,7 @@ struct CreateChallengeView: View {
                     if viewModel.descriptionText.isEmpty {
                         Text("Add a short description...")
                             .font(AppFont.body2.font)
-                            .foregroundColor(Color("Neutral-500"))
+                            .foregroundColor(Color(.placeholderText))
                             .padding(.horizontal, 16)
                             .padding(.vertical, 14)
                             .allowsHitTesting(false)
@@ -175,37 +180,21 @@ struct CreateChallengeView: View {
         }
     }
 
-    // MARK: - Daily tasks list with add/remove
+    // MARK: - Daily tasks list with swipe-to-delete
     private var dailyTasksSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             sectionLabel("Daily Tasks")
 
             VStack(spacing: 8) {
                 ForEach(viewModel.dailyTasks.indices, id: \.self) { index in
-                    HStack(spacing: 10) {
-                        TextField("Task", text: $viewModel.dailyTasks[index])
-                            .appFont(AppFont.body1)
-                            .foregroundColor(Color("White"))
-
-                        Button {
-                            viewModel.dailyTasks.remove(at: index)
-                        } label: {
-                            Image("trashcan")
-                                .renderingMode(.template)
-                                .foregroundColor(Color("Red-500"))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    .padding(.horizontal, 14)
-                    .frame(height: 48)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .strokeBorder(Color("Neutral-600"), lineWidth: 0.7)
+                    SwipeToDeleteTaskRow(
+                        text: $viewModel.dailyTasks[index],
+                        onDelete: { viewModel.dailyTasks.remove(at: index) }
                     )
                 }
 
                 if viewModel.dailyTasks.count < 5 {
-                    outlineButton(title: "Add Task", iconName: "addTask", isSystem: false, isDashed: false, iconSize: CGSize(width: 14, height: 14)) {
+                    outlineButton(title: "Add Task", iconName: "addTask", isSystem: false, isDashed: true, iconSize: CGSize(width: 14, height: 14)) {
                         viewModel.dailyTasks.append("")
                     }
                 }
@@ -242,7 +231,7 @@ struct CreateChallengeView: View {
                 .buttonStyle(.plain)
             }
             .background(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: 8)
                     .strokeBorder(Color("Neutral-600"), lineWidth: 0.7)
             )
         }
@@ -292,7 +281,7 @@ struct CreateChallengeView: View {
                 }
             }
             .background(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: 8)
                     .strokeBorder(Color("Neutral-600"), lineWidth: 0.7)
             )
         }
@@ -343,7 +332,7 @@ struct CreateChallengeView: View {
                     Button {
                         viewModel.selectedProof = .photo
                     } label: {
-                        HStack(spacing: 8) {
+                        HStack(spacing: 6) {
                             Image("camera")
                                 .resizable()
                                 .scaledToFit()
@@ -351,21 +340,21 @@ struct CreateChallengeView: View {
                             Text("Photo Upload")
                                 .appFont(AppFont.labelM)
                         }
-                        .foregroundColor(viewModel.selectedProof == .photo ? Color("White") : Color("Neutral-400"))
+                        .foregroundColor(viewModel.selectedProof == .photo ? Color("White") : Color("Neutral-300"))
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 14)
-                        .padding(.top, 14)
-                        .padding(.bottom, viewModel.selectedProof == .photo ? 10 : 14)
+                        .padding(.horizontal, 11)
+                        .padding(.top, 11)
+                        .padding(.bottom, viewModel.selectedProof == .photo ? 10 : 11)
                     }
                     .buttonStyle(.plain)
 
                     if viewModel.selectedProof == .photo {
-                        // Required / Optional toggle
+                        // Required / Optional toggle — Neutral-800 pill container
                         HStack(spacing: 0) {
                             Button {
                                 viewModel.isProofRequired = true
                             } label: {
-                                HStack(spacing: 6) {
+                                HStack(spacing: 8) {
                                     if viewModel.isProofRequired {
                                         Image("proofTypeSelected")
                                             .resizable()
@@ -376,16 +365,18 @@ struct CreateChallengeView: View {
                                         .appFont(AppFont.labelM)
                                 }
                                 .foregroundColor(viewModel.isProofRequired ? Color("White") : Color("Neutral-400"))
-                                .frame(maxWidth: .infinity, minHeight: 36)
-                                .background(viewModel.isProofRequired ? Color("Neutral-800") : Color.clear)
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                .frame(maxWidth: .infinity, minHeight: 42)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .strokeBorder(viewModel.isProofRequired ? Color("Neutral-300") : Color.clear, lineWidth: 0.7)
+                                )
                             }
                             .buttonStyle(.plain)
 
                             Button {
                                 viewModel.isProofRequired = false
                             } label: {
-                                HStack(spacing: 6) {
+                                HStack(spacing: 8) {
                                     if !viewModel.isProofRequired {
                                         Image("proofTypeSelected")
                                             .resizable()
@@ -396,26 +387,29 @@ struct CreateChallengeView: View {
                                         .appFont(AppFont.labelM)
                                 }
                                 .foregroundColor(viewModel.isProofRequired ? Color("Neutral-400") : Color("White"))
-                                .frame(maxWidth: .infinity, minHeight: 36)
-                                .background(viewModel.isProofRequired ? Color.clear : Color("Neutral-800"))
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                .frame(maxWidth: .infinity, minHeight: 42)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .strokeBorder(viewModel.isProofRequired ? Color.clear : Color("Neutral-300"), lineWidth: 0.7)
+                                )
                             }
                             .buttonStyle(.plain)
                         }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .background(Color("Neutral-900"))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 6)
+                        .background(Color("Neutral-800"))
                         .clipShape(RoundedRectangle(cornerRadius: 10))
-                        .padding(.horizontal, 10)
+                        .padding(.horizontal, 38)
+                        .animation(.none, value: viewModel.isProofRequired)
 
                         // Helper text
-                        HStack(spacing: 6) {
+                        HStack(spacing: 9) {
                             Image(systemName: "info.circle")
-                                .font(.system(size: 12))
-                                .foregroundColor(Color("Neutral-500"))
+                                .font(.system(size: 11))
+                                .foregroundColor(Color("Neutral-300"))
                             Text("Each check-in MUST have a photo to count towards progress.")
-                                .appFont(AppFont.captionS)
-                                .foregroundColor(Color("Neutral-500"))
+                                .appFont(AppFont.captionXS)
+                                .foregroundColor(Color("Neutral-300"))
                         }
                         .padding(.horizontal, 14)
                         .padding(.top, 8)
@@ -423,55 +417,53 @@ struct CreateChallengeView: View {
                     }
                 }
                 .background(Color("Neutral-900"))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .strokeBorder(viewModel.selectedProof == .photo ? Color("White") : Color("Neutral-700"), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 8)
+                        .strokeBorder(viewModel.selectedProof == .photo ? Color("White") : Color.clear, lineWidth: 1)
                 )
+                .animation(.none, value: viewModel.selectedProof)
 
-                // Checklist row
+                // Checklist row — border only, no check icon
                 Button {
                     viewModel.selectedProof = .checklist
                 } label: {
-                    HStack(spacing: 8) {
+                    HStack(spacing: 6) {
                         Image("checklist")
                             .resizable()
                             .scaledToFit()
                             .frame(width: 20, height: 20)
                         Text("Checklist")
                             .appFont(AppFont.labelM)
-                        Spacer()
-                        if viewModel.selectedProof == .checklist {
-                            Image("proofTypeSelected")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 16, height: 16)
-                        }
                     }
-                    .foregroundColor(viewModel.selectedProof == .checklist ? Color("White") : Color("Neutral-400"))
-                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                    .padding(.horizontal, 14)
+                    .foregroundColor(viewModel.selectedProof == .checklist ? Color("White") : Color("Neutral-300"))
+                    .frame(maxWidth: .infinity, minHeight: 50, alignment: .leading)
+                    .padding(.horizontal, 11)
                 }
                 .buttonStyle(.plain)
                 .background(Color("Neutral-900"))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .strokeBorder(viewModel.selectedProof == .checklist ? Color("White") : Color("Neutral-700"), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 8)
+                        .strokeBorder(viewModel.selectedProof == .checklist ? Color("White") : Color.clear, lineWidth: 1)
                 )
+                .animation(.none, value: viewModel.selectedProof)
             }
+            .animation(.none, value: viewModel.selectedProof)
         }
     }
 
     // MARK: - Invite participants
     private var inviteSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            sectionLabel("Invite Participants")
+            sectionLabel("Invite Friends")
 
             VStack(spacing: 10) {
                 // Show invited count badge when friends are selected
-                if !viewModel.invitedFriendIds.isEmpty {
+                if !viewModel.invitedFriends.isEmpty {
                     HStack {
                         Image("friends")
-                        Text("\(viewModel.invitedFriendIds.count) friend\(viewModel.invitedFriendIds.count == 1 ? "" : "s") invited")
+                        Text("\(viewModel.invitedFriends.count) friend\(viewModel.invitedFriends.count == 1 ? "" : "s") invited")
                             .appFont(AppFont.labelM)
                             .foregroundColor(Color("White"))
                         Spacer()
@@ -497,32 +489,24 @@ struct CreateChallengeView: View {
                 outlineButton(title: "Add Friends", iconName: "addFriends", isSystem: false, isDashed: true, iconSize: CGSize(width: 14, height: 14)) {
                     showInviteFriends = true
                 }
-                outlineButton(title: "Invite via Link", iconName: "inviteViaLink", isSystem: false, isDashed: false, iconSize: CGSize(width: 16, height: 8)) {}
+                outlineButton(title: "Invite via Link", iconName: "inviteViaLink", isSystem: false, isDashed: false, showBorder: false, iconSize: CGSize(width: 16, height: 8)) {}
             }
         }
     }
 
-    // MARK: - Create button
+    // MARK: - Continue button (navigates to Emoji Setup)
     private var createButton: some View {
         Button {
-            Task { await viewModel.createChallenge() }
+            showEmojiSetup = true
         } label: {
-            if viewModel.isLoading {
-                ProgressView()
-                    .tint(.white)
-                    .frame(maxWidth: .infinity, minHeight: 56)
-                    .background(Color("Neutral-800"))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-            } else {
-                Text("Create Challenge")
-                    .appFont(AppFont.title3)
-                    .foregroundColor(viewModel.isCreateEnabled ? Color("Neutral-1000") : Color("Neutral-500"))
-                    .frame(maxWidth: .infinity, minHeight: 56)
-                    .background(viewModel.isCreateEnabled ? Color("Green-300") : Color("Neutral-800"))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-            }
+            Text("Continue")
+                .appFont(AppFont.title3)
+                .foregroundColor(viewModel.isCreateEnabled ? Color("Neutral-1000") : Color("Neutral-500"))
+                .frame(maxWidth: .infinity, minHeight: 56)
+                .background(viewModel.isCreateEnabled ? Color("Green-300") : Color("Neutral-800"))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
         }
-        .disabled(!viewModel.isCreateEnabled || viewModel.isLoading)
+        .disabled(!viewModel.isCreateEnabled)
         .padding(.top, 8)
     }
 
@@ -548,7 +532,7 @@ struct CreateChallengeView: View {
     }
 
     private func selectionRow(iconName: String, title: String, value: String, trailingIconName: String) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 6) {
             Image(iconName)
                 .resizable()
                 .scaledToFit()
@@ -566,11 +550,11 @@ struct CreateChallengeView: View {
             Image(trailingIconName)
                 .foregroundColor(Color("Neutral-400"))
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 11)
         .frame(height: 52)
     }
 
-    private func outlineButton(title: String, iconName: String, isSystem: Bool, isDashed: Bool, iconSize: CGSize? = nil, action: @escaping () -> Void) -> some View {
+    private func outlineButton(title: String, iconName: String, isSystem: Bool, isDashed: Bool, showBorder: Bool = true, iconSize: CGSize? = nil, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 10) {
                 if isSystem {
@@ -586,18 +570,88 @@ struct CreateChallengeView: View {
                 Text(title)
                     .appFont(AppFont.labelM)
             }
-            .foregroundColor(Color("White"))
+            .foregroundColor(Color("Neutral-300"))
             .frame(maxWidth: .infinity, minHeight: 50)
             .background(Color("Neutral-900"))
             .overlay(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: 8)
                     .stroke(
-                        Color("Neutral-700"),
-                        style: StrokeStyle(lineWidth: 1, dash: isDashed ? [6, 6] : [])
+                        showBorder ? Color("Neutral-600") : Color.clear,
+                        style: StrokeStyle(lineWidth: 0.7, dash: isDashed ? [6, 6] : [])
                     )
             )
         }
         .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Swipe-to-delete task row
+
+private struct SwipeToDeleteTaskRow: View {
+    @Binding var text: String
+    let onDelete: () -> Void
+
+    @State private var dragOffset: CGFloat = 0
+    @State private var isRevealed = false
+    private let revealWidth: CGFloat = 72
+
+    var body: some View {
+        ZStack(alignment: .trailing) {
+            // Red delete button revealed on swipe
+            Button {
+                dragOffset = 0
+                isRevealed = false
+                onDelete()
+            } label: {
+                Text("Delete")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.white)
+                    .frame(width: revealWidth, height: 48)
+                    .background(
+                        UnevenRoundedRectangle(
+                            topLeadingRadius: 0, bottomLeadingRadius: 0,
+                            bottomTrailingRadius: 8, topTrailingRadius: 8
+                        )
+                        .fill(Color("Red-500"))
+                    )
+            }
+            .buttonStyle(.plain)
+
+            // Task text field (slides left on swipe)
+            TextField("Task", text: $text)
+                .appFont(AppFont.body1)
+                .foregroundColor(Color("White"))
+                .padding(.horizontal, 14)
+                .frame(height: 48)
+                .frame(maxWidth: .infinity)
+                .background(AppColors.neutral1000)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .strokeBorder(Color("Neutral-600"), lineWidth: 0.7)
+                )
+                .offset(x: dragOffset)
+                .gesture(
+                    DragGesture(minimumDistance: 8, coordinateSpace: .local)
+                        .onChanged { v in
+                            guard abs(v.translation.width) > abs(v.translation.height) else { return }
+                            let base: CGFloat = isRevealed ? -revealWidth : 0
+                            dragOffset = min(0, max(-revealWidth, base + v.translation.width))
+                        }
+                        .onEnded { v in
+                            withAnimation(.easeOut(duration: 0.2)) {
+                                if dragOffset < -(revealWidth / 2) {
+                                    dragOffset = -revealWidth
+                                    isRevealed = true
+                                } else {
+                                    dragOffset = 0
+                                    isRevealed = false
+                                }
+                            }
+                        }
+                )
+        }
+        .clipped()
     }
 }
 

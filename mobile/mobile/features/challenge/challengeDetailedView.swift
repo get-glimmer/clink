@@ -13,6 +13,7 @@ struct ChallengeDetailView: View {
     @State private var showPhotoLibraryPicker = false
     @State private var showAllParticipants = false
     @State private var showGallerySheet = false
+    @State private var showEditChallenge = false
 
     var onBack: (() -> Void)?
     var onTapCalendar: (() -> Void)?
@@ -106,6 +107,12 @@ struct ChallengeDetailView: View {
         .sheet(isPresented: $showGallerySheet) {
             FullGallerySheet(items: viewModel.galleryItems)
         }
+        .fullScreenCover(isPresented: $showEditChallenge) {
+            EditChallengeView(challengeId: viewModel.challengeId)
+        }
+        .onChange(of: showEditChallenge) { isShowing in
+            if !isShowing { Task { await viewModel.load() } }
+        }
     }
 }
 
@@ -123,6 +130,10 @@ private extension ChallengeDetailView {
             Spacer()
 
             HStack(spacing: 10) {
+                CircleIconButton(systemName: "pencil") {
+                    showEditChallenge = true
+                }
+
                 CircleIconButton(systemName: "calendar") {
                     onTapCalendar?()
                 }

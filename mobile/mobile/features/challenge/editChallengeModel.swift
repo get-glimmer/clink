@@ -13,6 +13,8 @@ struct ChallengeRecord: Decodable {
     let repeat_type: String
     let weekly_days: [Int]?
     let monthly_days: [Int]?
+    let emoji_rule: String?
+    let preset_emojis: [String]?
 }
 
 struct ChallengeTaskRecord: Decodable {
@@ -34,7 +36,7 @@ struct PendingInviteInfo: Identifiable {
     let userId: UUID?
     let name: String?
     let avatarUrl: String?
-    let status: String  // raw value from challenge_invites.status (e.g. "pending", "accepted")
+    let status: String  // raw value from challenge_invites.status (e.g. "pending", "declined")
 }
 
 struct ChallengeUpdate: Encodable {
@@ -47,4 +49,5 @@ struct ChallengeUpdate: Encodable {
     let repeat_type: String
     let weekly_days: [Int]?
     let monthly_days: [Int]?
+    let preset_emojis: [String]?
 }
