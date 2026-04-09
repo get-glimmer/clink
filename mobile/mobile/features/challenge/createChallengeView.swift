@@ -21,7 +21,7 @@ struct CreateChallengeView: View {
                     .padding(.bottom, 6)
 
                 ScrollView(showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 14) {
+                    VStack(alignment: .leading, spacing: 16) {
                         headerPreview
                         titleSection
                         descriptionSection
@@ -38,6 +38,7 @@ struct CreateChallengeView: View {
             }
         }
         .navBarHidden(true)
+        .dismissKeyboardOnTap()
         .onChange(of: viewModel.didCreateSuccessfully) { didCreate in
             if didCreate { dismiss() }
         }
@@ -139,9 +140,9 @@ struct CreateChallengeView: View {
 
             TextField("Challenge Title", text: $viewModel.challengeTitle)
                 .appFont(AppFont.body1)
-                .foregroundColor(Color("White"))
-                .padding(.horizontal, 16)
-                .frame(height: 48)
+                .foregroundColor(Color("Neutral-300"))
+                .padding(.horizontal, 18)
+                .frame(height: 49)
                 .background(
                     RoundedRectangle(cornerRadius: 8)
                         .strokeBorder(Color("Neutral-600"), lineWidth: 0.7)
@@ -157,16 +158,16 @@ struct CreateChallengeView: View {
             // Use .font() directly instead of .appFont() — appFont applies .fixedSize(vertical:true)
             // which collapses the TextEditor's interactive area to ~one line, making it untappable.
             TextEditor(text: $viewModel.descriptionText)
-                .font(AppFont.body2.font)
+                .font(AppFont.body1.font)
                 .foregroundColor(Color("White"))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
-                .frame(minHeight: 120)
+                .frame(minHeight: 84)
                 .scrollContentBackground(.hidden)
                 .overlay(alignment: .topLeading) {
                     if viewModel.descriptionText.isEmpty {
                         Text("Add a short description...")
-                            .font(AppFont.body2.font)
+                            .font(AppFont.body1.font)
                             .foregroundColor(Color(.placeholderText))
                             .padding(.horizontal, 16)
                             .padding(.vertical, 14)
@@ -185,18 +186,35 @@ struct CreateChallengeView: View {
         VStack(alignment: .leading, spacing: 8) {
             sectionLabel("Daily Tasks")
 
-            VStack(spacing: 8) {
+            List {
                 ForEach(viewModel.dailyTasks.indices, id: \.self) { index in
-                    SwipeToDeleteTaskRow(
-                        text: $viewModel.dailyTasks[index],
-                        onDelete: { viewModel.dailyTasks.remove(at: index) }
-                    )
+                    TextField("Task", text: $viewModel.dailyTasks[index])
+                        .appFont(AppFont.body1)
+                        .foregroundColor(Color("White"))
+                        .padding(.horizontal, 14)
+                        .frame(height: 49)
+                        .background(AppColors.neutral1000)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .strokeBorder(Color("Neutral-600"), lineWidth: 0.7)
+                        )
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+                        .listRowSeparator(.hidden)
                 }
+                .onDelete { indexSet in
+                    viewModel.dailyTasks.remove(atOffsets: indexSet)
+                }
+            }
+            .scrollDisabled(true)
+            .scrollContentBackground(.hidden)
+            .listStyle(.plain)
+            .frame(height: CGFloat(viewModel.dailyTasks.count) * 56)
 
-                if viewModel.dailyTasks.count < 5 {
-                    outlineButton(title: "Add Task", iconName: "addTask", isSystem: false, isDashed: true, iconSize: CGSize(width: 14, height: 14)) {
-                        viewModel.dailyTasks.append("")
-                    }
+            if viewModel.dailyTasks.count < 5 {
+                outlineButton(title: "Add Task", iconName: "addTask", isSystem: false, isDashed: true, iconSize: CGSize(width: 14, height: 14)) {
+                    viewModel.dailyTasks.append("")
                 }
             }
         }
@@ -250,7 +268,7 @@ struct CreateChallengeView: View {
                             .scaledToFit()
                             .frame(width: 24, height: 24)
                         Text("Repeat")
-                            .appFont(AppFont.labelM)
+                            .appFont(AppFont.labelL)
                             .foregroundColor(Color("Neutral-300"))
                     }
                     Spacer()
@@ -330,7 +348,7 @@ struct CreateChallengeView: View {
                 // Photo Upload card (expanded when selected)
                 VStack(spacing: 0) {
                     Button {
-                        viewModel.selectedProof = .photo
+                        if !viewModel.selectedProof.isPhoto { viewModel.selectedProof = .photoRequired }
                     } label: {
                         HStack(spacing: 6) {
                             Image("camera")
@@ -338,24 +356,24 @@ struct CreateChallengeView: View {
                                 .scaledToFit()
                                 .frame(width: 24, height: 24)
                             Text("Photo Upload")
-                                .appFont(AppFont.labelM)
+                                .appFont(AppFont.labelL)
                         }
-                        .foregroundColor(viewModel.selectedProof == .photo ? Color("White") : Color("Neutral-300"))
+                        .foregroundColor(viewModel.selectedProof.isPhoto ? Color("White") : Color("Neutral-300"))
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 11)
                         .padding(.top, 11)
-                        .padding(.bottom, viewModel.selectedProof == .photo ? 10 : 11)
+                        .padding(.bottom, viewModel.selectedProof.isPhoto ? 10 : 11)
                     }
                     .buttonStyle(.plain)
 
-                    if viewModel.selectedProof == .photo {
+                    if viewModel.selectedProof.isPhoto {
                         // Required / Optional toggle — Neutral-800 pill container
                         HStack(spacing: 0) {
                             Button {
-                                viewModel.isProofRequired = true
+                                viewModel.selectedProof = .photoRequired
                             } label: {
                                 HStack(spacing: 8) {
-                                    if viewModel.isProofRequired {
+                                    if viewModel.selectedProof == .photoRequired {
                                         Image("proofTypeSelected")
                                             .resizable()
                                             .scaledToFit()
@@ -364,20 +382,20 @@ struct CreateChallengeView: View {
                                     Text("Required")
                                         .appFont(AppFont.labelM)
                                 }
-                                .foregroundColor(viewModel.isProofRequired ? Color("White") : Color("Neutral-400"))
+                                .foregroundColor(viewModel.selectedProof == .photoRequired ? Color("White") : Color("Neutral-400"))
                                 .frame(maxWidth: .infinity, minHeight: 42)
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 8)
-                                        .strokeBorder(viewModel.isProofRequired ? Color("Neutral-300") : Color.clear, lineWidth: 0.7)
+                                        .strokeBorder(viewModel.selectedProof == .photoRequired ? Color("Neutral-300") : Color.clear, lineWidth: 0.7)
                                 )
                             }
                             .buttonStyle(.plain)
 
                             Button {
-                                viewModel.isProofRequired = false
+                                viewModel.selectedProof = .photoOptional
                             } label: {
                                 HStack(spacing: 8) {
-                                    if !viewModel.isProofRequired {
+                                    if viewModel.selectedProof == .photoOptional {
                                         Image("proofTypeSelected")
                                             .resizable()
                                             .scaledToFit()
@@ -386,11 +404,11 @@ struct CreateChallengeView: View {
                                     Text("Optional")
                                         .appFont(AppFont.labelM)
                                 }
-                                .foregroundColor(viewModel.isProofRequired ? Color("Neutral-400") : Color("White"))
+                                .foregroundColor(viewModel.selectedProof == .photoOptional ? Color("White") : Color("Neutral-400"))
                                 .frame(maxWidth: .infinity, minHeight: 42)
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 8)
-                                        .strokeBorder(viewModel.isProofRequired ? Color.clear : Color("Neutral-300"), lineWidth: 0.7)
+                                        .strokeBorder(viewModel.selectedProof == .photoOptional ? Color("Neutral-300") : Color.clear, lineWidth: 0.7)
                                 )
                             }
                             .buttonStyle(.plain)
@@ -399,30 +417,31 @@ struct CreateChallengeView: View {
                         .padding(.vertical, 6)
                         .background(Color("Neutral-800"))
                         .clipShape(RoundedRectangle(cornerRadius: 10))
-                        .padding(.horizontal, 38)
-                        .animation(.none, value: viewModel.isProofRequired)
+                        .padding(.horizontal, 39)
 
                         // Helper text
                         HStack(spacing: 9) {
-                            Image(systemName: "info.circle")
-                                .font(.system(size: 11))
-                                .foregroundColor(Color("Neutral-300"))
+                            Image("photo_upload_info")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 14, height: 14)
                             Text("Each check-in MUST have a photo to count towards progress.")
                                 .appFont(AppFont.captionXS)
                                 .foregroundColor(Color("Neutral-300"))
                         }
-                        .padding(.horizontal, 14)
+                        .padding(.leading, 20)
                         .padding(.top, 8)
                         .padding(.bottom, 14)
+//                        .padding(.trailing, 12)
                     }
                 }
                 .background(Color("Neutral-900"))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
-                        .strokeBorder(viewModel.selectedProof == .photo ? Color("White") : Color.clear, lineWidth: 1)
+                        .strokeBorder(viewModel.selectedProof.isPhoto ? Color("White") : Color.clear, lineWidth: 1)
                 )
-                .animation(.none, value: viewModel.selectedProof)
+                .transaction { $0.animation = nil }
 
                 // Checklist row — border only, no check icon
                 Button {
@@ -447,9 +466,9 @@ struct CreateChallengeView: View {
                     RoundedRectangle(cornerRadius: 8)
                         .strokeBorder(viewModel.selectedProof == .checklist ? Color("White") : Color.clear, lineWidth: 1)
                 )
-                .animation(.none, value: viewModel.selectedProof)
+                .transaction { $0.animation = nil }
             }
-            .animation(.none, value: viewModel.selectedProof)
+            .transaction { $0.animation = nil }
         }
     }
 
@@ -519,7 +538,7 @@ struct CreateChallengeView: View {
 
     private func sectionLabel(_ title: String) -> some View {
         Text(title)
-            .appFont(AppFont.labelS)
+            .appFont(AppFont.labelM)
             .foregroundColor(Color("Neutral-300"))
             .padding(.leading, 6)
     }
@@ -538,13 +557,13 @@ struct CreateChallengeView: View {
                 .scaledToFit()
                 .frame(width: 24, height: 24)
             Text(title)
-                .appFont(AppFont.labelM)
+                .appFont(AppFont.labelL)
                 .foregroundColor(Color("Neutral-300"))
 
             Spacer()
 
             Text(value)
-                .appFont(AppFont.body2)
+                .appFont(AppFont.body1)
                 .foregroundColor(Color("White"))
 
             Image(trailingIconName)
@@ -585,75 +604,6 @@ struct CreateChallengeView: View {
     }
 }
 
-// MARK: - Swipe-to-delete task row
-
-private struct SwipeToDeleteTaskRow: View {
-    @Binding var text: String
-    let onDelete: () -> Void
-
-    @State private var dragOffset: CGFloat = 0
-    @State private var isRevealed = false
-    private let revealWidth: CGFloat = 72
-
-    var body: some View {
-        ZStack(alignment: .trailing) {
-            // Red delete button revealed on swipe
-            Button {
-                dragOffset = 0
-                isRevealed = false
-                onDelete()
-            } label: {
-                Text("Delete")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(.white)
-                    .frame(width: revealWidth, height: 48)
-                    .background(
-                        UnevenRoundedRectangle(
-                            topLeadingRadius: 0, bottomLeadingRadius: 0,
-                            bottomTrailingRadius: 8, topTrailingRadius: 8
-                        )
-                        .fill(Color("Red-500"))
-                    )
-            }
-            .buttonStyle(.plain)
-
-            // Task text field (slides left on swipe)
-            TextField("Task", text: $text)
-                .appFont(AppFont.body1)
-                .foregroundColor(Color("White"))
-                .padding(.horizontal, 14)
-                .frame(height: 48)
-                .frame(maxWidth: .infinity)
-                .background(AppColors.neutral1000)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .strokeBorder(Color("Neutral-600"), lineWidth: 0.7)
-                )
-                .offset(x: dragOffset)
-                .gesture(
-                    DragGesture(minimumDistance: 8, coordinateSpace: .local)
-                        .onChanged { v in
-                            guard abs(v.translation.width) > abs(v.translation.height) else { return }
-                            let base: CGFloat = isRevealed ? -revealWidth : 0
-                            dragOffset = min(0, max(-revealWidth, base + v.translation.width))
-                        }
-                        .onEnded { v in
-                            withAnimation(.easeOut(duration: 0.2)) {
-                                if dragOffset < -(revealWidth / 2) {
-                                    dragOffset = -revealWidth
-                                    isRevealed = true
-                                } else {
-                                    dragOffset = 0
-                                    isRevealed = false
-                                }
-                            }
-                        }
-                )
-        }
-        .clipped()
-    }
-}
 
 private struct SelectableChip: View {
     let title: String
