@@ -401,7 +401,7 @@ struct EditChallengeView: View {
                                 .resizable()
                                 .scaledToFit()
                                 .frame(width: 20, height: 20)
-                            Text("Photo Upload").appFont(AppFont.labelM)
+                            Text("Photo Upload (Optional)").appFont(AppFont.labelM)
                         }
                         .foregroundColor(viewModel.selectedProof.isPhoto ? Color("White") : Color("Neutral-400"))
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -472,22 +472,22 @@ struct EditChallengeView: View {
                         .strokeBorder(viewModel.selectedProof.isPhoto ? Color("White") : Color("Neutral-700"), lineWidth: 1)
                 )
 
-                Button { viewModel.selectedProof = .checklist } label: {
+                Button { viewModel.selectedProof = .photoRequired } label: {
                     HStack(spacing: 8) {
-                        Image("checklist")
+                        Image("camera")
                             .resizable()
                             .scaledToFit()
                             .frame(width: 20, height: 20)
-                        Text("Checklist").appFont(AppFont.labelM)
+                        Text("Photo Upload (Required)").appFont(AppFont.labelM)
                         Spacer()
-                        if viewModel.selectedProof == .checklist {
+                        if viewModel.selectedProof == .photoRequired {
                             Image("proofTypeSelected")
                                 .resizable()
                                 .scaledToFit()
                                 .frame(width: 16, height: 16)
                         }
                     }
-                    .foregroundColor(viewModel.selectedProof == .checklist ? Color("White") : Color("Neutral-400"))
+                    .foregroundColor(viewModel.selectedProof == .photoRequired ? Color("White") : Color("Neutral-400"))
                     .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                     .padding(.horizontal, 14)
                 }
@@ -495,7 +495,7 @@ struct EditChallengeView: View {
                 .background(Color("Neutral-900"))
                 .overlay(
                     RoundedRectangle(cornerRadius: 10)
-                        .strokeBorder(viewModel.selectedProof == .checklist ? Color("White") : Color("Neutral-700"), lineWidth: 1)
+                        .strokeBorder(viewModel.selectedProof == .photoRequired ? Color("White") : Color("Neutral-700"), lineWidth: 1)
                 )
             }
         }

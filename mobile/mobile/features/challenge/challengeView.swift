@@ -130,8 +130,18 @@ struct ChallengeView: View {
                     destination: {
                         Group {
                             if let challengeId = selectedChallengeId {
-                                ChallengeDetailView(challengeId: challengeId)
-                                    .navBarHidden(true)
+                                let selected = viewModel.challenges.first(where: { $0.id == challengeId })
+                                let isOver: Bool = {
+                                    guard let end = selected?.endDate else { return false }
+                                    return Calendar.current.startOfDay(for: end) < Calendar.current.startOfDay(for: Date())
+                                }()
+                                if isOver {
+                                    ChallengeResultView(challengeId: challengeId)
+                                        .navBarHidden(true)
+                                } else {
+                                    ChallengeDetailView(challengeId: challengeId)
+                                        .navBarHidden(true)
+                                }
                             } else {
                                 Color.clear
                             }
@@ -399,6 +409,7 @@ struct ChallengeShakerPreview: View {
     @State private var scene = ShakerScene(size: .zero)
     @State private var lidColors: [Color] = [.black, .gray]
     @State private var lidOpacity: Double = 0
+    @State private var didConfigure = false
 
     // Lid position & size (matching ShakerView ratios)
     private let lidHeightRatio:   CGFloat = 46.0 / 270.0
@@ -418,12 +429,15 @@ struct ChallengeShakerPreview: View {
                     .frame(width: jarSize.width, height: jarSize.height)
                     .allowsHitTesting(false)
 
-                // Lid gradient (when completed)
+                // Lid gradient (when completed) — hardcoded green to match
+                // ChallengeJarView in the detail view.
                 Rectangle()
                     .fill(
-                        LinearGradient(colors: lidColors,
-                                       startPoint: .leading,
-                                       endPoint: .trailing)
+                        LinearGradient(
+                            colors: [AppColors.green300, AppColors.green300.opacity(0.7)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
                     )
                     .frame(
                         width: jarSize.width,
@@ -447,40 +461,58 @@ struct ChallengeShakerPreview: View {
             }
             .frame(width: geo.size.width, height: geo.size.height, alignment: .center)
             .onAppear {
-                if scene.size == .zero {
-                    scene = ShakerScene(size: jarSize)
-                }
-
-                // Preview mode: small emojis, constant gravity, no device motion
-                scene.setEmojiScale(24.0 / 54.0)
-                scene.setMotionEnabled(false)
-                scene.configureBoundaries(inset: 12, lidHeight: 40, bottomExtraDepth: 10)
-                scene.useConstantGravity(18)
-                scene.setHapticsEnabled(false)
-
-                // Clear and re-add emojis
-                scene.resetScene()
-                for emoji in challenge.shakerUserEmojis {
-                    scene.addEmoji(emoji, for: UUID())
-                }
-
-                // Settle emojis to the bottom for preview
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    scene.settleAllToBottom()
-                }
-
-                // Lid color
-                if challenge.shakerIsCompleted {
-                    if let c0 = Color(hex: challenge.shakerLidColorStart),
-                       let c1 = Color(hex: challenge.shakerLidColorEnd) {
-                        lidColors = [c0, c1]
-                    }
-                    lidOpacity = 1
-                } else {
-                    lidOpacity = 0
+                configureSceneIfNeeded(jarSize: jarSize)
+                syncEmojis()
+                applyLid()
+            }
+            .onChange(of: jarSize) { newSize in
+                // GeometryReader's first measurement can be .zero. Re-init
+                // the scene once we actually have a real size.
+                if scene.size == .zero, newSize.width > 0, newSize.height > 0 {
+                    configureSceneIfNeeded(jarSize: newSize)
+                    syncEmojis()
+                    applyLid()
                 }
             }
+            .onChange(of: challenge.shakerUserEmojis) { _ in
+                guard didConfigure else { return }
+                syncEmojis()
+            }
+            .onChange(of: challenge.shakerIsCompleted) { _ in applyLid() }
         }
+    }
+
+    private func configureSceneIfNeeded(jarSize: CGSize) {
+        guard jarSize.width > 0, jarSize.height > 0 else {
+            print("[ShakerPreview] skip configure — jarSize is zero for challenge=\(challenge.id) title=\(challenge.title)")
+            return
+        }
+        if scene.size == .zero {
+            scene = ShakerScene(size: jarSize)
+        }
+        scene.setEmojiScale(24.0 / 54.0)
+        scene.setMotionEnabled(false)
+        scene.configureBoundaries(inset: 12, lidHeight: 40, bottomExtraDepth: 10)
+        scene.useConstantGravity(18)
+        scene.setHapticsEnabled(false)
+        didConfigure = true
+    }
+
+    private func syncEmojis() {
+        print("[ShakerPreview] syncEmojis challenge=\(challenge.id) title=\(challenge.title) sceneSize=\(scene.size) emojis=\(challenge.shakerUserEmojis) sealed=\(challenge.shakerIsCompleted) lidStart=\(challenge.shakerLidColorStart ?? "nil") lidEnd=\(challenge.shakerLidColorEnd ?? "nil")")
+        scene.resetScene()
+        for emoji in challenge.shakerUserEmojis {
+            scene.addEmoji(emoji, for: UUID())
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            scene.settleAllToBottom()
+        }
+    }
+
+    private func applyLid() {
+        // Lid color is hardcoded in the gradient view; this just toggles
+        // visibility based on whether today's challenge is fully sealed.
+        lidOpacity = challenge.shakerIsCompleted ? 1 : 0
     }
 }
 
@@ -516,9 +548,11 @@ struct SwipeableChallengeCard: View {
                 .offset(x: offset)
                 .contentShape(Rectangle())
                 .gesture(
-                    DragGesture()
+                    DragGesture(minimumDistance: 15)
                         .onChanged { value in
                             let translation = value.translation.width
+                            // Only engage for clearly horizontal drags so vertical scrolling still works
+                            guard abs(translation) > abs(value.translation.height) else { return }
                             if translation < 0 {
                                 offset = translation
                                 showingTrash = translation < trashThreshold

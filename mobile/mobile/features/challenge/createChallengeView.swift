@@ -445,17 +445,17 @@ struct CreateChallengeView: View {
 
                 // Checklist row — border only, no check icon
                 Button {
-                    viewModel.selectedProof = .checklist
+                    viewModel.selectedProof = .photoRequired
                 } label: {
                     HStack(spacing: 6) {
-                        Image("checklist")
+                        Image("camera")
                             .resizable()
                             .scaledToFit()
-                            .frame(width: 20, height: 20)
-                        Text("Checklist")
+                            .frame(width: 24, height: 24)
+                        Text("Photo Upload (Required)")
                             .appFont(AppFont.labelM)
                     }
-                    .foregroundColor(viewModel.selectedProof == .checklist ? Color("White") : Color("Neutral-300"))
+                    .foregroundColor(viewModel.selectedProof == .photoRequired ? Color("White") : Color("Neutral-300"))
                     .frame(maxWidth: .infinity, minHeight: 50, alignment: .leading)
                     .padding(.horizontal, 11)
                 }
@@ -464,7 +464,7 @@ struct CreateChallengeView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
-                        .strokeBorder(viewModel.selectedProof == .checklist ? Color("White") : Color.clear, lineWidth: 1)
+                        .strokeBorder(viewModel.selectedProof == .photoRequired ? Color("White") : Color.clear, lineWidth: 1)
                 )
                 .transaction { $0.animation = nil }
             }

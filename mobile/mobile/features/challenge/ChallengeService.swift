@@ -284,39 +284,33 @@ class ChallengeService: ObservableObject {
             .execute()
             .value
 
-        // Challenge Shaker (for current user, today)
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
         let todayStr = dateFormatter.string(from: Date())
 
-        var shakerRow: ChallengeShakerData? = nil
-        if let currentUserId = currentUserId {
-            do {
-                let shakerRows: [ChallengeShakerData] = try await supabase
-                    .from("challenge_shaker")
-                    .select("*")
-                    .eq("challenge_id", value: challenge.id.uuidString)
-                    .eq("date", value: todayStr)
-                    .limit(1)
-                    .execute()
-                    .value
-                shakerRow = shakerRows.first
-                print("[ChallengeShaker] challenge=\(challenge.id), user=\(currentUserId), date=\(todayStr), rows=\(shakerRows.count), isCompleted=\(shakerRow?.iscompleted ?? false), emojis=\(shakerRow?.user_emojis ?? []), lidStart=\(shakerRow?.lid_color_start ?? "nil"), lidEnd=\(shakerRow?.lid_color_end ?? "nil")")
-            } catch {
-                print("[ChallengeShaker] fetch FAILED for challenge=\(challenge.id): \(error)")
-            }
-        } else {
-            print("[ChallengeShaker] skipped — currentUserId is nil")
-        }
-
         // Parse dates
         let startDate = challenge.start_date.flatMap { dateFormatter.date(from: $0) }
         let endDate = challenge.end_date.flatMap { dateFormatter.date(from: $0) }
+
+        // Jar emoji list — cumulative across [start, min(end, today)],
+        // mirroring ChallengeDetailViewModel.buildCumulativeJarItems.
+        // challenge_shaker is never written by the app, so we no longer
+        // read from it for jar/lid state.
         let cumulativeEmojis = cumulativeJarEmojis(
             challenge: challenge,
             activeMembers: activeMembers,
             completions: completions
         )
+
+        // Lid sealed state — mirrors ChallengeJarView's `isSealed` for the
+        // detail view: true when every active member has completed every
+        // task today. Hardcoded green gradient (lid colors are not pulled
+        // from challenge_shaker anymore).
+        let requiredToday = activeMembers.count * tasks.count
+        let completedToday = completions.filter { ($0.is_completed ?? false) && $0.date == todayStr }.count
+        let isSealedToday = requiredToday > 0 && completedToday >= requiredToday
+
+        print("[ChallengeJar] challenge=\(challenge.id) title=\(challenge.title) cumulativeJarEmojis=\(cumulativeEmojis) sealedToday=\(isSealedToday) (\(completedToday)/\(requiredToday))")
 
         return ChallengeItem(
             id: challenge.id,
@@ -331,10 +325,10 @@ class ChallengeService: ObservableObject {
             members: members,
             taskCount: tasks.count,
             completedTaskCount: completions.count,
-            shakerIsCompleted: shakerRow?.iscompleted ?? false,
+            shakerIsCompleted: isSealedToday,
             shakerUserEmojis: cumulativeEmojis,
-            shakerLidColorStart: shakerRow?.lid_color_start,
-            shakerLidColorEnd: shakerRow?.lid_color_end
+            shakerLidColorStart: nil,
+            shakerLidColorEnd: nil
         )
     }
 
@@ -347,6 +341,8 @@ class ChallengeService: ObservableObject {
         let today = calendar.startOfDay(for: Date())
         let startDate = dateFromPostgreSQL(challenge.start_date).map { calendar.startOfDay(for: $0) }
         let endDate = dateFromPostgreSQL(challenge.end_date).map { calendar.startOfDay(for: $0) }
+        // Cumulative range = [start, min(end, today)], matching
+        // ChallengeDetailViewModel.buildCumulativeJarItems.
         let effectiveEnd = min(endDate ?? today, today)
 
         let activeUserIds = Set(activeMembers.map(\.user_id))
