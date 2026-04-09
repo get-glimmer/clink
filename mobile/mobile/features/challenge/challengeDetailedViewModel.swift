@@ -455,7 +455,7 @@ final class ChallengeDetailViewModel: ObservableObject {
         let endDate = dateFromPostgreSQL(challenge.end_date)
 
         title = challenge.title
-        isPhotoProofEnabled = challenge.proof_type.lowercased() == "photo_upload"
+        isPhotoProofEnabled = challenge.proof_type.lowercased() != "checklist"
         if let rawDescription = challenge.description?.trimmingCharacters(in: .whitespacesAndNewlines),
            !rawDescription.isEmpty {
             description = rawDescription
