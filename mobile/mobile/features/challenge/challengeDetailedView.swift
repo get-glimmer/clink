@@ -127,6 +127,8 @@ struct ChallengeDetailView: View {
         .onChange(of: showEditChallenge) { isShowing in
             if !isShowing { Task { await viewModel.load() } }
         }
+        .navigationBarBackButtonHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
     }
 }
 
