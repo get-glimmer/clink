@@ -205,42 +205,60 @@ struct EmojiSetupView: View {
             }
             .buttonStyle(.plain)
             .overlay(EmojiPickerAnchor(isPresented: $showPicker, selectedEmoji: $pickerEmoji).allowsHitTesting(false))
+        } else if viewModel.selectedEmojis.count == 10 {
+            // Max emojis: 4 + 4 + 2 with the last row centered
+            VStack(spacing: 16) {
+                HStack(spacing: 16) {
+                    ForEach(0..<4, id: \.self) { i in emojiCell(at: i) }
+                }
+                HStack(spacing: 16) {
+                    ForEach(4..<8, id: \.self) { i in emojiCell(at: i) }
+                }
+                HStack(spacing: 16) {
+                    Spacer()
+                    emojiCell(at: 8)
+                    emojiCell(at: 9)
+                    Spacer()
+                }
+            }
         } else {
             let columns = Array(repeating: GridItem(.flexible(), spacing: 16), count: 4)
             LazyVGrid(columns: columns, spacing: 16) {
                 ForEach(viewModel.selectedEmojis.indices, id: \.self) { i in
-                    ZStack(alignment: .bottomTrailing) {
-                        Text(viewModel.selectedEmojis[i])
-                            .font(.system(size: 75))
-                            .frame(width: 100, height: 100)
-
-                        Button {
-                            viewModel.selectedEmojis.remove(at: i)
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 32))
-                                .foregroundColor(Color("Red-500"))
-                                .background(Circle().fill(Color("Neutral-1000")).padding(2))
-                        }
-                        .buttonStyle(.plain)
-                    }
+                    emojiCell(at: i)
                 }
 
-                if viewModel.selectedEmojis.count < 10 {
-                    Button {
-                        showPicker = true
-                    } label: {
-                        Image(systemName: "plus")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.white)
-                            .frame(width: 36, height: 36)
-                            .background(Circle().fill(Color("Neutral-800")))
-                    }
-                    .buttonStyle(.plain)
-                    .frame(width: 100, height: 100)
-                    .overlay(EmojiPickerAnchor(isPresented: $showPicker, selectedEmoji: $pickerEmoji).allowsHitTesting(false))
+                Button {
+                    showPicker = true
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.white)
+                        .frame(width: 36, height: 36)
+                        .background(Circle().fill(Color("Neutral-800")))
                 }
+                .buttonStyle(.plain)
+                .frame(width: 100, height: 100)
+                .overlay(EmojiPickerAnchor(isPresented: $showPicker, selectedEmoji: $pickerEmoji).allowsHitTesting(false))
             }
+        }
+    }
+
+    private func emojiCell(at i: Int) -> some View {
+        ZStack(alignment: .bottomTrailing) {
+            Text(viewModel.selectedEmojis[i])
+                .font(.system(size: 75))
+                .frame(width: 100, height: 100)
+
+            Button {
+                viewModel.selectedEmojis.remove(at: i)
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 32))
+                    .foregroundColor(Color("Red-500"))
+                    .background(Circle().fill(Color("Neutral-1000")).padding(2))
+            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -251,9 +269,9 @@ struct EmojiSetupView: View {
                 gradient: Gradient(colors: [Color.white.opacity(0.08), Color.clear]),
                 center: .center,
                 startRadius: 0,
-                endRadius: 197
+                endRadius: 140
             )
-            .frame(width: 394, height: 394)
+            .frame(width: 280, height: 280)
 
             Text("🔥")
                 .font(.system(size: 120))

@@ -17,6 +17,7 @@ struct ChallengeDetailView: View {
     @State private var jarRemountToken = UUID()
     @State private var showEditChallenge = false
     @State private var isDescriptionExpanded = false
+    @State private var showResult = false
 
     var onBack: (() -> Void)?
     var onTapCalendar: (() -> Void)?
@@ -125,6 +126,9 @@ struct ChallengeDetailView: View {
         .fullScreenCover(isPresented: $showEditChallenge) {
             EditChallengeView(challengeId: viewModel.challengeId)
         }
+        .fullScreenCover(isPresented: $showResult) {
+            ChallengeResultView(challengeId: viewModel.challengeId)
+        }
         .onChange(of: showEditChallenge) { isShowing in
             if !isShowing { Task { await viewModel.load() } }
         }
@@ -150,6 +154,10 @@ private extension ChallengeDetailView {
             HStack(spacing: 10) {
                 CircleIconButton(systemName: "pencil") {
                     showEditChallenge = true
+                }
+
+                CircleIconButton(systemName: "square.and.arrow.up") {
+                    showResult = true
                 }
 
                 CircleIconButton(systemName: "calendar") {
@@ -944,7 +952,7 @@ private struct ChallengeImagePicker: UIViewControllerRepresentable {
     }
 }
 
-private struct ChallengeJarView: View {
+struct ChallengeJarView: View {
     let jarItems: [JarItemUI]
     let isSealed: Bool
 

@@ -10,8 +10,7 @@ class EditChallengeViewModel: ObservableObject {
     @Published var challengeTitle: String = ""
     @Published var descriptionText: String = ""
     @Published var selectedShaker: ShakerType = .jar
-    @Published var selectedProof: ProofType = .photo
-    @Published var isProofRequired: Bool = true
+    @Published var selectedProof: ProofType = .photoRequired
     @Published var dailyTasks: [String] = [""]
 
     // Duration
@@ -57,8 +56,7 @@ class EditChallengeViewModel: ObservableObject {
     private var _snapshotRepeatType: RepeatType = .everyday
     private var _snapshotWeeklyDays: Set<Int> = []
     private var _snapshotMonthlyDays: Set<Int> = []
-    private var _snapshotSelectedProof: ProofType = .photo
-    private var _snapshotIsProofRequired: Bool = true
+    private var _snapshotSelectedProof: ProofType = .photoRequired
     private var _snapshotPresetEmojis: [String] = []
 
     init(challengeId: UUID) {
@@ -86,7 +84,6 @@ class EditChallengeViewModel: ObservableObject {
             || selectedWeeklyDays != _snapshotWeeklyDays
             || selectedMonthlyDays != _snapshotMonthlyDays
             || selectedProof != _snapshotSelectedProof
-            || isProofRequired != _snapshotIsProofRequired
             || presetEmojis != _snapshotPresetEmojis
             || !invitedFriends.isEmpty
     }
@@ -156,14 +153,14 @@ class EditChallengeViewModel: ObservableObject {
             dailyTasks = loaded.isEmpty ? [""] : loaded  // Always keep at least one empty row in the UI.
 
             // Fetch active members (left_at == nil) and resolve their profiles in one batch.
-            let allMembers: [ChallengeMemberData] = try await client
+            let activeMembers: [ChallengeMemberData] = try await client
                 .from("challenge_members")
                 .select("*")
                 .eq("challenge_id", value: challengeId.uuidString)
+                .is("left_at", value: nil)
                 .execute()
                 .value
 
-            let activeMembers = allMembers.filter { $0.left_at == nil }
             let memberUserIds = activeMembers.map { $0.user_id.uuidString }
 
             var profilesMap: [String: ProfileData] = [:]
@@ -190,11 +187,12 @@ class EditChallengeViewModel: ObservableObject {
                 )
             }
 
-            // Fetch all invites for this challenge and resolve invitee profiles in one batch.
+            // Fetch only pending invites for this challenge and resolve invitee profiles in one batch.
             let inviteRecords: [ChallengeInviteRecord] = try await client
                 .from("challenge_invites")
                 .select("id, invitee_user_id, status")
                 .eq("challenge_id", value: challengeId.uuidString)
+                .eq("status", value: "pending")
                 .execute()
                 .value
 
@@ -235,7 +233,6 @@ class EditChallengeViewModel: ObservableObject {
             _snapshotWeeklyDays = selectedWeeklyDays
             _snapshotMonthlyDays = selectedMonthlyDays
             _snapshotSelectedProof = selectedProof
-            _snapshotIsProofRequired = isProofRequired
             _snapshotPresetEmojis = presetEmojis
 
         } catch {
