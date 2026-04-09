@@ -16,6 +16,7 @@ struct ChallengeDetailView: View {
     @State private var showAllCommentsSheet = false
     @State private var jarRemountToken = UUID()
     @State private var showEditChallenge = false
+    @State private var isDescriptionExpanded = false
     @State private var showResult = false
 
     var onBack: (() -> Void)?
@@ -67,6 +68,7 @@ struct ChallengeDetailView: View {
                             .padding(.bottom, 28)
                     }
                     .padding(.horizontal, 16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         }
@@ -130,6 +132,9 @@ struct ChallengeDetailView: View {
         .onChange(of: showEditChallenge) { isShowing in
             if !isShowing { Task { await viewModel.load() } }
         }
+        .onChange(of: viewModel.description) { _ in
+            isDescriptionExpanded = false
+        }
     }
 }
 
@@ -177,7 +182,9 @@ private extension ChallengeDetailView {
     }
 
     var challengeInfoSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        let showDescriptionToggle = viewModel.description.count > 110
+
+        return VStack(alignment: .leading, spacing: 10) {
             Text(viewModel.dateRangeText)
                 .foregroundColor(AppColors.neutral1000)
                 .appText(AppFont.labelS)
@@ -190,10 +197,53 @@ private extension ChallengeDetailView {
                 .foregroundColor(AppColors.textWhite)
                 .appText(AppFont.title1)
 
-            Text(viewModel.description)
-                .foregroundColor(AppColors.neutral300)
-                .appText(AppFont.body2)
-                .fixedSize(horizontal: false, vertical: true)
+            if showDescriptionToggle {
+                if isDescriptionExpanded {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(viewModel.description)
+                            .foregroundColor(AppColors.neutral300)
+                            .appText(AppFont.body2)
+                            .lineLimit(nil)
+
+                        HStack {
+                            Spacer()
+                            Button("less") {
+                                isDescriptionExpanded = false
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundColor(AppColors.green300)
+                            .appText(AppFont.body1)
+                        }
+                    }
+                } else {
+                    ZStack(alignment: .bottomTrailing) {
+                        Text(viewModel.description)
+                            .foregroundColor(AppColors.neutral300)
+                            .appText(AppFont.body2)
+                            .lineLimit(3)
+                            .truncationMode(.tail)
+                            .overlay(alignment: .bottomTrailing) {
+                                Rectangle()
+                                    .fill(Color.black)
+                                    .frame(width: 84, height: 24)
+                                    .blendMode(.destinationOut)
+                            }
+                            .compositingGroup()
+
+                        Button("...more") {
+                            isDescriptionExpanded = true
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundColor(AppColors.green300)
+                        .appText(AppFont.body1)
+                    }
+                }
+            } else {
+                Text(viewModel.description)
+                    .foregroundColor(AppColors.neutral300)
+                    .appText(AppFont.body2)
+                    .lineLimit(3)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
