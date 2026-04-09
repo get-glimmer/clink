@@ -302,6 +302,10 @@ final class ChallengeDetailViewModel: ObservableObject {
             // Optimistic local update for immediate jar/progress refresh.
             applyTodayCompletionOptimistically(userId: userId, date: today)
             buildUI()
+
+            // Ensure today's challenge_shaker row exists right after submit.
+            // If completed, keep lid colors only when available; otherwise persist nulls.
+            await ensureTodayShakerRowExistsAfterSubmit(client: client, date: today)
             isSubmittingDay = false
 
             // Keep server truth in sync without blocking UI responsiveness.
@@ -313,6 +317,181 @@ final class ChallengeDetailViewModel: ObservableObject {
             isSubmittingDay = false
             errorMessage = "Failed to save today's challenge: \(error.localizedDescription)"
         }
+    }
+
+    private func ensureTodayShakerRowExistsAfterSubmit(client: SupabaseClient, date: String) async {
+        // If row already exists for today, no insert is needed.
+        guard challengeShakerByDate[date] == nil else { return }
+
+        let state = computeDailyShakerState(for: date)
+        let lidPair = resolvedLidHexPairForSubmit(date: date, state: state)
+        let lidStart = state.isCompleted ? lidPair.0 : nil
+        let lidEnd = state.isCompleted ? lidPair.1 : nil
+
+        do {
+            try await saveTodayChallengeShaker(
+                client: client,
+                date: date,
+                state: state,
+                lidColorStart: lidStart,
+                lidColorEnd: lidEnd
+            )
+
+            if let loaded = await fetchTodayChallengeShakerSafely(client: client, today: date) {
+                challengeShakerByDate[date] = loaded
+                if date == formattedDate(Date()) {
+                    todayChallengeShakerRow = loaded
+                    todayLidColorStart = loaded.lid_color_start
+                    todayLidColorEnd = loaded.lid_color_end
+                    todayShakerIsCompleted = loaded.iscompleted
+                }
+            }
+        } catch {
+            print("[ChallengeShakerSync] ensure row after submit failed: \(error)")
+        }
+    }
+
+    private func resolvedLidHexPairForSubmit(
+        date: String,
+        state: DailyShakerState
+    ) -> (String, String) {
+        if let start = todayLidColorStart,
+           let end = todayLidColorEnd,
+           UIColor(hex: start) != nil,
+           UIColor(hex: end) != nil {
+            return (start, end)
+        }
+
+        if let extracted = extractLidHexPairFromRenderedEmojis(state.userEmojis) {
+            return extracted
+        }
+
+        return deterministicLidHexPair(date: date, emojis: state.userEmojis)
+    }
+
+    private func extractLidHexPairFromRenderedEmojis(_ emojis: [String]) -> (String, String)? {
+        guard !emojis.isEmpty else { return nil }
+
+        let dim = 40
+        let bytesPerRow = dim * 4
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let font = UIFont(name: "AppleColorEmoji", size: 34) ?? UIFont.systemFont(ofSize: 34)
+        var hist: [UInt32: Int] = [:]
+
+        for emoji in emojis {
+            let renderer = UIGraphicsImageRenderer(size: CGSize(width: dim, height: dim))
+            let image = renderer.image { ctx in
+                UIColor.clear.setFill()
+                ctx.fill(CGRect(x: 0, y: 0, width: dim, height: dim))
+
+                let attrs: [NSAttributedString.Key: Any] = [.font: font]
+                let ns = emoji as NSString
+                let textSize = ns.size(withAttributes: attrs)
+                let rect = CGRect(
+                    x: (CGFloat(dim) - textSize.width) / 2,
+                    y: (CGFloat(dim) - textSize.height) / 2,
+                    width: textSize.width,
+                    height: textSize.height
+                )
+                ns.draw(in: rect, withAttributes: attrs)
+            }
+
+            guard let cg = image.cgImage,
+                  let ctx = CGContext(
+                      data: nil,
+                      width: dim,
+                      height: dim,
+                      bitsPerComponent: 8,
+                      bytesPerRow: bytesPerRow,
+                      space: colorSpace,
+                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+                  )
+            else { continue }
+
+            ctx.interpolationQuality = .none
+            ctx.draw(cg, in: CGRect(x: 0, y: 0, width: dim, height: dim))
+            guard let data = ctx.data else { continue }
+            let px = data.bindMemory(to: UInt8.self, capacity: dim * dim * 4)
+
+            for i in stride(from: 0, to: dim * dim, by: 2) {
+                let off = i * 4
+                let alpha = px[off + 3]
+                if alpha < 180 { continue }
+
+                let r = px[off] >> 3
+                let g = px[off + 1] >> 3
+                let b = px[off + 2] >> 3
+                let key = UInt32(r) << 10 | UInt32(g) << 5 | UInt32(b)
+                hist[key, default: 0] += 1
+            }
+        }
+
+        guard !hist.isEmpty else { return nil }
+
+        let sorted = hist.sorted { $0.value > $1.value }
+        let palette = sorted.prefix(6).map { quantizedKeyToUIColor($0.key) }
+        guard let first = palette.first else { return nil }
+
+        let second = palette.dropFirst().first { rgbDistance(first, $0) >= 0.18 } ?? adjustedPairColor(from: first)
+        return (first.toHex(), second.toHex())
+    }
+
+    private func quantizedKeyToUIColor(_ key: UInt32) -> UIColor {
+        let r = CGFloat(((key >> 10) & 0x1F) << 3) / 255.0
+        let g = CGFloat(((key >> 5) & 0x1F) << 3) / 255.0
+        let b = CGFloat((key & 0x1F) << 3) / 255.0
+        return UIColor(red: r, green: g, blue: b, alpha: 1)
+    }
+
+    private func adjustedPairColor(from color: UIColor) -> UIColor {
+        var h: CGFloat = 0
+        var s: CGFloat = 0
+        var b: CGFloat = 0
+        var a: CGFloat = 0
+        guard color.getHue(&h, saturation: &s, brightness: &b, alpha: &a) else {
+            return color
+        }
+        return UIColor(
+            hue: h,
+            saturation: min(1, max(0, s * 0.95 + 0.05)),
+            brightness: min(1, max(0, b * 0.75 + 0.15)),
+            alpha: 1
+        )
+    }
+
+    private func rgbDistance(_ lhs: UIColor, _ rhs: UIColor) -> CGFloat {
+        var lr: CGFloat = 0
+        var lg: CGFloat = 0
+        var lb: CGFloat = 0
+        var la: CGFloat = 0
+        var rr: CGFloat = 0
+        var rg: CGFloat = 0
+        var rb: CGFloat = 0
+        var ra: CGFloat = 0
+        guard lhs.getRed(&lr, green: &lg, blue: &lb, alpha: &la),
+              rhs.getRed(&rr, green: &rg, blue: &rb, alpha: &ra)
+        else { return 0 }
+        let dr = lr - rr
+        let dg = lg - rg
+        let db = lb - rb
+        return sqrt(dr * dr + dg * dg + db * db)
+    }
+
+    private func deterministicLidHexPair(date: String, emojis: [String]) -> (String, String) {
+        let base = date + "|" + emojis.joined(separator: "|")
+        var hash: UInt64 = 1469598103934665603
+        for byte in base.utf8 {
+            hash ^= UInt64(byte)
+            hash &*= 1099511628211
+        }
+
+        let hue0 = CGFloat(hash % 360) / 360.0
+        let offsetDeg = CGFloat((hash / 360) % 120 + 35) / 360.0
+        let hue1 = (hue0 + offsetDeg).truncatingRemainder(dividingBy: 1)
+
+        let c0 = UIColor(hue: hue0, saturation: 0.78, brightness: 0.92, alpha: 1)
+        let c1 = UIColor(hue: hue1, saturation: 0.72, brightness: 0.86, alpha: 1)
+        return (c0.toHex(), c1.toHex())
     }
 
     func persistTodayShakerBecameSealed(start: String, end: String) async {

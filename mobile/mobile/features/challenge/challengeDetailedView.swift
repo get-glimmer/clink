@@ -40,7 +40,7 @@ struct ChallengeDetailView: View {
                     .progressViewStyle(CircularProgressViewStyle(tint: AppColors.textWhite))
             } else {
                 ScrollView(showsIndicators: false) {
-                    VStack(spacing: 18) {
+                    VStack(alignment: .leading, spacing: 18) {
                         headerSection
                             .padding(.top, 8)
 
@@ -63,6 +63,7 @@ struct ChallengeDetailView: View {
                         communitySupportSection
                             .padding(.bottom, 28)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 16)
                 }
             }
@@ -180,6 +181,7 @@ private extension ChallengeDetailView {
         }
         .id(viewModel.jarItems.isEmpty ? "jar-empty-\(jarRemountToken.uuidString)" : "jar-active")
         .frame(height: 380)
+        .frame(maxWidth: .infinity, alignment: .center)
     }
 
     var challengeInfoSection: some View {
@@ -234,12 +236,15 @@ private extension ChallengeDetailView {
                 .foregroundColor(AppColors.textWhite)
                 .appText(AppFont.labelM)
 
-            HStack(spacing: 12) {
+            HStack(spacing: 0) {
                 ForEach(viewModel.weekly) { day in
                     WeeklyDayCell(day: day)
+                        .frame(maxWidth: .infinity)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.top, 6)
     }
 
@@ -249,7 +254,7 @@ private extension ChallengeDetailView {
                 .foregroundColor(AppColors.textWhite)
                 .appText(AppFont.labelM)
 
-            VStack(spacing: 10) {
+            VStack(spacing: 16) {
                 ForEach(viewModel.todayTasks) { task in
                     TodayTaskRow(
                         title: task.title,
@@ -265,8 +270,6 @@ private extension ChallengeDetailView {
                             showProofSourceDialog = true
                         }
                     )
-                    .padding(.leading, 2.84)
-                    .padding(.trailing, 0.4)
                 }
 
                 Button {
@@ -282,9 +285,8 @@ private extension ChallengeDetailView {
                 }
                 .disabled(!viewModel.isCompleteDayButtonEnabled)
                 .buttonStyle(.plain)
-                .padding(.top, 6)
             }
-            .padding(14)
+            .padding(20)
             .background(AppColors.neutral900)
             .cornerRadius(16)
         }
@@ -457,7 +459,7 @@ private struct WeeklyDayCell: View {
                 lidColorStart: day.lidColorStart,
                 lidColorEnd: day.lidColorEnd
             )
-                .frame(width: 34, height: 34)
+            .frame(width: 28.3, height: 28.14)
 
             Text(day.day)
                 .foregroundColor(day.isToday ? AppColors.neutral1000 : AppColors.neutral400)
@@ -467,7 +469,6 @@ private struct WeeklyDayCell: View {
                 .background(day.isToday ? AppColors.green300 : Color.clear)
                 .cornerRadius(999)
         }
-        .frame(width: 40)
     }
 }
 
@@ -539,7 +540,7 @@ private struct TodayTaskRow: View {
                 .foregroundColor(AppColors.textWhite)
                 .appText(AppFont.body1)
                 .strikethrough(isCompleted, color: AppColors.neutral400)
-                .padding(.leading, 13.42)
+                .padding(.leading, 15)
 
             Spacer()
 
@@ -572,6 +573,10 @@ private struct TodayTaskRow: View {
                     .id(proofURL ?? "addPhoto")
                 }
                 .buttonStyle(.plain)
+            } else {
+                Color.clear
+                    .frame(width: 36, height: 36)
+                    .accessibilityHidden(true)
             }
         }
         .contentShape(Rectangle())
@@ -809,7 +814,7 @@ private struct CommunityCommentRow: View {
                     .appText(AppFont.body2)
                     .lineLimit(1)
                     .padding(.horizontal, 16)
-                    .frame(width: 322, height: 44, alignment: .leading)
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                     .background(AppColors.neutral900)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
 
@@ -875,7 +880,7 @@ private struct CommunityComposerRow: View {
                 .disabled(!canSend)
             }
             .padding(.horizontal, 16)
-            .frame(width: 322, height: 44)
+            .frame(maxWidth: .infinity, minHeight: 44)
             .background(AppColors.neutral900)
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
