@@ -448,7 +448,12 @@ private struct WeeklyDayCell: View {
                 .foregroundColor(AppColors.neutral400)
                 .appText(AppFont.captionXS)
 
-            ShakerBarView(shakerRecord: shakerRecord(for: day.status))
+            WeeklyShakerStatusIcon(
+                isChallengeDay: day.isChallengeDay,
+                isCompleted: day.isCompleted,
+                lidColorStart: day.lidColorStart,
+                lidColorEnd: day.lidColorEnd
+            )
                 .frame(width: 34, height: 34)
 
             Text(day.day)
@@ -461,30 +466,49 @@ private struct WeeklyDayCell: View {
         }
         .frame(width: 40)
     }
+}
 
-    private func shakerRecord(for status: WeeklyDayUI.Status) -> ShakerRecord {
-        switch status {
-        case .all:
-            return ShakerRecord(
-                progress: 100,
-                completedCount: 1,
-                totalCount: 1,
-                lidColor: LinearGradient(colors: [AppColors.green300, AppColors.green200], startPoint: .leading, endPoint: .trailing)
-            )
-        case .partial:
-            return ShakerRecord(
-                progress: 50,
-                completedCount: 1,
-                totalCount: 2,
-                lidColor: LinearGradient(colors: [AppColors.neutral500, AppColors.neutral500], startPoint: .leading, endPoint: .trailing)
-            )
-        case .none:
-            return ShakerRecord(
-                progress: 0,
-                completedCount: 0,
-                totalCount: 1,
-                lidColor: LinearGradient(colors: [AppColors.neutral500, AppColors.neutral500], startPoint: .leading, endPoint: .trailing)
-            )
+private struct WeeklyShakerStatusIcon: View {
+    let isChallengeDay: Bool
+    let isCompleted: Bool
+    let lidColorStart: String?
+    let lidColorEnd: String?
+
+    var body: some View {
+        Group {
+            if !isChallengeDay {
+                Image("challengeNoTask")
+                    .resizable()
+                    .scaledToFit()
+            } else if isCompleted {
+                ZStack {
+                    Image("challengeCompleted")
+                        .resizable()
+                        .scaledToFit()
+
+                    lidOverlay
+                }
+            } else {
+                Image("challengeNotCompleted")
+                    .resizable()
+                    .scaledToFit()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var lidOverlay: some View {
+        if let c0 = Color(hex: lidColorStart), let c1 = Color(hex: lidColorEnd) {
+            LinearGradient(colors: [c0, c1], startPoint: .leading, endPoint: .trailing)
+                .mask(
+                    Image("challengeCompletedLid")
+                        .resizable()
+                        .scaledToFit()
+                )
+        } else {
+            Image("challengeCompletedLid")
+                .resizable()
+                .scaledToFit()
         }
     }
 }

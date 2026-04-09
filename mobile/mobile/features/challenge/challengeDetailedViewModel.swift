@@ -4,12 +4,13 @@ import Supabase
 import UIKit
 
 struct WeeklyDayUI: Identifiable {
-    enum Status { case all, partial, none }
-
     let id = UUID()
     let weekday: String
     let day: String
-    let status: Status
+    let isChallengeDay: Bool
+    let isCompleted: Bool
+    let lidColorStart: String?
+    let lidColorEnd: String?
     let isToday: Bool
 }
 
@@ -116,6 +117,7 @@ final class ChallengeDetailViewModel: ObservableObject {
     private var profilesByUserId: [UUID: ProfileData] = [:]
     private var persistedTodayCompletionByTask: [UUID: Bool] = [:]
     private var todayChallengeShakerRow: ChallengeShakerRow?
+    private var challengeShakerByDate: [String: ChallengeShakerRow] = [:]
 
     init(challengeId: UUID) {
         self.challengeId = challengeId
@@ -453,11 +455,7 @@ final class ChallengeDetailViewModel: ObservableObject {
                 .execute()
                 .value
 
-            let todayString = formattedDate(Date())
-            async let todayShakerRow: ChallengeShakerRow? = fetchTodayChallengeShakerSafely(
-                client: client,
-                today: todayString
-            )
+            async let challengeShakerRows: [ChallengeShakerRow] = fetchChallengeShakerRowsSafely(client: client)
             
             async let commentRows: [ChallengeCommentData] = client
                 .from("challenge_comment")
@@ -481,7 +479,9 @@ final class ChallengeDetailViewModel: ObservableObject {
             members = try await memberRows
             tasks = try await taskRows
             completions = try await completionRows
-            todayChallengeShakerRow = await todayShakerRow
+            let loadedShakerRows = await challengeShakerRows
+            challengeShakerByDate = Dictionary(uniqueKeysWithValues: loadedShakerRows.map { ($0.date, $0) })
+            todayChallengeShakerRow = challengeShakerByDate[formattedDate(Date())]
             comments = (try? await commentRows) ?? []
             proofPhotos = await fetchProofRowsSafely(client: client)
             let commenterIds = comments.compactMap { $0.commenter_id }
@@ -630,11 +630,7 @@ final class ChallengeDetailViewModel: ObservableObject {
             dateString: todayString
         ).isAllCompleted
 
-        weekly = buildWeeklyRows(
-            normalizedCompletions: normalizedCompletions,
-            activeMembers: activeMembers,
-            today: today
-        )
+        weekly = buildWeeklyRows(today: today)
 
         let totalDays = totalChallengeDays(startDate: startDate, endDate: endDate)
         let elapsedDays = elapsedChallengeDays(startDate: startDate, endDate: endDate, today: today)
@@ -648,11 +644,7 @@ final class ChallengeDetailViewModel: ObservableObject {
         overallProgressText = "\(allCompletedCount) / \(targetTaskCount)"
     }
 
-    private func buildWeeklyRows(
-        normalizedCompletions: [NormalizedCompletion],
-        activeMembers: [ChallengeMemberData],
-        today: Date
-    ) -> [WeeklyDayUI] {
+    private func buildWeeklyRows(today: Date) -> [WeeklyDayUI] {
         let calendar = Calendar.current
         let startOfWeek = calendar.startOfWeek(for: today)
         let weekdayLabels = calendar.shortStandaloneWeekdaySymbols.map { $0.uppercased() }
@@ -660,25 +652,17 @@ final class ChallengeDetailViewModel: ObservableObject {
         return (0..<7).compactMap { offset in
             guard let date = calendar.date(byAdding: .day, value: offset, to: startOfWeek) else { return nil }
             let dateKey = formattedDate(date)
-            let day = dailyCompletionStatus(
-                normalizedCompletions: normalizedCompletions,
-                activeMembers: activeMembers,
-                dateString: dateKey
-            )
-
-            let status: WeeklyDayUI.Status
-            if day.requiredCount == 0 || day.completedCount == 0 {
-                status = .none
-            } else if day.isAllCompleted {
-                status = .all
-            } else {
-                status = .partial
-            }
+            let isChallengeDay = isTaskToggleAllowed(on: date)
+            let shakerRow = challengeShakerByDate[dateKey]
+            let isCompleted = isChallengeDay && (shakerRow?.iscompleted ?? false)
 
             return WeeklyDayUI(
                 weekday: weekdayLabels[offset],
                 day: String(calendar.component(.day, from: date)),
-                status: status,
+                isChallengeDay: isChallengeDay,
+                isCompleted: isCompleted,
+                lidColorStart: shakerRow?.lid_color_start,
+                lidColorEnd: shakerRow?.lid_color_end,
                 isToday: calendar.isDate(date, inSameDayAs: today)
             )
         }
@@ -874,6 +858,20 @@ final class ChallengeDetailViewModel: ObservableObject {
         }
     }
 
+    private func fetchChallengeShakerRowsSafely(client: SupabaseClient) async -> [ChallengeShakerRow] {
+        do {
+            let rows: [ChallengeShakerRow] = try await client
+                .from("challenge_shaker")
+                .select("id, challenge_id, date, iscompleted, user_emojis, lid_color_start, lid_color_end")
+                .eq("challenge_id", value: challengeId.uuidString)
+                .execute()
+                .value
+            return rows
+        } catch {
+            return []
+        }
+    }
+
     private func computeDailyShakerState(for dateString: String) -> DailyShakerState {
         let activeMembers = members.filter { $0.left_at == nil }
         let normalized = normalizedCompletionRows(from: completions)
@@ -967,6 +965,9 @@ final class ChallengeDetailViewModel: ObservableObject {
                 lid_color_start: persistedLidStart,
                 lid_color_end: persistedLidEnd
             )
+            if let todayChallengeShakerRow {
+                challengeShakerByDate[date] = todayChallengeShakerRow
+            }
         } else {
             try await client
                 .from("challenge_shaker")
@@ -975,6 +976,7 @@ final class ChallengeDetailViewModel: ObservableObject {
 
             if let loaded = await fetchTodayChallengeShakerSafely(client: client, today: date) {
                 todayChallengeShakerRow = loaded
+                challengeShakerByDate[date] = loaded
             }
         }
     }
