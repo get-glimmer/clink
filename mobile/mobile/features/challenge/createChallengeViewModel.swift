@@ -10,7 +10,7 @@ class CreateChallengeViewModel: ObservableObject {
     @Published var challengeTitle: String = ""
     @Published var descriptionText: String = ""
     @Published var selectedShaker: ShakerType = .jar
-    @Published var selectedProof: ProofType = .photo
+    @Published var selectedProof: ProofType = .photoOptional
     @Published var isProofRequired: Bool = true
     @Published var dailyTasks: [String] = [""]
 
