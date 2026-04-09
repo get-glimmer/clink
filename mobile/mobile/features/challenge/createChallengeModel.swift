@@ -26,24 +26,32 @@ enum ShakerType: String, CaseIterable, Codable {
 }
 
 enum ProofType: String, CaseIterable, Codable {
-    case photoOptional = "photo_upload_optional"
     case photoRequired = "photo_upload_required"
+    case photoOptional = "photo_upload_optional"
+    case checklist     = "checklist"
+
+    var isPhoto: Bool { self == .photoRequired || self == .photoOptional }
 
     var displayName: String {
         switch self {
-        case .photoOptional: return "Photo Upload (Optional)"
-        case .photoRequired: return "Photo Upload (Required)"
+        case .photoRequired, .photoOptional: return "Photo Upload"
+        case .checklist:                     return "Checklist"
         }
     }
 
     var iconName: String {
         switch self {
-        case .photoOptional: return "photo"
-        case .photoRequired: return "photo.fill"
+        case .photoRequired, .photoOptional: return "photo"
+        case .checklist:                     return "checkboxEmpty"
         }
     }
 
-    var usesSystemIcon: Bool { true }
+    var usesSystemIcon: Bool {
+        switch self {
+        case .photoRequired, .photoOptional: return true
+        case .checklist:                     return false
+        }
+    }
 }
 
 enum RepeatType: String, CaseIterable, Codable {
