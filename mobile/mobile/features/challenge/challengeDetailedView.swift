@@ -207,10 +207,13 @@ private extension ChallengeDetailView {
     var overallProgressSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text(viewModel.overallProgressText)
+                Text("Overall Progress")
                     .foregroundColor(AppColors.textWhite)
                     .appText(AppFont.labelM)
                 Spacer()
+                Text("\(Int((viewModel.overallProgress * 100).rounded()))%")
+                    .foregroundColor(AppColors.textWhite)
+                    .appText(AppFont.labelM)
             }
 
             ProgressBar(value: viewModel.overallProgress)
