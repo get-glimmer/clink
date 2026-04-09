@@ -434,7 +434,7 @@ struct ChallengeShakerPreview: View {
                 Rectangle()
                     .fill(
                         LinearGradient(
-                            colors: [AppColors.green300, AppColors.green300.opacity(0.7)],
+                            colors: lidColors,
                             startPoint: .leading,
                             endPoint: .trailing
                         )
@@ -479,6 +479,8 @@ struct ChallengeShakerPreview: View {
                 syncEmojis()
             }
             .onChange(of: challenge.shakerIsCompleted) { _ in applyLid() }
+            .onChange(of: challenge.shakerLidColorStart) { _ in applyLid() }
+            .onChange(of: challenge.shakerLidColorEnd) { _ in applyLid() }
         }
     }
 
@@ -510,8 +512,12 @@ struct ChallengeShakerPreview: View {
     }
 
     private func applyLid() {
-        // Lid color is hardcoded in the gradient view; this just toggles
-        // visibility based on whether today's challenge is fully sealed.
+        if let c0 = Color(hex: challenge.shakerLidColorStart),
+           let c1 = Color(hex: challenge.shakerLidColorEnd) {
+            lidColors = [c0, c1]
+        } else {
+            lidColors = [AppColors.green300, AppColors.green300.opacity(0.7)]
+        }
         lidOpacity = challenge.shakerIsCompleted ? 1 : 0
     }
 }
