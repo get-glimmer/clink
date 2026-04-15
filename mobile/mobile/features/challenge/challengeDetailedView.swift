@@ -16,21 +16,19 @@ struct ChallengeDetailView: View {
     @State private var showAllCommentsSheet = false
     @State private var jarRemountToken = UUID()
     @State private var showEditChallenge = false
+    @State private var isDescriptionExpanded = false
     @State private var showResult = false
 
     var onBack: (() -> Void)?
-    var onTapCalendar: (() -> Void)?
     var onTapFavorite: (() -> Void)?
 
     init(
         challengeId: UUID,
         onBack: (() -> Void)? = nil,
-        onTapCalendar: (() -> Void)? = nil,
         onTapFavorite: (() -> Void)? = nil
     ) {
         _viewModel = StateObject(wrappedValue: ChallengeDetailViewModel(challengeId: challengeId))
         self.onBack = onBack
-        self.onTapCalendar = onTapCalendar
         self.onTapFavorite = onTapFavorite
     }
 
@@ -43,7 +41,7 @@ struct ChallengeDetailView: View {
                     .progressViewStyle(CircularProgressViewStyle(tint: AppColors.textWhite))
             } else {
                 ScrollView(showsIndicators: false) {
-                    VStack(spacing: 18) {
+                    VStack(alignment: .leading, spacing: 18) {
                         headerSection
                             .padding(.top, 8)
 
@@ -66,7 +64,9 @@ struct ChallengeDetailView: View {
                         communitySupportSection
                             .padding(.bottom, 28)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         }
@@ -130,6 +130,11 @@ struct ChallengeDetailView: View {
         .onChange(of: showEditChallenge) { isShowing in
             if !isShowing { Task { await viewModel.load() } }
         }
+        .navigationBarBackButtonHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
+        .onChange(of: viewModel.description) { _ in
+            isDescriptionExpanded = false
+        }
     }
 }
 
@@ -155,10 +160,6 @@ private extension ChallengeDetailView {
                     showResult = true
                 }
 
-                CircleIconButton(systemName: "calendar") {
-                    onTapCalendar?()
-                }
-
                 CircleIconButton(systemName: viewModel.isFavorite ? "star.fill" : "star") {
                     viewModel.isFavorite.toggle()
                     onTapFavorite?()
@@ -170,14 +171,28 @@ private extension ChallengeDetailView {
     var jarSection: some View {
         ChallengeJarView(
             jarItems: viewModel.jarItems,
-            isSealed: isSealedTodayFromWeekly(viewModel.weekly)
-        )
+            completionIsSealed: viewModel.isTodaySealed,
+            storedIsCompleted: viewModel.todayShakerIsCompleted,
+            lidColorStart: viewModel.todayLidColorStart,
+            lidColorEnd: viewModel.todayLidColorEnd
+        ) { start, end in
+            Task {
+                await viewModel.persistTodayShakerBecameSealed(start: start, end: end)
+            }
+        } onDidUnseal: {
+            Task {
+                await viewModel.persistTodayShakerBecameUnsealed()
+            }
+        }
         .id(viewModel.jarItems.isEmpty ? "jar-empty-\(jarRemountToken.uuidString)" : "jar-active")
         .frame(height: 380)
+        .frame(maxWidth: .infinity, alignment: .center)
     }
 
     var challengeInfoSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        let showDescriptionToggle = viewModel.description.count > 110
+
+        return VStack(alignment: .leading, spacing: 10) {
             Text(viewModel.dateRangeText)
                 .foregroundColor(AppColors.neutral1000)
                 .appText(AppFont.labelS)
@@ -190,10 +205,53 @@ private extension ChallengeDetailView {
                 .foregroundColor(AppColors.textWhite)
                 .appText(AppFont.title1)
 
-            Text(viewModel.description)
-                .foregroundColor(AppColors.neutral300)
-                .appText(AppFont.body2)
-                .fixedSize(horizontal: false, vertical: true)
+            if showDescriptionToggle {
+                if isDescriptionExpanded {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(viewModel.description)
+                            .foregroundColor(AppColors.neutral300)
+                            .appText(AppFont.body2)
+                            .lineLimit(nil)
+
+                        HStack {
+                            Spacer()
+                            Button("less") {
+                                isDescriptionExpanded = false
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundColor(AppColors.green300)
+                            .appText(AppFont.body1)
+                        }
+                    }
+                } else {
+                    ZStack(alignment: .bottomTrailing) {
+                        Text(viewModel.description)
+                            .foregroundColor(AppColors.neutral300)
+                            .appText(AppFont.body2)
+                            .lineLimit(3)
+                            .truncationMode(.tail)
+                            .overlay(alignment: .bottomTrailing) {
+                                Rectangle()
+                                    .fill(Color.black)
+                                    .frame(width: 84, height: 24)
+                                    .blendMode(.destinationOut)
+                            }
+                            .compositingGroup()
+
+                        Button("...more") {
+                            isDescriptionExpanded = true
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundColor(AppColors.green300)
+                        .appText(AppFont.body1)
+                    }
+                }
+            } else {
+                Text(viewModel.description)
+                    .foregroundColor(AppColors.neutral300)
+                    .appText(AppFont.body2)
+                    .lineLimit(3)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -201,10 +259,13 @@ private extension ChallengeDetailView {
     var overallProgressSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text(viewModel.overallProgressText)
+                Text("Overall Progress")
                     .foregroundColor(AppColors.textWhite)
                     .appText(AppFont.labelM)
                 Spacer()
+                Text("\(Int((viewModel.overallProgress * 100).rounded()))%")
+                    .foregroundColor(AppColors.textWhite)
+                    .appText(AppFont.labelM)
             }
 
             ProgressBar(value: viewModel.overallProgress)
@@ -225,12 +286,15 @@ private extension ChallengeDetailView {
                 .foregroundColor(AppColors.textWhite)
                 .appText(AppFont.labelM)
 
-            HStack(spacing: 12) {
+            HStack(spacing: 0) {
                 ForEach(viewModel.weekly) { day in
                     WeeklyDayCell(day: day)
+                        .frame(maxWidth: .infinity)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.top, 6)
     }
 
@@ -240,7 +304,7 @@ private extension ChallengeDetailView {
                 .foregroundColor(AppColors.textWhite)
                 .appText(AppFont.labelM)
 
-            VStack(spacing: 10) {
+            VStack(spacing: 16) {
                 ForEach(viewModel.todayTasks) { task in
                     TodayTaskRow(
                         title: task.title,
@@ -256,8 +320,6 @@ private extension ChallengeDetailView {
                             showProofSourceDialog = true
                         }
                     )
-                    .padding(.leading, 2.84)
-                    .padding(.trailing, 0.4)
                 }
 
                 Button {
@@ -273,9 +335,8 @@ private extension ChallengeDetailView {
                 }
                 .disabled(!viewModel.isCompleteDayButtonEnabled)
                 .buttonStyle(.plain)
-                .padding(.top, 6)
             }
-            .padding(14)
+            .padding(20)
             .background(AppColors.neutral900)
             .cornerRadius(16)
         }
@@ -391,9 +452,6 @@ private extension ChallengeDetailView {
         .padding(.top, 6)
     }
 
-    func isSealedTodayFromWeekly(_ weekly: [WeeklyDayUI]) -> Bool {
-        weekly.first(where: { $0.isToday })?.status == .all
-    }
 }
 
 private struct CircleIconButton: View {
@@ -445,8 +503,13 @@ private struct WeeklyDayCell: View {
                 .foregroundColor(AppColors.neutral400)
                 .appText(AppFont.captionXS)
 
-            ShakerBarView(shakerRecord: shakerRecord(for: day.status))
-                .frame(width: 34, height: 34)
+            WeeklyShakerStatusIcon(
+                isChallengeDay: day.isChallengeDay,
+                isCompleted: day.isCompleted,
+                lidColorStart: day.lidColorStart,
+                lidColorEnd: day.lidColorEnd
+            )
+            .frame(width: 28.3, height: 28.14)
 
             Text(day.day)
                 .foregroundColor(day.isToday ? AppColors.neutral1000 : AppColors.neutral400)
@@ -456,32 +519,50 @@ private struct WeeklyDayCell: View {
                 .background(day.isToday ? AppColors.green300 : Color.clear)
                 .cornerRadius(999)
         }
-        .frame(width: 40)
+    }
+}
+
+private struct WeeklyShakerStatusIcon: View {
+    let isChallengeDay: Bool
+    let isCompleted: Bool
+    let lidColorStart: String?
+    let lidColorEnd: String?
+
+    var body: some View {
+        Group {
+            if !isChallengeDay {
+                Image("challengeNoTask")
+                    .resizable()
+                    .scaledToFit()
+            } else if isCompleted {
+                ZStack {
+                    Image("challengeCompleted")
+                        .resizable()
+                        .scaledToFit()
+
+                    lidOverlay
+                }
+            } else {
+                Image("challengeNotCompleted")
+                    .resizable()
+                    .scaledToFit()
+            }
+        }
     }
 
-    private func shakerRecord(for status: WeeklyDayUI.Status) -> ShakerRecord {
-        switch status {
-        case .all:
-            return ShakerRecord(
-                progress: 100,
-                completedCount: 1,
-                totalCount: 1,
-                lidColor: LinearGradient(colors: [AppColors.green300, AppColors.green200], startPoint: .leading, endPoint: .trailing)
-            )
-        case .partial:
-            return ShakerRecord(
-                progress: 50,
-                completedCount: 1,
-                totalCount: 2,
-                lidColor: LinearGradient(colors: [AppColors.neutral500, AppColors.neutral500], startPoint: .leading, endPoint: .trailing)
-            )
-        case .none:
-            return ShakerRecord(
-                progress: 0,
-                completedCount: 0,
-                totalCount: 1,
-                lidColor: LinearGradient(colors: [AppColors.neutral500, AppColors.neutral500], startPoint: .leading, endPoint: .trailing)
-            )
+    @ViewBuilder
+    private var lidOverlay: some View {
+        if let c0 = Color(hex: lidColorStart), let c1 = Color(hex: lidColorEnd) {
+            LinearGradient(colors: [c0, c1], startPoint: .leading, endPoint: .trailing)
+                .mask(
+                    Image("challengeCompletedLid")
+                        .resizable()
+                        .scaledToFit()
+                )
+        } else {
+            Image("challengeCompletedLid")
+                .resizable()
+                .scaledToFit()
         }
     }
 }
@@ -509,7 +590,7 @@ private struct TodayTaskRow: View {
                 .foregroundColor(AppColors.textWhite)
                 .appText(AppFont.body1)
                 .strikethrough(isCompleted, color: AppColors.neutral400)
-                .padding(.leading, 13.42)
+                .padding(.leading, 15)
 
             Spacer()
 
@@ -542,6 +623,10 @@ private struct TodayTaskRow: View {
                     .id(proofURL ?? "addPhoto")
                 }
                 .buttonStyle(.plain)
+            } else {
+                Color.clear
+                    .frame(width: 36, height: 36)
+                    .accessibilityHidden(true)
             }
         }
         .contentShape(Rectangle())
@@ -779,7 +864,7 @@ private struct CommunityCommentRow: View {
                     .appText(AppFont.body2)
                     .lineLimit(1)
                     .padding(.horizontal, 16)
-                    .frame(width: 322, height: 44, alignment: .leading)
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                     .background(AppColors.neutral900)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
 
@@ -845,7 +930,7 @@ private struct CommunityComposerRow: View {
                 .disabled(!canSend)
             }
             .padding(.horizontal, 16)
-            .frame(width: 322, height: 44)
+            .frame(maxWidth: .infinity, minHeight: 44)
             .background(AppColors.neutral900)
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
@@ -904,10 +989,16 @@ private struct ChallengeImagePicker: UIViewControllerRepresentable {
 
 struct ChallengeJarView: View {
     let jarItems: [JarItemUI]
-    let isSealed: Bool
+    let completionIsSealed: Bool
+    let storedIsCompleted: Bool
+    let lidColorStart: String?
+    let lidColorEnd: String?
+    let onDidSeal: ((String, String) -> Void)?
+    let onDidUnseal: (() -> Void)?
 
     @State private var scene = ShakerScene(size: .zero)
     @State private var didConfigure = false
+    @State private var previousCompletionIsSealed: Bool = false
 
     private let lidHeightRatio: CGFloat = 46.0 / 270.0
     private let lidCornerRatio: CGFloat = 13.0 / 270.0
@@ -926,18 +1017,12 @@ struct ChallengeJarView: View {
                     .allowsHitTesting(false)
 
                 Rectangle()
-                    .fill(
-                        LinearGradient(
-                            colors: [AppColors.green300, AppColors.green300.opacity(0.7)],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
+                    .fill(lidGradient)
                     .frame(width: jarSize.width, height: jarSize.height * lidHeightRatio)
                     .cornerRadius(jarSize.height * lidCornerRatio)
                     .offset(y: -jarSize.height / 2 + jarSize.height * lidTopInsetRatio)
-                    .opacity(isSealed ? 1 : 0)
-                    .animation(.easeInOut(duration: 0.25), value: isSealed)
+                    .opacity(shouldShowLid ? 1 : 0)
+                    .animation(.easeInOut(duration: 0.25), value: shouldShowLid)
                     .allowsHitTesting(false)
 
                 SpriteView(scene: scene, options: [.allowsTransparency])
@@ -962,11 +1047,26 @@ struct ChallengeJarView: View {
                 scene.setHapticsEnabled(false)
 
                 syncJarItemsToScene()
+                previousCompletionIsSealed = completionIsSealed
                 didConfigure = true
             }
             .onChange(of: jarItems.map { "\($0.id.uuidString):\($0.emoji)" }.joined(separator: ",")) { _ in
                 guard didConfigure else { return }
                 syncJarItemsToScene()
+            }
+            .onChange(of: completionIsSealed) { newValue in
+                let didTransitionToSealed = !previousCompletionIsSealed && newValue
+                let didTransitionToUnsealed = previousCompletionIsSealed && !newValue
+                previousCompletionIsSealed = newValue
+
+                if didTransitionToSealed {
+                    let extracted = gradientFromScene()
+                    let h0 = UIColor(extracted[0]).toHex()
+                    let h1 = UIColor(extracted[1]).toHex()
+                    onDidSeal?(h0, h1)
+                } else if didTransitionToUnsealed {
+                    onDidUnseal?()
+                }
             }
         }
         .aspectRatio(1, contentMode: .fit)
@@ -977,5 +1077,60 @@ struct ChallengeJarView: View {
         for item in jarItems {
             scene.addEmoji(item.emoji, for: item.id)
         }
+    }
+
+    private var lidGradient: LinearGradient {
+        let colors: [Color]
+        if let c0 = Color(hex: lidColorStart), let c1 = Color(hex: lidColorEnd) {
+            colors = [c0, c1]
+        } else {
+            colors = [Color.clear, Color.clear]
+        }
+        return LinearGradient(colors: colors, startPoint: .leading, endPoint: .trailing)
+    }
+
+    private var shouldShowLid: Bool {
+        storedIsCompleted && Color(hex: lidColorStart) != nil && Color(hex: lidColorEnd) != nil
+    }
+
+    private func gradientFromScene() -> [Color] {
+        let ui = scene.marbleDominantColors(maxCount: 6)
+        guard let first = ui.first else {
+            return [AppColors.green300, AppColors.green300.opacity(0.7)]
+        }
+
+        let threshold: CGFloat = 0.18
+        if let distinct = ui.dropFirst().first(where: {
+            $0.perceptualDistance(to: first) >= threshold
+        }) {
+            return [Color(first), Color(distinct)]
+        }
+
+        if ui.count >= 2 { return ui.prefix(2).map { Color($0) } }
+        if ui.count == 1 {
+            let c = Color(first)
+            return [c, c.opacity(0.7)]
+        }
+        return [AppColors.green300, AppColors.green300.opacity(0.7)]
+    }
+}
+
+private extension UIColor {
+    var hsba: (h: CGFloat, s: CGFloat, b: CGFloat, a: CGFloat) {
+        var h: CGFloat = 0
+        var s: CGFloat = 0
+        var b: CGFloat = 0
+        var a: CGFloat = 0
+        getHue(&h, saturation: &s, brightness: &b, alpha: &a)
+        return (h, s, b, a)
+    }
+
+    func perceptualDistance(to other: UIColor) -> CGFloat {
+        let lhs = self.hsba
+        let rhs = other.hsba
+        let dh = abs(lhs.h - rhs.h)
+        let hueDist = min(dh, 1 - dh)
+        let satDist = abs(lhs.s - rhs.s)
+        return hueDist * 0.7 + satDist * 0.3
     }
 }

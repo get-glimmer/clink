@@ -230,6 +230,11 @@ class ChallengeService: ObservableObject {
 
     // MARK: - Private Helpers
 
+    private struct ChallengeShakerColorRow: Decodable {
+        let lid_color_start: String?
+        let lid_color_end: String?
+    }
+
     private func assembleItem(challenge: ChallengeData, supabase: SupabaseClient) async throws -> ChallengeItem {
         // Members (no join — FK goes through auth.users, not profiles)
         let allMembers: [ChallengeMemberData] = try await supabase
@@ -302,15 +307,31 @@ class ChallengeService: ObservableObject {
             completions: completions
         )
 
-        // Lid sealed state — mirrors ChallengeJarView's `isSealed` for the
-        // detail view: true when every active member has completed every
-        // task today. Hardcoded green gradient (lid colors are not pulled
-        // from challenge_shaker anymore).
+        // Lid sealed state — true when every active member has completed
+        // every task today.
         let requiredToday = activeMembers.count * tasks.count
         let completedToday = completions.filter { ($0.is_completed ?? false) && $0.date == todayStr }.count
         let isSealedToday = requiredToday > 0 && completedToday >= requiredToday
 
-        print("[ChallengeJar] challenge=\(challenge.id) title=\(challenge.title) cumulativeJarEmojis=\(cumulativeEmojis) sealedToday=\(isSealedToday) (\(completedToday)/\(requiredToday))")
+        var lidStart: String?
+        var lidEnd: String?
+        do {
+            let lidRows: [ChallengeShakerColorRow] = try await supabase
+                .from("challenge_shaker")
+                .select("lid_color_start, lid_color_end")
+                .eq("challenge_id", value: challenge.id.uuidString)
+                .eq("date", value: todayStr)
+                .limit(1)
+                .execute()
+                .value
+            lidStart = lidRows.first?.lid_color_start
+            lidEnd = lidRows.first?.lid_color_end
+        } catch {
+            lidStart = nil
+            lidEnd = nil
+        }
+
+        print("[ChallengeJar] challenge=\(challenge.id) title=\(challenge.title) cumulativeJarEmojis=\(cumulativeEmojis) sealedToday=\(isSealedToday) (\(completedToday)/\(requiredToday)) lidStart=\(lidStart ?? "nil") lidEnd=\(lidEnd ?? "nil")")
 
         return ChallengeItem(
             id: challenge.id,
@@ -327,8 +348,8 @@ class ChallengeService: ObservableObject {
             completedTaskCount: completions.count,
             shakerIsCompleted: isSealedToday,
             shakerUserEmojis: cumulativeEmojis,
-            shakerLidColorStart: nil,
-            shakerLidColorEnd: nil
+            shakerLidColorStart: lidStart,
+            shakerLidColorEnd: lidEnd
         )
     }
 

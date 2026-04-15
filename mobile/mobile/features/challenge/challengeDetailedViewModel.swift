@@ -4,12 +4,13 @@ import Supabase
 import UIKit
 
 struct WeeklyDayUI: Identifiable {
-    enum Status { case all, partial, none }
-
     let id = UUID()
     let weekday: String
     let day: String
-    let status: Status
+    let isChallengeDay: Bool
+    let isCompleted: Bool
+    let lidColorStart: String?
+    let lidColorEnd: String?
     let isToday: Bool
 }
 
@@ -86,6 +87,11 @@ final class ChallengeDetailViewModel: ObservableObject {
 
     @Published var weekly: [WeeklyDayUI] = []
     @Published var jarItems: [JarItemUI] = []
+    @Published var todayJarItemsForLid: [JarItemUI] = []
+    @Published var todayLidColorStart: String?
+    @Published var todayLidColorEnd: String?
+    @Published var isTodaySealed: Bool = false
+    @Published var todayShakerIsCompleted: Bool = false
     @Published var todayTasks: [TodayTaskUI] = []
     @Published var participants: [ChallengeParticipantUI] = []
     @Published var galleryItems: [ChallengeGalleryItemUI] = []
@@ -110,6 +116,8 @@ final class ChallengeDetailViewModel: ObservableObject {
     private var comments: [ChallengeCommentData] = []
     private var profilesByUserId: [UUID: ProfileData] = [:]
     private var persistedTodayCompletionByTask: [UUID: Bool] = [:]
+    private var todayChallengeShakerRow: ChallengeShakerRow?
+    private var challengeShakerByDate: [String: ChallengeShakerRow] = [:]
 
     init(challengeId: UUID) {
         self.challengeId = challengeId
@@ -294,6 +302,10 @@ final class ChallengeDetailViewModel: ObservableObject {
             // Optimistic local update for immediate jar/progress refresh.
             applyTodayCompletionOptimistically(userId: userId, date: today)
             buildUI()
+
+            // Ensure today's challenge_shaker row exists right after submit.
+            // If completed, keep lid colors only when available; otherwise persist nulls.
+            await ensureTodayShakerRowExistsAfterSubmit(client: client, date: today)
             isSubmittingDay = false
 
             // Keep server truth in sync without blocking UI responsiveness.
@@ -304,6 +316,223 @@ final class ChallengeDetailViewModel: ObservableObject {
         } catch {
             isSubmittingDay = false
             errorMessage = "Failed to save today's challenge: \(error.localizedDescription)"
+        }
+    }
+
+    private func ensureTodayShakerRowExistsAfterSubmit(client: SupabaseClient, date: String) async {
+        // If row already exists for today, no insert is needed.
+        guard challengeShakerByDate[date] == nil else { return }
+
+        let state = computeDailyShakerState(for: date)
+        let lidPair = resolvedLidHexPairForSubmit(date: date, state: state)
+        let lidStart = state.isCompleted ? lidPair.0 : nil
+        let lidEnd = state.isCompleted ? lidPair.1 : nil
+
+        do {
+            try await saveTodayChallengeShaker(
+                client: client,
+                date: date,
+                state: state,
+                lidColorStart: lidStart,
+                lidColorEnd: lidEnd
+            )
+
+            if let loaded = await fetchTodayChallengeShakerSafely(client: client, today: date) {
+                challengeShakerByDate[date] = loaded
+                if date == formattedDate(Date()) {
+                    todayChallengeShakerRow = loaded
+                    todayLidColorStart = loaded.lid_color_start
+                    todayLidColorEnd = loaded.lid_color_end
+                    todayShakerIsCompleted = loaded.iscompleted
+                }
+            }
+        } catch {
+            print("[ChallengeShakerSync] ensure row after submit failed: \(error)")
+        }
+    }
+
+    private func resolvedLidHexPairForSubmit(
+        date: String,
+        state: DailyShakerState
+    ) -> (String, String) {
+        if let start = todayLidColorStart,
+           let end = todayLidColorEnd,
+           UIColor(hex: start) != nil,
+           UIColor(hex: end) != nil {
+            return (start, end)
+        }
+
+        if let extracted = extractLidHexPairFromRenderedEmojis(state.userEmojis) {
+            return extracted
+        }
+
+        return deterministicLidHexPair(date: date, emojis: state.userEmojis)
+    }
+
+    private func extractLidHexPairFromRenderedEmojis(_ emojis: [String]) -> (String, String)? {
+        guard !emojis.isEmpty else { return nil }
+
+        let dim = 40
+        let bytesPerRow = dim * 4
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let font = UIFont(name: "AppleColorEmoji", size: 34) ?? UIFont.systemFont(ofSize: 34)
+        var hist: [UInt32: Int] = [:]
+
+        for emoji in emojis {
+            let renderer = UIGraphicsImageRenderer(size: CGSize(width: dim, height: dim))
+            let image = renderer.image { ctx in
+                UIColor.clear.setFill()
+                ctx.fill(CGRect(x: 0, y: 0, width: dim, height: dim))
+
+                let attrs: [NSAttributedString.Key: Any] = [.font: font]
+                let ns = emoji as NSString
+                let textSize = ns.size(withAttributes: attrs)
+                let rect = CGRect(
+                    x: (CGFloat(dim) - textSize.width) / 2,
+                    y: (CGFloat(dim) - textSize.height) / 2,
+                    width: textSize.width,
+                    height: textSize.height
+                )
+                ns.draw(in: rect, withAttributes: attrs)
+            }
+
+            guard let cg = image.cgImage,
+                  let ctx = CGContext(
+                      data: nil,
+                      width: dim,
+                      height: dim,
+                      bitsPerComponent: 8,
+                      bytesPerRow: bytesPerRow,
+                      space: colorSpace,
+                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+                  )
+            else { continue }
+
+            ctx.interpolationQuality = .none
+            ctx.draw(cg, in: CGRect(x: 0, y: 0, width: dim, height: dim))
+            guard let data = ctx.data else { continue }
+            let px = data.bindMemory(to: UInt8.self, capacity: dim * dim * 4)
+
+            for i in stride(from: 0, to: dim * dim, by: 2) {
+                let off = i * 4
+                let alpha = px[off + 3]
+                if alpha < 180 { continue }
+
+                let r = px[off] >> 3
+                let g = px[off + 1] >> 3
+                let b = px[off + 2] >> 3
+                let key = UInt32(r) << 10 | UInt32(g) << 5 | UInt32(b)
+                hist[key, default: 0] += 1
+            }
+        }
+
+        guard !hist.isEmpty else { return nil }
+
+        let sorted = hist.sorted { $0.value > $1.value }
+        let palette = sorted.prefix(6).map { quantizedKeyToUIColor($0.key) }
+        guard let first = palette.first else { return nil }
+
+        let second = palette.dropFirst().first { rgbDistance(first, $0) >= 0.18 } ?? adjustedPairColor(from: first)
+        return (first.toHex(), second.toHex())
+    }
+
+    private func quantizedKeyToUIColor(_ key: UInt32) -> UIColor {
+        let r = CGFloat(((key >> 10) & 0x1F) << 3) / 255.0
+        let g = CGFloat(((key >> 5) & 0x1F) << 3) / 255.0
+        let b = CGFloat((key & 0x1F) << 3) / 255.0
+        return UIColor(red: r, green: g, blue: b, alpha: 1)
+    }
+
+    private func adjustedPairColor(from color: UIColor) -> UIColor {
+        var h: CGFloat = 0
+        var s: CGFloat = 0
+        var b: CGFloat = 0
+        var a: CGFloat = 0
+        guard color.getHue(&h, saturation: &s, brightness: &b, alpha: &a) else {
+            return color
+        }
+        return UIColor(
+            hue: h,
+            saturation: min(1, max(0, s * 0.95 + 0.05)),
+            brightness: min(1, max(0, b * 0.75 + 0.15)),
+            alpha: 1
+        )
+    }
+
+    private func rgbDistance(_ lhs: UIColor, _ rhs: UIColor) -> CGFloat {
+        var lr: CGFloat = 0
+        var lg: CGFloat = 0
+        var lb: CGFloat = 0
+        var la: CGFloat = 0
+        var rr: CGFloat = 0
+        var rg: CGFloat = 0
+        var rb: CGFloat = 0
+        var ra: CGFloat = 0
+        guard lhs.getRed(&lr, green: &lg, blue: &lb, alpha: &la),
+              rhs.getRed(&rr, green: &rg, blue: &rb, alpha: &ra)
+        else { return 0 }
+        let dr = lr - rr
+        let dg = lg - rg
+        let db = lb - rb
+        return sqrt(dr * dr + dg * dg + db * db)
+    }
+
+    private func deterministicLidHexPair(date: String, emojis: [String]) -> (String, String) {
+        let base = date + "|" + emojis.joined(separator: "|")
+        var hash: UInt64 = 1469598103934665603
+        for byte in base.utf8 {
+            hash ^= UInt64(byte)
+            hash &*= 1099511628211
+        }
+
+        let hue0 = CGFloat(hash % 360) / 360.0
+        let offsetDeg = CGFloat((hash / 360) % 120 + 35) / 360.0
+        let hue1 = (hue0 + offsetDeg).truncatingRemainder(dividingBy: 1)
+
+        let c0 = UIColor(hue: hue0, saturation: 0.78, brightness: 0.92, alpha: 1)
+        let c1 = UIColor(hue: hue1, saturation: 0.72, brightness: 0.86, alpha: 1)
+        return (c0.toHex(), c1.toHex())
+    }
+
+    func persistTodayShakerBecameSealed(start: String, end: String) async {
+        await persistTodayShakerTransition(isCompleted: true, lidStart: start, lidEnd: end)
+    }
+
+    func persistTodayShakerBecameUnsealed() async {
+        await persistTodayShakerTransition(isCompleted: false, lidStart: nil, lidEnd: nil)
+    }
+
+    private func persistTodayShakerTransition(isCompleted: Bool, lidStart: String?, lidEnd: String?) async {
+        guard let client else { return }
+
+        let today = formattedDate(Date())
+        let currentCompleted = (todayChallengeShakerRow?.date == today) ? (todayChallengeShakerRow?.iscompleted ?? false) : false
+        guard currentCompleted != isCompleted else { return }
+
+        let day = computeDailyShakerState(for: today)
+        let state = DailyShakerState(isCompleted: isCompleted, userEmojis: day.userEmojis)
+
+        do {
+            try await saveTodayChallengeShaker(
+                client: client,
+                date: today,
+                state: state,
+                lidColorStart: lidStart,
+                lidColorEnd: lidEnd
+            )
+
+            if let loaded = await fetchTodayChallengeShakerSafely(client: client, today: today) {
+                todayChallengeShakerRow = loaded
+                todayLidColorStart = loaded.lid_color_start
+                todayLidColorEnd = loaded.lid_color_end
+                todayShakerIsCompleted = loaded.iscompleted
+            } else {
+                todayLidColorStart = lidStart
+                todayLidColorEnd = lidEnd
+                todayShakerIsCompleted = isCompleted
+            }
+        } catch {
+            print("[ChallengeShakerSync] state transition save failed: \(error)")
         }
     }
 
@@ -404,6 +633,8 @@ final class ChallengeDetailViewModel: ObservableObject {
                 .eq("challenge_id", value: challengeId.uuidString)
                 .execute()
                 .value
+
+            async let challengeShakerRows: [ChallengeShakerRow] = fetchChallengeShakerRowsSafely(client: client)
             
             async let commentRows: [ChallengeCommentData] = client
                 .from("challenge_comment")
@@ -427,6 +658,9 @@ final class ChallengeDetailViewModel: ObservableObject {
             members = try await memberRows
             tasks = try await taskRows
             completions = try await completionRows
+            let loadedShakerRows = await challengeShakerRows
+            challengeShakerByDate = Dictionary(uniqueKeysWithValues: loadedShakerRows.map { ($0.date, $0) })
+            todayChallengeShakerRow = challengeShakerByDate[formattedDate(Date())]
             comments = (try? await commentRows) ?? []
             proofPhotos = await fetchProofRowsSafely(client: client)
             let commenterIds = comments.compactMap { $0.commenter_id }
@@ -554,13 +788,28 @@ final class ChallengeDetailViewModel: ObservableObject {
             endDate: endDate,
             today: today
         )
-
-        weekly = buildWeeklyRows(
+        todayJarItemsForLid = buildDailyJarItems(
             normalizedCompletions: normalizedCompletions,
-            activeMemberCount: activeMembers.count,
-            taskCount: tasks.count,
-            today: today
+            activeMembers: activeMembers,
+            dateString: todayString
         )
+        if todayChallengeShakerRow?.date == todayString {
+            todayLidColorStart = todayChallengeShakerRow?.lid_color_start
+            todayLidColorEnd = todayChallengeShakerRow?.lid_color_end
+            todayShakerIsCompleted = todayChallengeShakerRow?.iscompleted ?? false
+        } else {
+            todayLidColorStart = nil
+            todayLidColorEnd = nil
+            todayShakerIsCompleted = false
+        }
+
+        isTodaySealed = dailyCompletionStatus(
+            normalizedCompletions: normalizedCompletions,
+            activeMembers: activeMembers,
+            dateString: todayString
+        ).isAllCompleted
+
+        weekly = buildWeeklyRows(today: today)
 
         let totalDays = totalChallengeDays(startDate: startDate, endDate: endDate)
         let elapsedDays = elapsedChallengeDays(startDate: startDate, endDate: endDate, today: today)
@@ -574,36 +823,25 @@ final class ChallengeDetailViewModel: ObservableObject {
         overallProgressText = "\(allCompletedCount) / \(targetTaskCount)"
     }
 
-    private func buildWeeklyRows(
-        normalizedCompletions: [NormalizedCompletion],
-        activeMemberCount: Int,
-        taskCount: Int,
-        today: Date
-    ) -> [WeeklyDayUI] {
+    private func buildWeeklyRows(today: Date) -> [WeeklyDayUI] {
         let calendar = Calendar.current
         let startOfWeek = calendar.startOfWeek(for: today)
         let weekdayLabels = calendar.shortStandaloneWeekdaySymbols.map { $0.uppercased() }
-        let requiredCount = activeMemberCount * taskCount
 
         return (0..<7).compactMap { offset in
             guard let date = calendar.date(byAdding: .day, value: offset, to: startOfWeek) else { return nil }
             let dateKey = formattedDate(date)
-            let dayCompletions = normalizedCompletions.filter { $0.date == dateKey && $0.isCompleted }
-            let completedCount = dayCompletions.count
-
-            let status: WeeklyDayUI.Status
-            if requiredCount == 0 || completedCount == 0 {
-                status = .none
-            } else if completedCount >= requiredCount {
-                status = .all
-            } else {
-                status = .partial
-            }
+            let isChallengeDay = isTaskToggleAllowed(on: date)
+            let shakerRow = challengeShakerByDate[dateKey]
+            let isCompleted = isChallengeDay && (shakerRow?.iscompleted ?? false)
 
             return WeeklyDayUI(
                 weekday: weekdayLabels[offset],
                 day: String(calendar.component(.day, from: date)),
-                status: status,
+                isChallengeDay: isChallengeDay,
+                isCompleted: isCompleted,
+                lidColorStart: shakerRow?.lid_color_start,
+                lidColorEnd: shakerRow?.lid_color_end,
                 isToday: calendar.isDate(date, inSameDayAs: today)
             )
         }
@@ -692,6 +930,234 @@ final class ChallengeDetailViewModel: ObservableObject {
         let userId: UUID
         let date: String
         let isCompleted: Bool
+    }
+
+    private struct DailyShakerState {
+        let isCompleted: Bool
+        let userEmojis: [String]
+    }
+
+    private struct DailyCompletionStatus {
+        let requiredCount: Int
+        let completedCount: Int
+
+        var isAllCompleted: Bool {
+            requiredCount > 0 && completedCount >= requiredCount
+        }
+    }
+
+    private struct ChallengeShakerRow: Decodable {
+        let id: UUID
+        let challenge_id: UUID
+        let date: String
+        let iscompleted: Bool
+        let user_emojis: [String]
+        let lid_color_start: String?
+        let lid_color_end: String?
+    }
+
+    private struct ChallengeShakerWritePayload: Encodable {
+        let challenge_id: UUID
+        let date: String
+        let iscompleted: Bool
+        let user_emojis: [String]
+        let lid_color_start: String?
+        let lid_color_end: String?
+
+        enum CodingKeys: String, CodingKey {
+            case challenge_id, date, iscompleted, user_emojis, lid_color_start, lid_color_end
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var c = encoder.container(keyedBy: CodingKeys.self)
+            try c.encode(challenge_id, forKey: .challenge_id)
+            try c.encode(date, forKey: .date)
+            try c.encode(iscompleted, forKey: .iscompleted)
+            try c.encode(user_emojis, forKey: .user_emojis)
+            if let lid_color_start {
+                try c.encode(lid_color_start, forKey: .lid_color_start)
+            } else {
+                try c.encodeNil(forKey: .lid_color_start)
+            }
+            if let lid_color_end {
+                try c.encode(lid_color_end, forKey: .lid_color_end)
+            } else {
+                try c.encodeNil(forKey: .lid_color_end)
+            }
+        }
+    }
+
+    private struct ChallengeShakerUpdatePayload: Encodable {
+        let iscompleted: Bool
+        let user_emojis: [String]
+        let lid_color_start: String?
+        let lid_color_end: String?
+
+        enum CodingKeys: String, CodingKey {
+            case iscompleted, user_emojis, lid_color_start, lid_color_end
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var c = encoder.container(keyedBy: CodingKeys.self)
+            try c.encode(iscompleted, forKey: .iscompleted)
+            try c.encode(user_emojis, forKey: .user_emojis)
+            if let lid_color_start {
+                try c.encode(lid_color_start, forKey: .lid_color_start)
+            } else {
+                try c.encodeNil(forKey: .lid_color_start)
+            }
+            if let lid_color_end {
+                try c.encode(lid_color_end, forKey: .lid_color_end)
+            } else {
+                try c.encodeNil(forKey: .lid_color_end)
+            }
+        }
+    }
+
+    private struct ChallengeShakerRowId: Decodable {
+        let id: UUID
+    }
+
+    private func fetchTodayChallengeShakerSafely(
+        client: SupabaseClient,
+        today: String
+    ) async -> ChallengeShakerRow? {
+        do {
+            let rows: [ChallengeShakerRow] = try await client
+                .from("challenge_shaker")
+                .select("id, challenge_id, date, iscompleted, user_emojis, lid_color_start, lid_color_end")
+                .eq("challenge_id", value: challengeId.uuidString)
+                .eq("date", value: today)
+                .limit(1)
+                .execute()
+                .value
+            return rows.first
+        } catch {
+            return nil
+        }
+    }
+
+    private func fetchChallengeShakerRowsSafely(client: SupabaseClient) async -> [ChallengeShakerRow] {
+        do {
+            let rows: [ChallengeShakerRow] = try await client
+                .from("challenge_shaker")
+                .select("id, challenge_id, date, iscompleted, user_emojis, lid_color_start, lid_color_end")
+                .eq("challenge_id", value: challengeId.uuidString)
+                .execute()
+                .value
+            return rows
+        } catch {
+            return []
+        }
+    }
+
+    private func computeDailyShakerState(for dateString: String) -> DailyShakerState {
+        let activeMembers = members.filter { $0.left_at == nil }
+        let normalized = normalizedCompletionRows(from: completions)
+        let day = dailyCompletionStatus(
+            normalizedCompletions: normalized,
+            activeMembers: activeMembers,
+            dateString: dateString
+        )
+
+        let dayItems = buildDailyJarItems(
+            normalizedCompletions: normalized,
+            activeMembers: activeMembers,
+            dateString: dateString
+        )
+        return DailyShakerState(
+            isCompleted: day.isAllCompleted,
+            userEmojis: dayItems.map(\.emoji)
+        )
+    }
+
+    private func dailyCompletionStatus(
+        normalizedCompletions: [NormalizedCompletion],
+        activeMembers: [ChallengeMemberData],
+        dateString: String
+    ) -> DailyCompletionStatus {
+        let activeUserIds = Set(activeMembers.map(\.user_id))
+        let taskIds = Set(tasks.map(\.task_id))
+        let requiredCount = activeMembers.count * tasks.count
+        let completedCount = normalizedCompletions.filter { row in
+            row.isCompleted &&
+            row.date == dateString &&
+            activeUserIds.contains(row.userId) &&
+            taskIds.contains(row.taskId)
+        }.count
+        return DailyCompletionStatus(requiredCount: requiredCount, completedCount: completedCount)
+    }
+
+    private func saveTodayChallengeShaker(
+        client: SupabaseClient,
+        date: String,
+        state: DailyShakerState,
+        lidColorStart: String?,
+        lidColorEnd: String?
+    ) async throws {
+        // Keep DB invariant: when not completed, lid colors must be null.
+        let persistedLidStart = state.isCompleted ? lidColorStart : nil
+        let persistedLidEnd = state.isCompleted ? lidColorEnd : nil
+
+        let updatePayload = ChallengeShakerUpdatePayload(
+            iscompleted: state.isCompleted,
+            user_emojis: state.userEmojis,
+            lid_color_start: persistedLidStart,
+            lid_color_end: persistedLidEnd
+        )
+        let insertPayload = ChallengeShakerWritePayload(
+            challenge_id: challengeId,
+            date: date,
+            iscompleted: state.isCompleted,
+            user_emojis: state.userEmojis,
+            lid_color_start: persistedLidStart,
+            lid_color_end: persistedLidEnd
+        )
+
+        let rowId: UUID?
+        if todayChallengeShakerRow?.date == date {
+            rowId = todayChallengeShakerRow?.id
+        } else {
+            let rows: [ChallengeShakerRowId] = try await client
+                .from("challenge_shaker")
+                .select("id")
+                .eq("challenge_id", value: challengeId.uuidString)
+                .eq("date", value: date)
+                .limit(1)
+                .execute()
+                .value
+            rowId = rows.first?.id
+        }
+
+        if let rowId {
+            try await client
+                .from("challenge_shaker")
+                .update(updatePayload)
+                .eq("id", value: rowId.uuidString)
+                .execute()
+            todayChallengeShakerRow = ChallengeShakerRow(
+                id: rowId,
+                challenge_id: challengeId,
+                date: date,
+                iscompleted: state.isCompleted,
+                user_emojis: state.userEmojis,
+                lid_color_start: persistedLidStart,
+                lid_color_end: persistedLidEnd
+            )
+            if let todayChallengeShakerRow {
+                challengeShakerByDate[date] = todayChallengeShakerRow
+            }
+        } else {
+            try await client
+                .from("challenge_shaker")
+                .insert(insertPayload)
+                .execute()
+
+            if let loaded = await fetchTodayChallengeShakerSafely(client: client, today: date) {
+                todayChallengeShakerRow = loaded
+                challengeShakerByDate[date] = loaded
+            }
+        }
     }
 
     private func fetchProofRowsSafely(client: SupabaseClient) async -> [ChallengeTaskProofPhotoData] {
@@ -787,6 +1253,32 @@ final class ChallengeDetailViewModel: ObservableObject {
 
             if let normalizedStart, rowDate < normalizedStart { continue }
             if rowDate > effectiveEnd { continue }
+            countsByUser[row.userId, default: 0] += 1
+        }
+
+        var result: [JarItemUI] = []
+        for member in activeMembers.sorted(by: { $0.user_id.uuidString < $1.user_id.uuidString }) {
+            let count = countsByUser[member.user_id] ?? 0
+            guard count > 0 else { continue }
+            let emoji = (member.member_emoji?.isEmpty == false) ? (member.member_emoji ?? "🙂") : "🙂"
+            for _ in 0..<count {
+                result.append(JarItemUI(id: UUID(), emoji: emoji))
+            }
+        }
+        return result
+    }
+
+    private func buildDailyJarItems(
+        normalizedCompletions: [NormalizedCompletion],
+        activeMembers: [ChallengeMemberData],
+        dateString: String
+    ) -> [JarItemUI] {
+        let activeUserIds = Set(activeMembers.map(\.user_id))
+        let taskIds = Set(tasks.map(\.task_id))
+        var countsByUser: [UUID: Int] = [:]
+
+        for row in normalizedCompletions where row.isCompleted && row.date == dateString {
+            guard activeUserIds.contains(row.userId), taskIds.contains(row.taskId) else { continue }
             countsByUser[row.userId, default: 0] += 1
         }
 
