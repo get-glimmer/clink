@@ -1,6 +1,5 @@
 import SwiftUI
 import Supabase
-import UserNotifications
 
 struct SettingsView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
@@ -99,23 +98,6 @@ struct SettingsView: View {
                             .appFont(AppFont.captionM)
                             .foregroundStyle(Color(.white))
 
-                        Divider()
-
-                        Button {
-                            sendTestNotification()
-                        } label: {
-                            HStack {
-                                Text("Send Test Notification")
-                                    .padding(.top, 14)
-                                    .padding(.bottom, 13)
-                                    .appFont(AppFont.captionM)
-                                    .foregroundStyle(Color("Green-300"))
-                                Spacer()
-                            }
-                            .padding(.leading, 18)
-                            .padding(.trailing, 16)
-                            .contentShape(Rectangle())
-                        }
 
                         Divider()
                     }
@@ -270,36 +252,6 @@ struct SettingsView: View {
         .navBarHidden(true)
     }
 
-    private func sendTestNotification() {
-        let center = UNUserNotificationCenter.current()
-        center.requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
-            if let error = error {
-                print("Notification auth error: \(error)")
-                return
-            }
-            guard granted else {
-                print("Notification permission not granted")
-                return
-            }
-
-            let content = UNMutableNotificationContent()
-            content.title = "Glimmer"
-            content.body = "This is a test notification ✨"
-            content.sound = .default
-
-            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false)
-            let request = UNNotificationRequest(
-                identifier: UUID().uuidString,
-                content: content,
-                trigger: trigger
-            )
-            center.add(request) { error in
-                if let error = error {
-                    print("Failed to schedule notification: \(error)")
-                }
-            }
-        }
-    }
 }
 
 extension View {

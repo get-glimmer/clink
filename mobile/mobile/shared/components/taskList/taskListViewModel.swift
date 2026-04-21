@@ -1,12 +1,16 @@
 import Foundation
 import Combine
+import WidgetKit
 
 @MainActor
 class TaskListViewModel: ObservableObject {
     // MARK: - Variables
     @Published var isSupabaseConnected: Bool = false
     @Published var categoriesWithTasks: [CategoryWithTasks] = [] {
-        didSet { updateAllCompleted() }   // auto‑recalculate
+        didSet {
+            updateAllCompleted()
+            syncTasksToWidget()
+        }
     }
     @Published var isAllCompleted: Bool = false {
         didSet {
@@ -425,6 +429,38 @@ class TaskListViewModel: ObservableObject {
             .filter { $0.category.type == .daily }
             .flatMap { $0.tasks }
         isAllCompleted = !dailyTasks.isEmpty && dailyTasks.allSatisfy { $0.isCompleted }
+    }
+
+    private func syncTasksToWidget() {
+        let widgetCategories = categoriesWithTasks
+            .filter { $0.category.type == .daily }
+            .map { cat in
+                let emoji = emojiForDate[cat.category.id] ?? cat.category.emoji
+                return WidgetCategoryTasks(
+                    id: cat.category.id,
+                    name: cat.category.name,
+                    emoji: emoji,
+                    tasks: cat.tasks.filter { !$0.isTemporary }.map { task in
+                        WidgetTask(
+                            id: task.id,
+                            title: task.title,
+                            isCompleted: task.isCompleted,
+                            categoryName: cat.category.name,
+                            categoryEmoji: emoji
+                        )
+                    }
+                )
+            }
+        let totalTasks = widgetCategories.flatMap(\.tasks).count
+        print("[WidgetSync] saving \(widgetCategories.count) categories, \(totalTasks) tasks")
+        WidgetDataStore.shared.saveTasks(widgetCategories)
+
+        // Verify the save worked
+        let readBack = WidgetDataStore.shared.loadTasks()
+        let readBackTasks = readBack.flatMap(\.tasks).count
+        print("[WidgetSync] read-back: \(readBack.count) categories, \(readBackTasks) tasks")
+
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     // Supabase: shaker table sync
