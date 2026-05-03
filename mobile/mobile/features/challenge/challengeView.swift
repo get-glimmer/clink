@@ -7,6 +7,8 @@ struct ChallengeView: View {
     @State private var isShowingChallengeDetail = false
     @State private var selectedInvite: InvitedChallengeItem? = nil
     @State private var showMemberEmojiSetup = false
+    @State private var showEditChallengeList = false
+    @State private var showInvitedChallengeList = false
 
     var body: some View {
         NavigationStack {
@@ -152,6 +154,28 @@ struct ChallengeView: View {
                     }
                 )
                 .hidden()
+
+                NavigationLink(
+                    isActive: $showEditChallengeList,
+                    destination: {
+                        EditChallengeListView()
+                            .environmentObject(viewModel)
+                            .navBarHidden(true)
+                    },
+                    label: { EmptyView() }
+                )
+                .hidden()
+
+                NavigationLink(
+                    isActive: $showInvitedChallengeList,
+                    destination: {
+                        InvitedChallengeListView()
+                            .environmentObject(viewModel)
+                            .navBarHidden(true)
+                    },
+                    label: { EmptyView() }
+                )
+                .hidden()
             }
             .navigationBarHidden(true)
         }
@@ -165,27 +189,45 @@ struct ChallengeView: View {
             labelTitle: { $0 }
         )
         // MARK: - Options Menu Overlay
-        .overlay(alignment: .bottomLeading) {
+        .overlay {
             if viewModel.showOptionsMenu {
-                ChallengeOptionsSheet(
-                    onTapOutside: {
-                        withAnimation(.easeInOut(duration: 0.25)) {
-                            viewModel.showOptionsMenu = false
+                ZStack(alignment: .topTrailing) {
+                    Color.black.opacity(0.0001)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                viewModel.showOptionsMenu = false
+                            }
                         }
-                    },
-                    onTapCreateChallenge: {
-                        withAnimation(.easeInOut(duration: 0.25)) {
-                            viewModel.showOptionsMenu = false
+
+                    ChallengeActionsMenu(
+                        onCreate: {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                viewModel.showOptionsMenu = false
+                            }
+                            viewModel.showCreateChallenge = true
+                        },
+                        onEdit: {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                viewModel.showOptionsMenu = false
+                            }
+                            showEditChallengeList = true
+                        },
+                        onInvited: {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                viewModel.showOptionsMenu = false
+                            }
+                            showInvitedChallengeList = true
                         }
-                        viewModel.showCreateChallenge = true
-                    }
-                )
+                    )
+                    .padding(.top, 66)
+                    .padding(.trailing, 24)
+                }
                 .transition(.opacity)
-                .ignoresSafeArea()
             }
         }
         .zIndex(999)
-        .animation(.easeInOut(duration: 0.25), value: viewModel.showOptionsMenu)
+        .animation(.easeInOut(duration: 0.2), value: viewModel.showOptionsMenu)
         // MARK: - Quit Challenge Confirmation
         .overlay {
             if viewModel.showQuitConfirmation {
@@ -353,7 +395,8 @@ struct ChallengeCard: View {
                     .foregroundColor(AppColors.textWhite)
                     .fixedSize(horizontal: false, vertical: true)
                     .lineLimit(2)
-                    .padding(.bottom, 12)
+
+                Spacer(minLength: 12)
 
                 // Meta info (Calendar icon + Frequency)
                 HStack(spacing: 6) {
@@ -388,17 +431,22 @@ struct ChallengeCard: View {
                     }
                 }
             }
+            .padding(.top, 15)
+            .padding(.bottom, 19)
+            .frame(maxHeight: .infinity, alignment: .top)
             .layoutPriority(1)
 
             Spacer(minLength: 16)
 
             // Right: Shaker Preview
             ChallengeShakerPreview(challenge: challenge)
-                .frame(width: 100, height: 100)
+                .frame(width: 134.73, height: 134)
                 .onTapGesture { onTapShaker?() }
         }
-        .padding(16)
+        .padding(.leading, 16)
+        .padding(.trailing, 20)
         .frame(maxWidth: .infinity)
+        .frame(height: 180)
         .background(AppColors.neutral900)
         .cornerRadius(16)
     }
@@ -534,8 +582,12 @@ struct SwipeableChallengeCard: View {
 
     @State private var offset: CGFloat = 0
     @State private var showingTrash: Bool = false
+    @State private var dragAxis: DragAxis = .undecided
     private let trashThreshold: CGFloat = -80
     private let deleteThreshold: CGFloat = -160
+    private let axisLockThreshold: CGFloat = 10
+
+    private enum DragAxis { case undecided, horizontal, vertical }
 
     var body: some View {
         ZStack(alignment: .trailing) {
@@ -555,46 +607,63 @@ struct SwipeableChallengeCard: View {
             ChallengeCard(challenge: challenge, onTapShaker: onTapShaker)
                 .offset(x: offset)
                 .contentShape(Rectangle())
+                .onTapGesture {
+                    if offset != 0 {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            offset = 0
+                            showingTrash = false
+                        }
+                        return
+                    }
+                    onTap()
+                }
                 .gesture(
-                    DragGesture(minimumDistance: 15)
+                    DragGesture(minimumDistance: 12)
                         .onChanged { value in
-                            let translation = value.translation.width
-                            // Only engage for clearly horizontal drags so vertical scrolling still works
-                            guard abs(translation) > abs(value.translation.height) else { return }
-                            if translation < 0 {
-                                offset = translation
-                                showingTrash = translation < trashThreshold
+                            let dx = value.translation.width
+                            let dy = value.translation.height
+
+                            // Lock axis on first meaningful movement so vertical
+                            // scrolling is never partially captured here.
+                            if dragAxis == .undecided {
+                                if abs(dx) >= axisLockThreshold || abs(dy) >= axisLockThreshold {
+                                    dragAxis = abs(dx) > abs(dy) ? .horizontal : .vertical
+                                } else {
+                                    return
+                                }
+                            }
+
+                            guard dragAxis == .horizontal else { return }
+                            if dx < 0 {
+                                offset = dx
+                                showingTrash = dx < trashThreshold
+                            } else if offset != 0 {
+                                offset = min(0, dx + trashThreshold)
                             }
                         }
                         .onEnded { value in
-                            let translation = value.translation.width
-                            if translation < deleteThreshold {
-                                // Swiped far enough — trigger quit
+                            let lockedHorizontal = (dragAxis == .horizontal)
+                            dragAxis = .undecided
+                            guard lockedHorizontal else { return }
+                            let dx = value.translation.width
+                            if dx < deleteThreshold {
                                 withAnimation(.easeInOut(duration: 0.2)) {
                                     offset = 0
                                     showingTrash = false
                                 }
                                 onDelete()
-                            } else if translation < trashThreshold {
-                                // Show trash icon position
+                            } else if dx < trashThreshold {
                                 withAnimation(.easeInOut(duration: 0.2)) {
                                     offset = trashThreshold
                                     showingTrash = true
                                 }
                             } else {
-                                // Snap back
                                 withAnimation(.easeInOut(duration: 0.2)) {
                                     offset = 0
                                     showingTrash = false
                                 }
                             }
                         }
-                )
-                .highPriorityGesture(
-                    TapGesture().onEnded {
-                        guard offset == 0 else { return }
-                        onTap()
-                    }
                 )
         }
         .clipped()
@@ -668,18 +737,18 @@ struct QuitChallengeOverlay: View {
 
     var body: some View {
         ZStack {
-            // Blurred background
+            // Blurred + dimmed background
             ZStack {
-                DarkBlurView(style: .systemUltraThinMaterialDark)
+                DarkBlurView(style: .systemThinMaterialDark)
                     .ignoresSafeArea()
-                Color.black.opacity(0.7)
+                Color.black.opacity(0.45)
                     .ignoresSafeArea()
             }
             .contentShape(Rectangle())
             .onTapGesture { onCancel() }
 
             // Confirmation card
-            VStack(spacing: 20) {
+            VStack(alignment: .leading, spacing: 20) {
                 HStack {
                     Text("Quit this challenge?")
                         .appText(AppFont.title3)
@@ -691,26 +760,241 @@ struct QuitChallengeOverlay: View {
                             .foregroundColor(AppColors.neutral400)
                     }
                 }
+                .padding(.horizontal, 25)
 
                 Text("Your progress and shared data will be lost. This action can't be undone.")
-                    .appText(AppFont.captionM)
+                    .font(AppFont.body1.font)
+                    .lineSpacing(2)
                     .foregroundColor(AppColors.neutral400)
                     .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 25)
 
                 Button(action: onQuit) {
                     Text("Quit Challenge")
-                        .appText(AppFont.labelL)
-                        .foregroundColor(.white)
+                        .appText(AppFont.buttonL)
+                        .foregroundColor(AppColors.neutral1000)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
                         .background(Color(red: 1.0, green: 0.45, blue: 0.5))
                         .cornerRadius(12)
                 }
+                .padding(.horizontal, 16)
             }
-            .padding(24)
+            .padding(.vertical, 24)
             .background(AppColors.neutral900)
             .cornerRadius(20)
+            .overlay(
+                RoundedRectangle(cornerRadius: 20)
+                    .stroke(
+                        LinearGradient(
+                            colors: [
+                                Color("Neutral-400").opacity(0.7),
+                                Color("Neutral-600").opacity(0.7)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
+            )
             .padding(.horizontal, 40)
+        }
+        .navBarHidden(true)
+    }
+}
+
+// MARK: - Challenge Actions Dropdown Menu
+
+struct ChallengeActionsMenu: View {
+    let onCreate: () -> Void
+    let onEdit: () -> Void
+    let onInvited: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            row(icon: "plus", title: "Create Challenge", action: onCreate)
+            divider
+            row(icon: "pencil", title: "Edit Challenge", action: onEdit)
+            divider
+            row(icon: "envelope", title: "Invited Challenge", action: onInvited)
+        }
+        .frame(width: 226)
+        .background(AppColors.neutral900)
+        .cornerRadius(16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            Color("Neutral-400").opacity(0.7),
+                            Color("Neutral-600").opacity(0.7)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+        )
+        .shadow(color: Color.black.opacity(0.3), radius: 10, x: 0, y: 5)
+    }
+
+    private var divider: some View {
+        Rectangle()
+            .fill(AppColors.neutral800)
+            .frame(height: 0.5)
+            .padding(.horizontal, 16)
+    }
+
+    private func row(icon: String, title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 14) {
+                Image(systemName: icon)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(AppColors.textWhite)
+                    .frame(width: 20, alignment: .center)
+                Text(title)
+                    .appText(AppFont.labelL)
+                    .foregroundColor(AppColors.textWhite)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 16)
+            .frame(height: 50)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Edit Challenge List Screen
+
+struct EditChallengeListView: View {
+    @EnvironmentObject var viewModel: ChallengeViewModel
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        ZStack {
+            AppColors.neutral1000.ignoresSafeArea()
+
+            VStack(spacing: 24) {
+                ChallengeListHeader(title: "Edit Challenge") { dismiss() }
+
+                if viewModel.challenges.isEmpty {
+                    Spacer()
+                    Text("No challenges yet")
+                        .appText(AppFont.captionM)
+                        .foregroundColor(AppColors.neutral400)
+                    Spacer()
+                } else {
+                    ScrollView {
+                        VStack(spacing: 16) {
+                            ForEach(viewModel.challenges) { challenge in
+                                ChallengeCard(challenge: challenge)
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        viewModel.selectedChallengeId = challenge.id
+                                        viewModel.showEditChallenge = true
+                                    }
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 100)
+                    }
+                    .refreshable {
+                        await MainActor.run { viewModel.refreshChallenges() }
+                    }
+                }
+            }
+        }
+        .navigationBarHidden(true)
+        .onAppear { viewModel.refreshChallenges() }
+    }
+}
+
+// MARK: - Invited Challenge List Screen
+
+struct InvitedChallengeListView: View {
+    @EnvironmentObject var viewModel: ChallengeViewModel
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        ZStack {
+            AppColors.neutral1000.ignoresSafeArea()
+
+            VStack(spacing: 24) {
+                ChallengeListHeader(title: "Invited Challenge") { dismiss() }
+
+                if viewModel.pendingInvites.isEmpty {
+                    Spacer()
+                    Text("No pending invitations")
+                        .appText(AppFont.captionM)
+                        .foregroundColor(AppColors.neutral400)
+                    Spacer()
+                } else {
+                    ScrollView {
+                        VStack(spacing: 16) {
+                            ForEach(viewModel.pendingInvites) { invite in
+                                InvitedChallengeCard(invite: invite)
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        viewModel.pendingInviteForOverlay = invite
+                                        withAnimation(.easeInOut(duration: 0.2)) {
+                                            viewModel.showPendingInviteOverlay = true
+                                        }
+                                    }
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 100)
+                    }
+                    .refreshable {
+                        await MainActor.run { viewModel.refreshChallenges() }
+                    }
+                }
+            }
+        }
+        .navigationBarHidden(true)
+        .onAppear {
+            if viewModel.selectedCategory != "Invited" {
+                viewModel.selectCategory("Invited")
+            } else {
+                viewModel.refreshChallenges()
+            }
         }
     }
 }
+
+// MARK: - Shared header for the list screens
+
+private struct ChallengeListHeader: View {
+    let title: String
+    let onBack: () -> Void
+
+    var body: some View {
+        ZStack {
+            Text(title)
+                .appText(AppFont.title3)
+                .foregroundColor(AppColors.textWhite)
+
+            HStack {
+                Button(action: onBack) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.white.opacity(0.08))
+                            .frame(width: 40, height: 40)
+                            .overlay(
+                                Circle().stroke(Color.white.opacity(0.10), lineWidth: 1)
+                            )
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(AppColors.textWhite)
+                    }
+                }
+                .buttonStyle(.plain)
+                Spacer()
+            }
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 16)
+    }
+}
+
