@@ -5,5 +5,6 @@ import SwiftUI
 struct GlimmerWidgetBundle: WidgetBundle {
     var body: some Widget {
         GlimmerTaskListWidget()
+        GlimmerShakerWidget()
     }
 }

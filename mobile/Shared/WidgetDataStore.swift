@@ -2,6 +2,8 @@ import Foundation
 
 let appGroupID = "group.kristie123.mobile"
 
+// MARK: - Task List Widget Data
+
 struct WidgetTask: Codable, Identifiable {
     let id: UUID
     let title: String
@@ -17,11 +19,25 @@ struct WidgetCategoryTasks: Codable, Identifiable {
     let tasks: [WidgetTask]
 }
 
+// MARK: - Shaker Widget Data
+
+struct WidgetShakerData: Codable {
+    let emojis: [String]           // completed task emojis in the jar
+    let isAllCompleted: Bool
+    let lidColorStart: String?     // hex color
+    let lidColorEnd: String?       // hex color
+}
+
+// MARK: - Data Store
+
 final class WidgetDataStore {
     static let shared = WidgetDataStore()
     private let defaults = UserDefaults(suiteName: appGroupID)
 
     private let tasksKey = "widget_tasks"
+    private let shakerKey = "widget_shaker"
+
+    // MARK: Tasks
 
     func saveTasks(_ categories: [WidgetCategoryTasks]) {
         if defaults == nil {
@@ -52,5 +68,38 @@ final class WidgetDataStore {
         }
         print("[WidgetDataStore] loaded \(categories.count) categories")
         return categories
+    }
+
+    // MARK: Shaker
+
+    func saveShaker(_ data: WidgetShakerData) {
+        if defaults == nil {
+            print("[WidgetDataStore] ERROR: UserDefaults is nil for shaker save")
+            return
+        }
+        guard let encoded = try? JSONEncoder().encode(data) else {
+            print("[WidgetDataStore] ERROR: failed to encode shaker")
+            return
+        }
+        defaults?.set(encoded, forKey: shakerKey)
+        defaults?.synchronize()
+        print("[WidgetDataStore] saved shaker: \(data.emojis.count) emojis \(data.emojis), allDone=\(data.isAllCompleted)")
+    }
+
+    func loadShaker() -> WidgetShakerData? {
+        if defaults == nil {
+            print("[WidgetDataStore] ERROR: UserDefaults is nil for shaker load")
+            return nil
+        }
+        guard let data = defaults?.data(forKey: shakerKey) else {
+            print("[WidgetDataStore] no shaker data found")
+            return nil
+        }
+        guard let shaker = try? JSONDecoder().decode(WidgetShakerData.self, from: data) else {
+            print("[WidgetDataStore] ERROR: failed to decode shaker")
+            return nil
+        }
+        print("[WidgetDataStore] loaded shaker: \(shaker.emojis.count) emojis \(shaker.emojis)")
+        return shaker
     }
 }
