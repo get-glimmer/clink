@@ -1,81 +1,46 @@
 import SwiftUI
-import MCEmojiPicker
 
-// MARK: - Emoji picker anchor
-//
-// UIViewRepresentable gives us a UIView with correctly resolved UIKit frame coordinates.
-// UIViewControllerRepresentable's UIViewController view frame is often zero at presentation
-// time, causing the popover to anchor at the wrong position.
+private struct HiddenEmojiTextField: UIViewRepresentable {
+    @Binding var text: String
+    @Binding var isFirstResponder: Bool
 
-private struct EmojiPickerAnchor: UIViewRepresentable {
-    @Binding var isPresented: Bool
-    @Binding var selectedEmoji: String
+    private final class EmojiFirstTextField: UITextField {
+        override var textInputContextIdentifier: String? { "" }
+        override var textInputMode: UITextInputMode? {
+            UITextInputMode.activeInputModes.first { $0.primaryLanguage == "emoji" }
+                ?? super.textInputMode
+        }
+    }
+
+    func makeUIView(context: Context) -> UITextField {
+        let tf = EmojiFirstTextField(frame: .zero)
+        tf.delegate = context.coordinator
+        tf.autocorrectionType = .no
+        tf.autocapitalizationType = .none
+        tf.tintColor = .clear
+        return tf
+    }
+
+    func updateUIView(_ uiView: UITextField, context: Context) {
+        if isFirstResponder && !uiView.isFirstResponder {
+            _ = uiView.becomeFirstResponder()
+            DispatchQueue.main.async { uiView.reloadInputViews() }
+        } else if !isFirstResponder && uiView.isFirstResponder {
+            uiView.resignFirstResponder()
+        }
+    }
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
-    func makeUIView(context: Context) -> UIView {
-        let v = UIView()
-        v.backgroundColor = .clear
-        v.isUserInteractionEnabled = false
-        return v
-    }
+    final class Coordinator: NSObject, UITextFieldDelegate {
+        var parent: HiddenEmojiTextField
+        init(_ parent: HiddenEmojiTextField) { self.parent = parent }
 
-    func updateUIView(_ uiView: UIView, context: Context) {
-        guard isPresented, !context.coordinator.isPresenting else { return }
-        context.coordinator.showPicker(from: uiView)
-    }
-
-    final class Coordinator: NSObject, MCEmojiPickerDelegate, UIPopoverPresentationControllerDelegate {
-        var parent: EmojiPickerAnchor
-        var isPresenting = false
-
-        init(_ parent: EmojiPickerAnchor) { self.parent = parent }
-
-        func showPicker(from anchor: UIView) {
-            guard let hostVC = anchor.nearestViewController() else { return }
-            isPresenting = true
-            let picker = MCEmojiPickerViewController()
-            picker.delegate = self
-            picker.sourceView = anchor
-            picker.arrowDirection = .down
-            picker.customHeight = 380
-            picker.horizontalInset = 0
-            picker.isDismissAfterChoosing = true
-            picker.selectedEmojiCategoryTintColor = .white
-            picker.feedBackGeneratorStyle = .light
-            hostVC.present(picker, animated: true) {
-                // Set after presentation so popoverPresentationController is ready.
-                picker.popoverPresentationController?.delegate = self
-            }
+        func textField(_ textField: UITextField, shouldChangeCharactersIn range: NSRange, replacementString string: String) -> Bool {
+            guard !string.isEmpty else { return true }
+            parent.text = string
+            return false
         }
-
-        func didGetEmoji(emoji: String) {
-            parent.selectedEmoji = emoji
-            parent.isPresented = false
-            isPresenting = false
-        }
-
-        // Keep compact popover style on iPhone (same as MCEmojiPickerViewController's own impl).
-        func adaptivePresentationStyle(for controller: UIPresentationController, traitCollection: UITraitCollection) -> UIModalPresentationStyle {
-            return .none
-        }
-
-        // Called on any dismissal — emoji selected or user swiped away.
-        func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
-            parent.isPresented = false
-            isPresenting = false
-        }
-    }
-}
-
-private extension UIView {
-    func nearestViewController() -> UIViewController? {
-        var responder: UIResponder? = self
-        while let r = responder {
-            if let vc = r as? UIViewController { return vc }
-            responder = r.next
-        }
-        return nil
     }
 }
 
@@ -83,70 +48,101 @@ struct EmojiSetupView: View {
     @ObservedObject var viewModel: CreateChallengeViewModel
     @Environment(\.dismiss) private var dismiss
 
-    @State private var showPicker = false
     @State private var pickerEmoji: String = ""
+    @State private var isEmojiKeyboardFocused: Bool = false
     @State private var showOwnerEmojiSetup = false
+    @State private var emojiGridCellSize: CGFloat = 70
+
+    @State private var randomEmoji: String = "🎉"
+    private let randomEmojiPool: [String] = [
+        "😀","😂","🥰","😎","🤩","🎉","🔥","💪","🌟","⚡️",
+        "🎯","🏆","💫","🌈","🦋","🍀","💎","🚀","🎸","🎨",
+        "🌺","🦊","🐬","🦁","🐼","🍕","🎃","👑","🌙","💥",
+        "🎵","🌊","🦄","🐉","🍓","🎭","🌸","🏄","🎪","🦸"
+    ]
+    private let randomEmojiTimer = Timer.publish(every: 0.2, on: .main, in: .common).autoconnect()
 
     var body: some View {
-        ZStack {
-            AppColors.neutral1000.ignoresSafeArea()
+        GeometryReader { screen in
+            ZStack {
+                AppColors.neutral1000.ignoresSafeArea()
+                    .onAppear { emojiGridCellSize = (screen.size.width - 96) / 4 }
 
-            VStack(spacing: 0) {
-                headerBar
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 16)
+                // Background tap layer — dismisses keyboard when tapping empty space
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture { isEmojiKeyboardFocused = false }
 
-                Spacer()
+                // Pinned to the top so UIKit doesn't scroll the view when this becomes first responder
+                VStack {
+                    HiddenEmojiTextField(text: $pickerEmoji, isFirstResponder: $isEmojiKeyboardFocused)
+                        .frame(width: 1, height: 1)
+                        .opacity(0.02)
+                        .allowsHitTesting(false)
+                    Spacer()
+                }
 
-                emojiArea
-                    .padding(.horizontal, 24)
-
-                Spacer()
-
-                VStack(spacing: 16) {
-                    rulesSection
-                        .padding(.horizontal, 16)
-
-                    if viewModel.emojiRule == .selectedOnly {
-                        Text("Select at least \(viewModel.minEmojiCount) emoji\(viewModel.minEmojiCount == 1 ? "" : "s") for this challenge")
-                            .appFont(AppFont.captionM)
-                            .foregroundColor(Color("Neutral-400"))
-                            .multilineTextAlignment(.center)
-                    }
-
-                    createButton
+                VStack(spacing: 0) {
+                    headerBar
                         .padding(.horizontal, 16)
                         .padding(.bottom, 16)
-                }
-            }
 
+                    Spacer()
+
+                    emojiArea
+                        .padding(.horizontal, 24)
+                        .transaction { $0.animation = nil }
+
+                    Spacer()
+
+                    VStack(spacing: 0) {
+                        rulesSection
+                            .padding(.horizontal, 16)
+
+                        // Fixed-height block: Spacer pushes text to the bottom
+                        VStack(spacing: 0) {
+                            Spacer(minLength: 0)
+                            if viewModel.emojiRule == .selectedOnly {
+                                Text("Select at least \(viewModel.minEmojiCount) emoji\(viewModel.minEmojiCount == 1 ? "" : "s") for this challenge")
+                                    .appFont(AppFont.captionM)
+                                    .foregroundColor(Color("Neutral-400"))
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal, 16)
+                            }
+                        }
+                        .frame(height: 103)
+
+                        createButton
+                            .padding(.horizontal, 16)
+                            .padding(.top, 14)
+                            .padding(.bottom, 16)
+                    }
+                }
+                .frame(width: screen.size.width, height: screen.size.height)
+            }
+            .ignoresSafeArea(.keyboard)
         }
+        .ignoresSafeArea(.keyboard)
         .navBarHidden(true)
         .onChange(of: pickerEmoji) { emoji in
             guard !emoji.isEmpty, viewModel.emojiRule == .selectedOnly else { return }
-            if viewModel.selectedEmojis.count < 10 {
+            if viewModel.selectedEmojis.count < 10 && !viewModel.selectedEmojis.contains(emoji) {
                 viewModel.selectedEmojis.append(emoji)
             }
             pickerEmoji = ""
         }
-        .onChange(of: viewModel.needsOwnerEmojiSelection) { needs in
-            if needs { showOwnerEmojiSetup = true }
-        }
-        .onChange(of: showOwnerEmojiSetup) { isShowing in
-            if !isShowing && viewModel.needsOwnerEmojiSelection {
-                viewModel.completeCreation()
-            }
-        }
         .fullScreenCover(isPresented: $showOwnerEmojiSetup) {
-            if let challengeId = viewModel.createdChallengeId {
-                MemberEmojiSetupView(
-                    challengeId: challengeId,
-                    emojiRule: viewModel.emojiRule,
-                    presetEmojis: viewModel.selectedEmojis,
-                    representativeEmoji: "",
-                    isOwner: true
-                )
-            }
+            MemberEmojiSetupView(
+                challengeId: nil,
+                emojiRule: viewModel.emojiRule,
+                presetEmojis: viewModel.selectedEmojis,
+                representativeEmoji: "",
+                isOwner: true,
+                onConfirmed: { emoji in
+                    viewModel.ownerEmoji = emoji
+                    Task { await viewModel.createChallenge() }
+                }
+            )
         }
         .onChange(of: viewModel.didCreateSuccessfully) { didCreate in
             if didCreate { dismiss() }
@@ -193,9 +189,8 @@ struct EmojiSetupView: View {
     @ViewBuilder
     private var selectedEmojisArea: some View {
         if viewModel.selectedEmojis.isEmpty {
-            // Empty state: large centered + button
             Button {
-                showPicker = true
+                isEmojiKeyboardFocused = true
             } label: {
                 Image(systemName: "plus")
                     .font(.system(size: 28, weight: .medium))
@@ -204,57 +199,61 @@ struct EmojiSetupView: View {
                     .background(Circle().fill(Color("Neutral-800")))
             }
             .buttonStyle(.plain)
-            .overlay(EmojiPickerAnchor(isPresented: $showPicker, selectedEmoji: $pickerEmoji).allowsHitTesting(false))
-        } else if viewModel.selectedEmojis.count == 10 {
-            // Max emojis: 4 + 4 + 2 with the last row centered
-            VStack(spacing: 16) {
-                HStack(spacing: 16) {
-                    ForEach(0..<4, id: \.self) { i in emojiCell(at: i) }
-                }
-                HStack(spacing: 16) {
-                    ForEach(4..<8, id: \.self) { i in emojiCell(at: i) }
-                }
-                HStack(spacing: 16) {
-                    Spacer()
-                    emojiCell(at: 8)
-                    emojiCell(at: 9)
-                    Spacer()
-                }
-            }
         } else {
-            let columns = Array(repeating: GridItem(.flexible(), spacing: 16), count: 4)
-            LazyVGrid(columns: columns, spacing: 16) {
-                ForEach(viewModel.selectedEmojis.indices, id: \.self) { i in
-                    emojiCell(at: i)
-                }
+            let count = viewModel.selectedEmojis.count
+            let cell = min(emojiGridCellSize, 88)
+            let numRows: Int = {
+                if count >= 9 { return 3 }
+                return Int(ceil(Double(count + 1) / 4.0))
+            }()
+            let gridHeight = CGFloat(numRows) * cell + CGFloat(numRows - 1) * 16
 
-                Button {
-                    showPicker = true
-                } label: {
-                    Image(systemName: "plus")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.white)
-                        .frame(width: 36, height: 36)
-                        .background(Circle().fill(Color("Neutral-800")))
+            LazyVGrid(
+                columns: Array(repeating: GridItem(.fixed(cell), spacing: 16), count: 4),
+                spacing: 16
+            ) {
+                ForEach(0..<min(count, 8), id: \.self) { i in
+                    emojiCell(at: i, size: cell)
                 }
-                .buttonStyle(.plain)
-                .frame(width: 100, height: 100)
-                .overlay(EmojiPickerAnchor(isPresented: $showPicker, selectedEmoji: $pickerEmoji).allowsHitTesting(false))
+                // 9th/10th go on a centered row using blank bookends
+                if count >= 9 {
+                    Color.clear.frame(width: cell, height: cell)
+                    emojiCell(at: 8, size: cell)
+                }
+                if count == 10 {
+                    emojiCell(at: 9, size: cell)
+                    Color.clear.frame(width: cell, height: cell)
+                } else if count < 10 {
+                    Button {
+                        isEmojiKeyboardFocused = true
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(.white)
+                            .frame(width: cell, height: cell)
+                            .background(Circle().fill(Color("Neutral-800")))
+                    }
+                    .buttonStyle(.plain)
+                    if count >= 9 {
+                        Color.clear.frame(width: cell, height: cell)
+                    }
+                }
             }
+            .frame(height: gridHeight)
         }
     }
 
-    private func emojiCell(at i: Int) -> some View {
+    private func emojiCell(at i: Int, size: CGFloat) -> some View {
         ZStack(alignment: .bottomTrailing) {
             Text(viewModel.selectedEmojis[i])
-                .font(.system(size: 75))
-                .frame(width: 100, height: 100)
+                .font(.system(size: size * 0.75))
+                .frame(width: size, height: size)
 
             Button {
                 viewModel.selectedEmojis.remove(at: i)
             } label: {
                 Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 32))
+                    .font(.system(size: size * 0.32))
                     .foregroundColor(Color("Red-500"))
                     .background(Circle().fill(Color("Neutral-1000")).padding(2))
             }
@@ -262,7 +261,7 @@ struct EmojiSetupView: View {
         }
     }
 
-    // Rule 2: purely decorative 🔥 with radial glow — creator picks emoji later in MemberEmojiSetupView
+    // Rule 2: random cycling emoji with radial glow — creator picks emoji later in MemberEmojiSetupView
     private var singleEmojiArea: some View {
         ZStack {
             RadialGradient(
@@ -273,8 +272,12 @@ struct EmojiSetupView: View {
             )
             .frame(width: 280, height: 280)
 
-            Text("🔥")
+            Text(randomEmoji)
                 .font(.system(size: 120))
+        }
+        .onReceive(randomEmojiTimer) { _ in
+            guard viewModel.emojiRule == .anyEmoji else { return }
+            randomEmoji = randomEmojiPool.randomElement() ?? "🎉"
         }
     }
 
@@ -331,11 +334,11 @@ struct EmojiSetupView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - Create Challenge button
+    // MARK: - Choose Emoji button
 
     private var createButton: some View {
         Button {
-            Task { await viewModel.createChallenge() }
+            showOwnerEmojiSetup = true
         } label: {
             if viewModel.isLoading {
                 ProgressView()
@@ -344,7 +347,7 @@ struct EmojiSetupView: View {
                     .background(Color("Neutral-800"))
                     .clipShape(RoundedRectangle(cornerRadius: 12))
             } else {
-                Text("Create Challenge")
+                Text("Choose Emoji")
                     .appFont(AppFont.title3)
                     .foregroundColor(viewModel.isEmojiSetupValid ? Color("Neutral-1000") : Color("Neutral-500"))
                     .frame(maxWidth: .infinity, minHeight: 56)

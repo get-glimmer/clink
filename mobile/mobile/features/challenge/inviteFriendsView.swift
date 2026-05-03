@@ -16,7 +16,8 @@ class InviteFriendsViewModel: ObservableObject {
     @Published var friends: [FriendInviteItem] = []
     @Published var searchText: String = ""
     @Published var isLoading: Bool = false
-    @Published var excludedIds: Set<String> = []   // lowercased user IDs already in the challenge
+    @Published var joinedIds: Set<String> = []              // active members already in the challenge
+    @Published var inviteStatusById: [String: String] = [:] // userId → invite status from DB
 
     private let service = CommunityService()
     private let client = SupabaseClientManager.shared.client
@@ -40,7 +41,7 @@ class InviteFriendsViewModel: ObservableObject {
 
                 if let challengeId, let client {
                     struct MemberRow: Decodable { let user_id: String; let left_at: String? }
-                    struct InviteRow: Decodable { let invitee_user_id: String? }
+                    struct InviteRow: Decodable { let invitee_user_id: String?; let status: String }
 
                     let allMembers: [MemberRow] = try await client
                         .from("challenge_members")
@@ -53,14 +54,16 @@ class InviteFriendsViewModel: ObservableObject {
 
                     let invites: [InviteRow] = try await client
                         .from("challenge_invites")
-                        .select("invitee_user_id")
+                        .select("invitee_user_id, status")
                         .eq("challenge_id", value: challengeId.uuidString)
                         .execute()
                         .value
 
-                    let memberIds = members.map { $0.user_id.lowercased() }
-                    let inviteIds = invites.compactMap { $0.invitee_user_id?.lowercased() }
-                    excludedIds = Set(memberIds + inviteIds)
+                    joinedIds = Set(members.map { $0.user_id.lowercased() })
+                    inviteStatusById = Dictionary(uniqueKeysWithValues: invites.compactMap { row in
+                        guard let uid = row.invitee_user_id?.lowercased() else { return nil }
+                        return (uid, row.status)
+                    })
                 }
             } catch {
                 print("[Challenges] ❌ InviteFriendsViewModel failed to load: \(error)")
@@ -151,16 +154,24 @@ struct InviteFriendsView: View {
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 0) {
                             ForEach(viewModel.filteredFriends) { friend in
-                                let isExcluded = viewModel.excludedIds.contains(friend.id.lowercased())
-                                let isInvited = invitedFriends[friend.id] != nil
+                                let isJoined     = viewModel.joinedIds.contains(friend.id.lowercased())
+                                let dbStatus     = viewModel.inviteStatusById[friend.id.lowercased()]
+                                let isInvited    = invitedFriends[friend.id] != nil
+                                let isDisabled   = isJoined || dbStatus != nil || isInvited
+                                let statusLabel: String = {
+                                    if isJoined { return "Joined" }
+                                    if isInvited { return "Invited" }
+                                    if let s = dbStatus { return s.prefix(1).uppercased() + s.dropFirst() }
+                                    return "Invite"
+                                }()
 
                                 HStack(spacing: 12) {
                                     AvatarView(imageURLOrName: friend.avatarUrl, size: 44)
-                                        .opacity(isExcluded ? 0.5 : 1)
+                                        .opacity(isDisabled ? 0.5 : 1)
 
                                     Text(friend.username)
                                         .appFont(AppFont.labelM)
-                                        .foregroundColor(isExcluded ? Color("Neutral-500") : .white)
+                                        .foregroundColor(isDisabled ? Color("Neutral-500") : .white)
 
                                     Spacer()
 
@@ -171,12 +182,12 @@ struct InviteFriendsView: View {
                                             pendingFriend = friend
                                         }
                                     } label: {
-                                        Text(isExcluded ? "Joined" : (isInvited ? "Invited" : "Invite"))
+                                        Text(statusLabel)
                                             .appFont(AppFont.labelM)
                                             .foregroundColor(Color("Neutral-500"))
                                     }
                                     .buttonStyle(.plain)
-                                    .disabled(isExcluded || isInvited)
+                                    .disabled(isDisabled)
                                 }
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 12)

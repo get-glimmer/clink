@@ -11,7 +11,7 @@ class EditChallengeViewModel: ObservableObject {
     @Published var descriptionText: String = ""
     @Published var selectedShaker: ShakerType = .jar
     @Published var selectedProof: ProofType = .photoRequired
-    @Published var dailyTasks: [String] = [""]
+    @Published var dailyTasks: [TaskEntry] = [TaskEntry(id: nil, title: "")]
 
     // Duration
     @Published var fromDate: Date = Date()
@@ -48,7 +48,7 @@ class EditChallengeViewModel: ObservableObject {
     // Snapshot of values as loaded — used to detect unsaved changes.
     private var _snapshotTitle: String = ""
     private var _snapshotDescription: String = ""
-    private var _snapshotDailyTasks: [String] = []
+    private var _snapshotDailyTasks: [TaskEntry] = []
     private var _snapshotFromDate: Date = Date()
     private var _snapshotFromDateSelected: Bool = false
     private var _snapshotToDate: Date = Date()
@@ -67,7 +67,7 @@ class EditChallengeViewModel: ObservableObject {
     var allInputsFilled: Bool {
         !challengeTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && !descriptionText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && dailyTasks.contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            && dailyTasks.contains { !$0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
             && fromDateSelected
             && toDateSelected
     }
@@ -149,8 +149,12 @@ class EditChallengeViewModel: ObservableObject {
                 .execute()
                 .value
 
-            let loaded = tasks.compactMap { $0.task_title }.filter { !$0.isEmpty }
-            dailyTasks = loaded.isEmpty ? [""] : loaded  // Always keep at least one empty row in the UI.
+            let loaded = tasks
+                .compactMap { r -> TaskEntry? in
+                    guard let title = r.task_title, !title.isEmpty else { return nil }
+                    return TaskEntry(id: r.task_id, title: title)
+                }
+            dailyTasks = loaded.isEmpty ? [TaskEntry(id: nil, title: "")] : loaded
 
             // Fetch active members (left_at == nil) and resolve their profiles in one batch.
             let activeMembers: [ChallengeMemberData] = try await client
@@ -292,27 +296,37 @@ class EditChallengeViewModel: ObservableObject {
                     .execute()
             }
 
-            // Simpler than diffing individual rows: delete all existing tasks and re-insert
-            // with fresh sequential sortorders (0, 1, 2…).
-            try await client
-                .from("challenge_task")
-                .delete()
-                .eq("challenge_id", value: challengeId.uuidString)
-                .execute()
+            // Diff tasks: update/insert/delete individually to preserve task_id UUIDs.
+            // Preserving task_ids keeps challenge_task_completion history intact.
+            let originalIds = Set(_snapshotDailyTasks.compactMap(\.id))
+            let currentIds  = Set(dailyTasks.compactMap(\.id))
+            let deletedIds  = originalIds.subtracting(currentIds)
 
-            let validTasks: [ChallengeTaskInsert] = dailyTasks
-                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                .filter { !$0.isEmpty }
-                .enumerated()
-                .map { sortorder, title in
-                    ChallengeTaskInsert(challenge_id: challengeId, task_title: title, sortorder: sortorder)
-                }
-
-            if !validTasks.isEmpty {
+            for deletedId in deletedIds {
                 try await client
                     .from("challenge_task")
-                    .insert(validTasks)
+                    .delete()
+                    .eq("task_id", value: deletedId.uuidString)
                     .execute()
+            }
+
+            let validEntries = dailyTasks
+                .map { TaskEntry(id: $0.id, title: $0.title.trimmingCharacters(in: .whitespacesAndNewlines)) }
+                .filter { !$0.title.isEmpty }
+
+            for (sortorder, entry) in validEntries.enumerated() {
+                if let taskId = entry.id {
+                    try await client
+                        .from("challenge_task")
+                        .update(ChallengeTaskUpdate(task_title: entry.title, sortorder: sortorder))
+                        .eq("task_id", value: taskId.uuidString)
+                        .execute()
+                } else {
+                    try await client
+                        .from("challenge_task")
+                        .insert(ChallengeTaskInsert(challenge_id: challengeId, task_title: entry.title, sortorder: sortorder))
+                        .execute()
+                }
             }
 
             // Insert pending invites for newly selected friends (skip already invited or already joined).

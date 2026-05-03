@@ -59,7 +59,9 @@ struct EditChallengeView: View {
                             proofSection
                             invitedSection
                             inviteActions
-                            emojiSetupSection
+                            if viewModel.emojiRule == .selectedOnly {
+                                emojiSetupSection
+                            }
                             saveChangesButton
                         }
                         .padding(.horizontal, 16)
@@ -241,7 +243,7 @@ struct EditChallengeView: View {
             VStack(spacing: 8) {
                 ForEach(viewModel.dailyTasks.indices, id: \.self) { index in
                     HStack(spacing: 10) {
-                        TextField("Task", text: $viewModel.dailyTasks[index])
+                        TextField("Task", text: $viewModel.dailyTasks[index].title)
                             .appFont(AppFont.body1)
                             .foregroundColor(Color("White"))
 
@@ -264,7 +266,7 @@ struct EditChallengeView: View {
 
                 if viewModel.dailyTasks.count < 5 {
                     outlineButton(title: "Add Task", iconName: "addTask", isSystem: false, isDashed: false, iconSize: CGSize(width: 14, height: 14)) {
-                        viewModel.dailyTasks.append("")
+                        viewModel.dailyTasks.append(TaskEntry(id: nil, title: ""))
                     }
                 }
             }
@@ -277,7 +279,7 @@ struct EditChallengeView: View {
             sectionLabel("Duration")
 
             VStack(spacing: 0) {
-                Button { showFromDateSheet = true } label: {
+                Button { hideKeyboard(); showFromDateSheet = true } label: {
                     selectionRow(
                         iconName: "duration",
                         title: "From",
@@ -289,7 +291,7 @@ struct EditChallengeView: View {
 
                 divider
 
-                Button { showToDateSheet = true } label: {
+                Button { hideKeyboard(); showToDateSheet = true } label: {
                     selectionRow(
                         iconName: "duration",
                         title: "To",
@@ -394,110 +396,129 @@ struct EditChallengeView: View {
             sectionLabel("Proof Type")
 
             VStack(spacing: 10) {
+                // Photo Upload card (always fully expanded)
                 VStack(spacing: 0) {
-                    Button { if !viewModel.selectedProof.isPhoto { viewModel.selectedProof = .photoRequired } } label: {
-                        HStack(spacing: 8) {
+                    Button {
+                        if !viewModel.selectedProof.isPhoto { viewModel.selectedProof = .photoRequired }
+                    } label: {
+                        HStack(spacing: 6) {
                             Image("camera")
                                 .resizable()
                                 .scaledToFit()
-                                .frame(width: 20, height: 20)
-                            Text("Photo Upload (Optional)").appFont(AppFont.labelM)
+                                .frame(width: 24, height: 24)
+                            Text("Photo Upload")
+                                .appFont(AppFont.labelL)
                         }
-                        .foregroundColor(viewModel.selectedProof.isPhoto ? Color("White") : Color("Neutral-400"))
+                        .foregroundColor(viewModel.selectedProof.isPhoto ? Color("White") : Color("Neutral-300"))
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 14)
-                        .padding(.top, 14)
-                        .padding(.bottom, viewModel.selectedProof.isPhoto ? 10 : 14)
+                        .padding(.horizontal, 11)
+                        .padding(.top, 11)
+                        .padding(.bottom, 10)
                     }
                     .buttonStyle(.plain)
 
-                    if viewModel.selectedProof.isPhoto {
-                        HStack(spacing: 0) {
-                            Button { viewModel.selectedProof = .photoRequired } label: {
-                                HStack(spacing: 6) {
-                                    if viewModel.selectedProof == .photoRequired {
-                                        Image("proofTypeSelected")
-                                            .resizable()
-                                            .scaledToFit()
-                                            .frame(width: 16, height: 16)
-                                    }
-                                    Text("Required").appFont(AppFont.labelM)
+                    // Required / Optional toggle — always visible
+                    HStack(spacing: 0) {
+                        Button {
+                            viewModel.selectedProof = .photoRequired
+                        } label: {
+                            HStack(spacing: 8) {
+                                if viewModel.selectedProof == .photoRequired {
+                                    Image("proofTypeSelected")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 16, height: 16)
                                 }
-                                .foregroundColor(viewModel.selectedProof == .photoRequired ? Color("White") : Color("Neutral-400"))
-                                .frame(maxWidth: .infinity, minHeight: 36)
-                                .background(viewModel.selectedProof == .photoRequired ? Color("Neutral-800") : Color.clear)
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                Text("Required")
+                                    .appFont(AppFont.labelM)
                             }
-                            .buttonStyle(.plain)
+                            .foregroundColor(viewModel.selectedProof == .photoRequired ? Color("White") : Color("Neutral-400"))
+                            .frame(maxWidth: .infinity, minHeight: 42)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .strokeBorder(viewModel.selectedProof == .photoRequired ? Color("Neutral-300") : Color.clear, lineWidth: 0.7)
+                            )
+                        }
+                        .buttonStyle(.plain)
 
-                            Button { viewModel.selectedProof = .photoOptional } label: {
-                                HStack(spacing: 6) {
-                                    if viewModel.selectedProof == .photoOptional {
-                                        Image("proofTypeSelected")
-                                            .resizable()
-                                            .scaledToFit()
-                                            .frame(width: 16, height: 16)
-                                    }
-                                    Text("Optional").appFont(AppFont.labelM)
+                        Button {
+                            viewModel.selectedProof = .photoOptional
+                        } label: {
+                            HStack(spacing: 8) {
+                                if viewModel.selectedProof == .photoOptional {
+                                    Image("proofTypeSelected")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 16, height: 16)
                                 }
-                                .foregroundColor(viewModel.selectedProof == .photoOptional ? Color("White") : Color("Neutral-400"))
-                                .frame(maxWidth: .infinity, minHeight: 36)
-                                .background(viewModel.selectedProof == .photoOptional ? Color("Neutral-800") : Color.clear)
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                Text("Optional")
+                                    .appFont(AppFont.labelM)
                             }
-                            .buttonStyle(.plain)
+                            .foregroundColor(viewModel.selectedProof == .photoOptional ? Color("White") : Color("Neutral-400"))
+                            .frame(maxWidth: .infinity, minHeight: 42)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .strokeBorder(viewModel.selectedProof == .photoOptional ? Color("Neutral-300") : Color.clear, lineWidth: 0.7)
+                            )
                         }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .background(Color("Neutral-900"))
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                        .padding(.horizontal, 10)
-
-                        HStack(spacing: 6) {
-                            Image(systemName: "info.circle")
-                                .font(.system(size: 12))
-                                .foregroundColor(Color("Neutral-500"))
-                            Text("Each check-in MUST have a photo to count towards progress.")
-                                .appFont(AppFont.captionS)
-                                .foregroundColor(Color("Neutral-500"))
-                        }
-                        .padding(.horizontal, 14)
-                        .padding(.top, 8)
-                        .padding(.bottom, 14)
+                        .buttonStyle(.plain)
                     }
-                }
-                .background(Color("Neutral-900"))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .strokeBorder(viewModel.selectedProof.isPhoto ? Color("White") : Color("Neutral-700"), lineWidth: 1)
-                )
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 6)
+                    .background(Color("Neutral-800"))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .padding(.horizontal, 39)
 
-                Button { viewModel.selectedProof = .photoRequired } label: {
-                    HStack(spacing: 8) {
-                        Image("camera")
+                    // Helper text — always visible
+                    HStack(spacing: 9) {
+                        Image("photo_upload_info")
                             .resizable()
                             .scaledToFit()
-                            .frame(width: 20, height: 20)
-                        Text("Photo Upload (Required)").appFont(AppFont.labelM)
-                        Spacer()
-                        if viewModel.selectedProof == .photoRequired {
-                            Image("proofTypeSelected")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 16, height: 16)
-                        }
+                            .frame(width: 14, height: 14)
+                        Text(viewModel.selectedProof == .photoRequired
+                             ? "Each check-in MUST have a photo to count towards progress."
+                             : "Users can upload a photo or skip it.")
+                            .appFont(AppFont.captionXS)
+                            .foregroundColor(Color("Neutral-300"))
                     }
-                    .foregroundColor(viewModel.selectedProof == .photoRequired ? Color("White") : Color("Neutral-400"))
-                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                    .padding(.horizontal, 14)
+                    .padding(.leading, 20)
+                    .padding(.top, 8)
+                    .padding(.bottom, 14)
+                }
+                .background(Color("Neutral-900"))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .strokeBorder(viewModel.selectedProof.isPhoto ? Color("White") : Color.clear, lineWidth: 1)
+                )
+                .transaction { $0.animation = nil }
+
+                // Checklist card
+                Button {
+                    viewModel.selectedProof = .checklist
+                } label: {
+                    HStack(spacing: 6) {
+                        Image("checklist")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 24, height: 24)
+                        Text("Checklist")
+                            .appFont(AppFont.labelL)
+                    }
+                    .foregroundColor(viewModel.selectedProof == .checklist ? Color("White") : Color("Neutral-300"))
+                    .frame(maxWidth: .infinity, minHeight: 50, alignment: .leading)
+                    .padding(.horizontal, 11)
                 }
                 .buttonStyle(.plain)
                 .background(Color("Neutral-900"))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .strokeBorder(viewModel.selectedProof == .photoRequired ? Color("White") : Color("Neutral-700"), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 8)
+                        .strokeBorder(viewModel.selectedProof == .checklist ? Color("White") : Color.clear, lineWidth: 1)
                 )
+                .transaction { $0.animation = nil }
             }
+            .transaction { $0.animation = nil }
         }
     }
 
