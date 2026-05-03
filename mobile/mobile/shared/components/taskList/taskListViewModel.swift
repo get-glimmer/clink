@@ -432,34 +432,43 @@ class TaskListViewModel: ObservableObject {
     }
 
     private func syncTasksToWidget() {
-        let widgetCategories = categoriesWithTasks
-            .filter { $0.category.type == .daily }
-            .map { cat in
-                let emoji = emojiForDate[cat.category.id] ?? cat.category.emoji
-                return WidgetCategoryTasks(
-                    id: cat.category.id,
-                    name: cat.category.name,
-                    emoji: emoji,
-                    tasks: cat.tasks.filter { !$0.isTemporary }.map { task in
-                        WidgetTask(
-                            id: task.id,
-                            title: task.title,
-                            isCompleted: task.isCompleted,
-                            categoryName: cat.category.name,
-                            categoryEmoji: emoji
-                        )
-                    }
-                )
+        let dailyCategories = categoriesWithTasks.filter { $0.category.type == .daily }
+
+        let widgetCategories = dailyCategories.map { cat in
+            let emoji = emojiForDate[cat.category.id] ?? cat.category.emoji
+            return WidgetCategoryTasks(
+                id: cat.category.id,
+                name: cat.category.name,
+                emoji: emoji,
+                tasks: cat.tasks.filter { !$0.isTemporary }.map { task in
+                    WidgetTask(
+                        id: task.id,
+                        title: task.title,
+                        isCompleted: task.isCompleted,
+                        categoryName: cat.category.name,
+                        categoryEmoji: emoji
+                    )
+                }
+            )
+        }
+
+        // Shaker data: collect emojis for completed tasks
+        var completedEmojis: [String] = []
+        for cat in dailyCategories {
+            let emoji = emojiForDate[cat.category.id] ?? cat.category.emoji
+            for task in cat.tasks where task.isCompleted && !task.isTemporary {
+                completedEmojis.append(emoji)
             }
-        let totalTasks = widgetCategories.flatMap(\.tasks).count
-        print("[WidgetSync] saving \(widgetCategories.count) categories, \(totalTasks) tasks")
+        }
+        let shakerData = WidgetShakerData(
+            emojis: completedEmojis,
+            isAllCompleted: isAllCompleted,
+            lidColorStart: lidColorStart,
+            lidColorEnd: lidColorEnd
+        )
+
         WidgetDataStore.shared.saveTasks(widgetCategories)
-
-        // Verify the save worked
-        let readBack = WidgetDataStore.shared.loadTasks()
-        let readBackTasks = readBack.flatMap(\.tasks).count
-        print("[WidgetSync] read-back: \(readBack.count) categories, \(readBackTasks) tasks")
-
+        WidgetDataStore.shared.saveShaker(shakerData)
         WidgetCenter.shared.reloadAllTimelines()
     }
 

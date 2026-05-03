@@ -22,7 +22,7 @@ struct ChallengeView: View {
                         }) {
                             HStack(spacing: 8) {
                                 Text(viewModel.selectedCategory)
-                                    .appText(AppFont.title1)
+                                    .appText(AppFont.title3)
                                     .foregroundColor(AppColors.textWhite)
 
                                 Image(systemName: "chevron.down")
@@ -45,8 +45,8 @@ struct ChallengeView: View {
                             Image(systemName: "ellipsis")
                                 .resizable()
                                 .scaledToFit()
-                                .frame(width: 20, height: 20)
-                                .padding(12)
+                                .frame(width: 14, height: 14)
+                                .frame(width: 42, height: 42)
                                 .background(AppColors.neutral900)
                                 .clipShape(Circle())
                                 .foregroundColor(AppColors.textWhite)
@@ -88,7 +88,7 @@ struct ChallengeView: View {
                                             }
                                     }
                                 }
-                                .padding(.horizontal, 24)
+                                .padding(.horizontal, 16)
                                 .padding(.bottom, 100)
                             }
                             .refreshable {
@@ -117,7 +117,7 @@ struct ChallengeView: View {
                                     )
                                 }
                             }
-                            .padding(.horizontal, 24)
+                            .padding(.horizontal, 16)
                             .padding(.bottom, 100)
                         }
                         .refreshable {
@@ -322,6 +322,7 @@ struct InvitedChallengeCard: View {
             }
         }
         .padding(16)
+        .frame(maxWidth: .infinity)
         .background(AppColors.neutral900)
         .cornerRadius(16)
     }
@@ -397,6 +398,7 @@ struct ChallengeCard: View {
                 .onTapGesture { onTapShaker?() }
         }
         .padding(16)
+        .frame(maxWidth: .infinity)
         .background(AppColors.neutral900)
         .cornerRadius(16)
     }
