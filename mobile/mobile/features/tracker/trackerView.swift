@@ -5,6 +5,7 @@ struct TrackerView: View {
     @StateObject private var taskListViewModel: TaskListViewModel
     @State private var showMonthDropdown = false
     @State private var isWeeklyView = false
+    @State private var activeTaskMenu: TaskListItem? = nil
     
     let calendar = Calendar.current
     let columns = Array(repeating: GridItem(.flexible()), count: 7)
@@ -174,7 +175,7 @@ struct TrackerView: View {
 
                 // --- Task list ---
                 ScrollView {
-                    TaskListView(taskSelectedDate: $taskListViewModel.taskSelectedDate, viewModel: taskListViewModel)
+                    TaskListView(taskSelectedDate: $taskListViewModel.taskSelectedDate, viewModel: taskListViewModel, activeTask: $activeTaskMenu)
                         .padding(.bottom, 86)
                 }
                 .onAppear {
@@ -195,7 +196,19 @@ struct TrackerView: View {
             }
             
         }
+        .overlay {
+            if let task = activeTaskMenu {
+                TaskMenuOverlay(
+                    task: task,
+                    viewModel: taskListViewModel,
+                    onClose: { activeTaskMenu = nil }
+                )
+                .transition(.identity)
+                .zIndex(2000)
+            }
+        }
         .background(.neutral1000)
+        .navBarHidden(activeTaskMenu != nil)
     }
 }
 

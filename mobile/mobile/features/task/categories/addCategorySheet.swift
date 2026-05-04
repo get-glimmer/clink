@@ -111,11 +111,11 @@ struct AddCategorySheet: View {
                 )
 
             // --- Title field ---
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 12) {
                 Text("Title")
-                    .appFont(AppFont.labelS)
+                    .appFont(AppFont.labelM)
                     .foregroundColor(Color("Neutral-300"))
-                    .padding(.horizontal, 8)
+                    .padding(.horizontal, 5)
 
 
                 TextField("Write a title...", text: $name)
@@ -134,11 +134,11 @@ struct AddCategorySheet: View {
             .padding(.horizontal, 16)
 
             // --- Options ---
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 12) {
                 Text("Options")
-                    .appFont(AppFont.labelS)
+                    .appFont(AppFont.labelM)
                     .foregroundColor(Color("Neutral-300"))
-                    .padding(.horizontal, 8)
+                    .padding(.horizontal, 5)
 
 
                 VStack(spacing: 0) {
@@ -148,7 +148,7 @@ struct AddCategorySheet: View {
                         HStack {
                             Image("visibility")
                             Text("Visibility")
-                                .appFont(AppFont.labelM)
+                                .appFont(AppFont.labelL)
                                 .foregroundColor(.neutral300)
                         }
 
@@ -181,8 +181,10 @@ struct AddCategorySheet: View {
                     HStack {
                         HStack {
                             Image("type")
+                                .resizable()
+                                .frame(width: 26, height: 26)
                             Text("Type")
-                                .appFont(AppFont.labelM)
+                                .appFont(AppFont.labelL)
                                 .foregroundColor(.neutral300)
                         }
                         Spacer()

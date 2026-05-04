@@ -32,19 +32,22 @@ struct FriendRelation: Codable {
 }
 
 enum FriendshipStatus: String, Codable {
-    case requested = "requested"
+    case outgoingRequested = "outgoing_requested" // I sent them a request
+    case incomingRequested = "incoming_requested" // They sent me a request
     case accepted = "accepted"
     case blocked = "blocked"
     case none = "none" // No relationship exists
     
     var userStatus: UserStatus {
         switch self {
-        case .requested:
-            return .requested
+        case .outgoingRequested:
+            return .requested       // Shows "Requested" — I already asked them
+        case .incomingRequested:
+            return .incomingRequest  // Shows "Accept" — they asked me
         case .accepted:
-            return .following
+            return .following        // Shows "Friend"
         case .blocked, .none:
-            return .canFollow
+            return .canFollow        // Shows "Follow"
         }
     }
 }
@@ -80,7 +83,8 @@ class UserSearchService: ObservableObject {
             do {
                 if let session = try await supabase?.auth.session {
                     await MainActor.run {
-                        self.currentUserId = session.user.id.uuidString
+                        // Lowercase to match Postgres uuid format (avoids string comparison mismatches)
+                        self.currentUserId = session.user.id.uuidString.lowercased()
                     }
                 }
             } catch {
@@ -100,11 +104,11 @@ class UserSearchService: ObservableObject {
         let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
         
         do {
-            // Search profiles by name, username, or email
+            // Search profiles by username only
             let profiles: [UserProfile] = try await supabase
                 .from("profiles")
                 .select("*")
-                .or("name.ilike.%\(trimmedQuery)%,username.ilike.%\(trimmedQuery)%,email.ilike.%\(trimmedQuery)%")
+                .ilike("username", value: "%\(trimmedQuery)%")
                 .neq("id", value: currentUserId) // Exclude current user
                 .limit(20)
                 .execute()
@@ -130,15 +134,18 @@ class UserSearchService: ObservableObject {
         }
     }
     
-    // MARK: - Get Suggestions
-    func getSuggestedUsers() async throws -> [UserSearchResult] {
+    // MARK: - Get Suggestions (paginated, Instagram-style)
+    /// Returns a page of suggested users and whether more pages are available.
+    /// - `offset`: number of pool-based suggestions already loaded (outgoing requests are always page-0 only)
+    /// - `limit`: how many new suggestions to return this page (default 10)
+    func getSuggestedUsers(offset: Int = 0, limit: Int = 10) async throws -> (results: [UserSearchResult], hasMore: Bool) {
         guard let supabase = supabase,
               let currentUserId = currentUserId else {
-            return []
+            return ([], false)
         }
         
         do {
-            // 1) Fetch outgoing requested relations (I requested them)
+            // 1) Always need the outgoing-requested IDs so we can exclude them from the pool
             struct RequestedRow: Decodable { let friend_id: String }
             let requestedRows: [RequestedRow] = try await supabase
                 .from("friends")
@@ -149,69 +156,74 @@ class UserSearchService: ObservableObject {
                 .value
             let requestedIds: [String] = requestedRows.map { $0.friend_id }
             
-            // Fetch their profiles
-            var requestedProfiles: [UserProfile] = []
-            if !requestedIds.isEmpty {
-                requestedProfiles = try await supabase
+            var suggestions: [UserSearchResult] = []
+            
+            // 2) On the first page, prepend outgoing-requested profiles
+            if offset == 0 && !requestedIds.isEmpty {
+                let requestedProfiles: [UserProfile] = try await supabase
                     .from("profiles")
                     .select()
                     .in("id", values: requestedIds)
                     .execute()
                     .value
+                
+                let requestedMutuals = await getMutualFriendsCountMap(for: requestedIds)
+                for profile in requestedProfiles {
+                    suggestions.append(UserSearchResult(
+                        profile: profile,
+                        mutualFriendsCount: requestedMutuals[profile.id] ?? 0,
+                        friendshipStatus: .outgoingRequested
+                    ))
+                }
             }
             
-            // Build requested suggestions (these should appear first)
-            var suggestions: [UserSearchResult] = []
-            for profile in requestedProfiles {
-                let mutualFriendsCount = await getMutualFriendsCount(with: profile.id)
-                let result = UserSearchResult(
-                    profile: profile,
-                    mutualFriendsCount: mutualFriendsCount,
-                    friendshipStatus: .requested
-                )
-                suggestions.append(result)
-            }
-            
-            // 2) Fill remaining slots with users who are not friends and not requested yet
-            let remainingCapacity = max(0, 7 - suggestions.count)
+            // 3) Fill remaining slots from the pool (users with no existing relationship)
+            let remainingCapacity = max(0, limit - suggestions.count)
             if remainingCapacity > 0 {
-                // Create a pool of recent users excluding me and already requested
+                // Over-fetch 3x to account for filtering out friends/blocked/requested
+                let fetchSize = remainingCapacity * 3
                 let poolProfiles: [UserProfile] = try await supabase
                     .from("profiles")
                     .select()
                     .neq("id", value: currentUserId)
                     .order("created_at", ascending: false)
-                    .limit(80)
+                    .range(from: offset, to: offset + fetchSize - 1)
                     .execute()
                     .value
                 
-                var noneStatusCandidates: [UserSearchResult] = []
+                let poolIds = poolProfiles.map { $0.id }.filter { !requestedIds.contains($0) }
+                
+                // Batch-fetch statuses and mutuals (2-4 queries total)
+                async let statusMapAsync = getFriendshipStatusMap(for: poolIds)
+                async let mutualMapAsync = getMutualFriendsCountMap(for: poolIds)
+                let poolStatusMap = await statusMapAsync
+                let poolMutualMap = await mutualMapAsync
+                
+                var candidates: [UserSearchResult] = []
                 for profile in poolProfiles {
                     if requestedIds.contains(profile.id) { continue }
+                    let status = poolStatusMap[profile.id] ?? .none
+                    guard status == .none else { continue }
                     
-                    let friendshipStatus = await getFriendshipStatus(with: profile.id)
-                    // Exclude friends and any requested relationship (incoming/outgoing)
-                    guard friendshipStatus == .none else { continue }
-                    
-                    let mutualFriendsCount = await getMutualFriendsCount(with: profile.id)
-                    noneStatusCandidates.append(
-                        UserSearchResult(
-                            profile: profile,
-                            mutualFriendsCount: mutualFriendsCount,
-                            friendshipStatus: .none
-                        )
-                    )
+                    candidates.append(UserSearchResult(
+                        profile: profile,
+                        mutualFriendsCount: poolMutualMap[profile.id] ?? 0,
+                        friendshipStatus: .none
+                    ))
                 }
                 
-                // Sort by mutuals descending and take remaining capacity
-                let fillers = noneStatusCandidates
+                // Sort by mutual friends and take what we need
+                let fillers = candidates
                     .sorted { $0.mutualFriendsCount > $1.mutualFriendsCount }
                     .prefix(remainingCapacity)
                 suggestions.append(contentsOf: fillers)
+                
+                // If the DB returned fewer rows than we asked for, there's nothing left
+                let hasMore = poolProfiles.count >= fetchSize
+                return (suggestions, hasMore)
             }
             
-            // Cap to 7 total
-            return Array(suggestions.prefix(7))
+            return (suggestions, true)
         } catch {
             throw error
         }
@@ -264,12 +276,17 @@ class UserSearchService: ObservableObject {
                 .execute()
                 .value
 
-            // Prioritize accepted > requested > blocked > none
+            // Prioritize accepted > requested (with direction) > blocked > none
             if relations.contains(where: { $0.status.lowercased() == "accepted" }) {
                 return .accepted
             }
-            if relations.contains(where: { $0.status.lowercased() == "requested" }) {
-                return .requested
+            // Direction matters: who sent the request?
+            for rel in relations where rel.status.lowercased() == "requested" {
+                if rel.user_id == currentUserId {
+                    return .outgoingRequested  // I sent them a request
+                } else {
+                    return .incomingRequested   // They sent me a request
+                }
             }
             if relations.contains(where: { $0.status.lowercased() == "blocked" }) {
                 return .blocked
@@ -357,23 +374,19 @@ class UserSearchService: ObservableObject {
                 let otherId = (rel.user_id == currentUserId) ? rel.friend_id : rel.user_id
                 let statusLower = rel.status.lowercased()
                 let newStatus: FriendshipStatus
-                if statusLower == "accepted" { newStatus = .accepted }
-                else if statusLower == "requested" { newStatus = .requested }
-                else if statusLower == "blocked" { newStatus = .blocked }
-                else { continue }
+                if statusLower == "accepted" {
+                    newStatus = .accepted
+                } else if statusLower == "requested" {
+                    // Direction matters: who is the sender?
+                    newStatus = (rel.user_id == currentUserId) ? .outgoingRequested : .incomingRequested
+                } else if statusLower == "blocked" {
+                    newStatus = .blocked
+                } else { continue }
                 
-                // Prioritize accepted > requested > blocked
+                // Prioritize accepted > outgoing/incoming requested > blocked
                 if let existing = map[otherId] {
-                    switch (existing, newStatus) {
-                    case (.accepted, _):
-                        continue
-                    case (.requested, .accepted),
-                         (.blocked, .accepted),
-                         (.blocked, .requested):
-                        map[otherId] = newStatus
-                    default:
-                        continue
-                    }
+                    if existing == .accepted { continue }
+                    if newStatus == .accepted { map[otherId] = newStatus }
                 } else {
                     map[otherId] = newStatus
                 }

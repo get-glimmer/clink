@@ -3,9 +3,11 @@ import SwiftUI
 
 struct TaskView: View {
     @StateObject private var viewModel: TaskListViewModel
+    @StateObject private var trackerViewModel: TrackerViewModel
     @State private var shakerRefreshId = UUID()
     @State private var sheetProgress: CGFloat = 0
     @State private var showingNotesPopup: Bool = false
+    @State private var showingStickyNotes: Bool = true
     
     // --- date selection ---
     //@State private var today: Date = Date()
@@ -37,10 +39,16 @@ struct TaskView: View {
     @State private var selectedNoteId: UUID? = nil
     @State private var selectedNoteContent: String? = nil
     @State private var selectedNote: NoteRecord? = nil
+    @State private var activeTaskMenu: TaskListItem? = nil
 
     init() {
         let userId = getUserId()
-        _viewModel = StateObject(wrappedValue: TaskListViewModel(userId: userId, date: todayDate()))
+        let tracker = TrackerViewModel(userId: userId)
+        let taskList = TaskListViewModel(userId: userId, date: todayDate())
+
+        _trackerViewModel = StateObject(wrappedValue: tracker)
+        _viewModel = StateObject(wrappedValue: taskList)
+        taskList.trackerViewModel = tracker
     }
 
 //MARK: - main view
@@ -68,6 +76,29 @@ struct TaskView: View {
                 VStack(spacing: 12) {
                     //MARK: - header
                     ZStack {
+                        HStack {
+                            Button {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    showingStickyNotes.toggle()
+                                }
+                            } label: {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color("Neutral-900"))
+                                        .frame(width: 44, height: 44)
+
+                                    Image("note_visible")
+                                        .renderingMode(.original)
+                                        .frame(width: 24, height: 24)
+                                }
+                            }
+                            .buttonStyle(.plain)
+
+                            Spacer()
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.leading, 16)
+
                         // Center: Date controls
                         HStack(spacing: 20) {
 
@@ -136,7 +167,7 @@ struct TaskView: View {
                         viewModel: viewModel,
                         isActive: shakerIsActive,
                         forceFullMode: true,
-                        showStickyNotes: (sheetProgress == 0),
+                        showStickyNotes: showingStickyNotes && (sheetProgress == 0),
                         onNoteTapped: { note in
                             selectedNoteId = note.id
                             selectedNoteContent = note.noteContent
@@ -158,7 +189,7 @@ struct TaskView: View {
                 ) {
                     // --Task List Content--
                     ScrollView {
-                        TaskListView(taskSelectedDate: $selectedDate, viewModel: viewModel)
+                        TaskListView(taskSelectedDate: $selectedDate, viewModel: viewModel, activeTask: $activeTaskMenu)
                             .padding(.bottom, 120)
                             //.padding(.top, -6) // for grabber hit area
                     }
@@ -166,8 +197,8 @@ struct TaskView: View {
                 }
             }
             .animation(.easeInOut, value: scale)
-            //MARK: - "Options" sheet
-            .overlay(alignment: .bottomLeading) {
+            //MARK: - "Options" popup
+            .overlay(alignment: .topTrailing) {
                 if showOptionsSheet {
                     OptionsSheet(
                         onTapOutside: { showOptionsSheet = false },
@@ -190,20 +221,37 @@ struct TaskView: View {
                             showAddCategorySheet = true
                         }
                     )
-                    .transition(.opacity)
-                    .ignoresSafeArea()
+                    .transition(.scale(scale: 0.9, anchor: .topTrailing).combined(with: .opacity))
+                }
+            }
+            .overlay {
+                if let task = activeTaskMenu {
+                    TaskMenuOverlay(
+                        task: task,
+                        viewModel: viewModel,
+                        onClose: { activeTaskMenu = nil }
+                    )
+                    .transition(.identity)
+                    .zIndex(2000)
                 }
             }
             .zIndex(999)
-            .animation(.easeInOut(duration: 0.25), value: showOptionsSheet)
+            .animation(.easeInOut(duration: 0.2), value: showOptionsSheet)
         }
         .background(.neutral1000)
         .ignoresSafeArea(edges: .bottom)
+        .navBarHidden(activeTaskMenu != nil)
         .onAppear {
             sheetProgress = 0
             shakerRefreshId = UUID()
             viewModel.fetchCategoriesAndTasks()
             viewModel.taskSelectedDate = selectedDate
+            Task {
+                try? await trackerViewModel.fetchShakers()
+            }
+        }
+        .task(id: trackerViewModel.refreshToken) {
+            try? await trackerViewModel.fetchShakers()
         }
         .onChange(of: selectedDate) { newValue in
             viewModel.taskSelectedDate = newValue
@@ -246,6 +294,8 @@ struct TaskView: View {
             if showChangeDateSheet {
                 ChangeDateSheet(
                     initialDate: selectedDate,
+                    calendarStyle: .tracker,
+                    shakerRecords: trackerViewModel.shakersRecord,
                     onConfirm: { picked in
                         selectedDate = picked
                         viewModel.taskSelectedDate = picked
@@ -264,7 +314,8 @@ struct TaskView: View {
                 initialNoteId: selectedNoteId,
                 initialNoteContent: selectedNoteContent,
                 initialNote: selectedNote,
-                date: selectedDate
+                date: selectedDate,
+                onClose: { showingNotesPopup.toggle() }
             )
             .id(selectedNoteId ?? UUID())
         }
@@ -278,9 +329,9 @@ private struct SelfNotesPopupView: View {
     let initialNoteContent: String?
     let initialNote: NoteRecord?
     let date: Date
+    let onClose: () -> Void
     @State private var notes: [NoteRecord] = []
     @State private var isLoading: Bool = true
-    @Environment(\.dismiss) private var dismiss
     @StateObject private var communityService = CommunityService()
     @State private var currentIndex: Int = 0
     @State private var authorNames: [UUID: String] = [:]
@@ -295,7 +346,7 @@ private struct SelfNotesPopupView: View {
                     .ignoresSafeArea()
             }
             .contentShape(Rectangle())
-            .onTapGesture { dismiss() }
+            .onTapGesture { onClose() }
 
             // Stacked sticky notes with paging (same visual as friend popup)
             GeometryReader { geo in
@@ -311,14 +362,19 @@ private struct SelfNotesPopupView: View {
                     // Close button
                     VStack {
                         HStack {
-                            Spacer()
-                            Button(action: { dismiss() }) {
-                                Image(systemName: "xmark")
-                                    .font(.system(size: 18, weight: .semibold))
-                                    .foregroundColor(.white.opacity(0.9))
-                                    .frame(width: 44, height: 44)
+                            Button(action: onClose) {
+                                Image("back_button")
+                                    .frame(width: 38, height: 38)
+                                    .background(
+                                        Circle()
+                                            .fill(Color("Neutral-900"))
+                                    )
                             }
+                            .buttonStyle(.plain)
+                            Spacer()
                         }
+                        .padding(.horizontal, 20)
+                        .padding(.top, 10)
                         Spacer()
                     }
 
@@ -489,18 +545,25 @@ private struct SelfNotesPopupView: View {
         guard let client = SupabaseClientManager.shared.client else { return }
         let unique = Array(Set(userIds))
         guard !unique.isEmpty else { return }
-        struct Row: Decodable { let id: String; let name: String? }
+        struct Row: Decodable {
+            let id: String
+            let name: String?
+            let username: String?
+        }
         do {
             let rows: [Row] = try await client
                 .from("profiles")
-                .select("id,name")
+                .select("id,name,username")
                 .in("id", value: unique.map { $0.uuidString })
                 .execute()
                 .value
             var map: [UUID: String] = [:]
             for r in rows {
-                if let uuid = UUID(uuidString: r.id), let name = r.name {
-                    map[uuid] = name
+                let displayName = [r.username, r.name]
+                    .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+                    .first { !$0.isEmpty }
+                if let uuid = UUID(uuidString: r.id), let displayName {
+                    map[uuid] = displayName
                 }
             }
             await MainActor.run { authorNames.merge(map) { _, new in new } }

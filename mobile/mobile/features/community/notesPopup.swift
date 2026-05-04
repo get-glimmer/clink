@@ -228,18 +228,25 @@ struct NotesPopupView: View {
         guard let client = SupabaseClientManager.shared.client else { return }
         let unique = Array(Set(userIds))
         guard !unique.isEmpty else { return }
-        struct Row: Decodable { let id: String; let name: String? }
+        struct Row: Decodable {
+            let id: String
+            let name: String?
+            let username: String?
+        }
         do {
             let rows: [Row] = try await client
                 .from("profiles")
-                .select("id,name")
+                .select("id,name,username")
                 .in("id", value: unique.map { $0.uuidString })
                 .execute()
                 .value
             var map: [UUID: String] = [:]
             for r in rows {
-                if let uuid = UUID(uuidString: r.id), let name = r.name {
-                    map[uuid] = name
+                let displayName = [r.username, r.name]
+                    .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+                    .first { !$0.isEmpty }
+                if let uuid = UUID(uuidString: r.id), let displayName {
+                    map[uuid] = displayName
                 }
             }
             await MainActor.run { authorNames.merge(map) { _, new in new } }

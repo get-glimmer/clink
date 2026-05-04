@@ -102,24 +102,25 @@ struct RoutinesSheet: View {
     // MARK: - Routine Row
     private func routineRow(_ r: RoutineItem, category: CategoryItem) -> some View {
         VStack{
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 8) {
                 // task title
                 Text(r.title)
-                    .appFont(AppFont.labelM)
+                    .appFont(AppFont.labelL)
                     .foregroundStyle(.white)
                 
                 // period + status badge
                 HStack(alignment: .center) {
                     Text("\(formatDate(r.startDate)) - \(formatDate(r.endDate))")
-                        .appFont(AppFont.captionXS_M)
+                        .appFont(AppFont.captionS)
                         .foregroundStyle(Color("Neutral-400"))
                     Spacer()
                     statusBadge(for: r)
                 }
+                .padding(.bottom, -8)
                 
                 // repeat summary
                 Text(repeatSummary(for: r))
-                    .appFont(AppFont.captionXS_M)
+                    .appFont(AppFont.captionS)
                     .foregroundStyle(Color("Neutral-400"))
             }
             .padding(.horizontal, 6)
@@ -195,21 +196,25 @@ private func statusBadge(for r: RoutineItem) -> some View {
 
     let label: String
     let color: Color
+    let textColor: Color
 
     if today < start {
         label = "Be Scheduled"
         color = Color("Red-300")
+        textColor = Color("Neutral-1000")
     } else if let e = end, today > e {
         label = "Ended"
-        color = Color("Red-300")
+        color = Color("Neutral-1000")
+        textColor = Color("Neutral-500")
     } else {
         label = "In Progress"
         color = Color("Green-300")
+        textColor = Color("Neutral-1000")
     }
 
     return Text(label)
         .appFont(AppFont.labelS)
-        .foregroundColor(Color("Neutral-1000"))
+        .foregroundColor(textColor)
         .padding(.horizontal, 10)
         .padding(.vertical, 4)
         .background(Capsule().fill(color))
