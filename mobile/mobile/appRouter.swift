@@ -49,12 +49,12 @@ struct CustomNavBar: View {
     private let greenTint = Color(hex: "00FFAA") ?? .clear
     
     var body: some View {
-        HStack(spacing: 15) {
+        HStack(spacing: 5.06) {
             navItem(.task, imageName: "task")
             Spacer(minLength: 0)
             navItem(.tracker, imageName: "tracker")
             Spacer(minLength: 0)
-            navItem(.challenge, imageName: "star")
+            navItem(.challenge, imageName: "challenge")
             Spacer(minLength: 0)
             navItem(.community, imageName: "community")
             Spacer(minLength: 0)
@@ -82,7 +82,7 @@ struct CustomNavBar: View {
             Image(imageName)
                 .resizable()
                 .renderingMode(.template)
-                .frame(width: 44, height: 44)
+                .frame(width: 45.1, height: 45.1)
                 .foregroundColor(Color("White"))
                 .opacity(selectedTab == tab ? 1.0 : 0.7)
         }

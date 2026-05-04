@@ -97,7 +97,8 @@ struct SettingsView: View {
                             .tint(Color("Green-300"))
                             .appFont(AppFont.captionM)
                             .foregroundStyle(Color(.white))
-                        
+
+
                         Divider()
                     }
                     
@@ -250,6 +251,7 @@ struct SettingsView: View {
         }
         .navBarHidden(true)
     }
+
 }
 
 extension View {

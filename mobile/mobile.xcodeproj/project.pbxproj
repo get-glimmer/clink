@@ -15,9 +15,9 @@
 		B45C9A382E14D95C00E01F99 /* Realtime in Frameworks */ = {isa = PBXBuildFile; productRef = B45C9A372E14D95C00E01F99 /* Realtime */; };
 		B45C9A3A2E14D95C00E01F99 /* Storage in Frameworks */ = {isa = PBXBuildFile; productRef = B45C9A392E14D95C00E01F99 /* Storage */; };
 		B45C9A3C2E14D95C00E01F99 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = B45C9A3B2E14D95C00E01F99 /* Supabase */; };
-		B4C4C7B02F5CB6DB00DA81C3 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B4C4C7AF2F5CB6DB00DA81C3 /* WidgetKit.framework */; };
-		B4C4C7B22F5CB6DB00DA81C3 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B4C4C7B12F5CB6DB00DA81C3 /* SwiftUI.framework */; };
-		B4C4C7C32F5CB6DD00DA81C3 /* GlimmerWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = B4C4C7AE2F5CB6DB00DA81C3 /* GlimmerWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		B46B46822F9012D800A809EC /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B46B46812F9012D800A809EC /* WidgetKit.framework */; };
+		B46B46842F9012D800A809EC /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B46B46832F9012D800A809EC /* SwiftUI.framework */; };
+		B46B46952F9012D900A809EC /* GlimmerWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = B46B46802F9012D800A809EC /* GlimmerWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -35,23 +35,23 @@
 			remoteGlobalIDString = B443470B2DFD212E00644724;
 			remoteInfo = mobile;
 		};
-		B4C4C7C12F5CB6DD00DA81C3 /* PBXContainerItemProxy */ = {
+		B46B46932F9012D900A809EC /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = B44347042DFD212E00644724 /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = B4C4C7AD2F5CB6DB00DA81C3;
+			remoteGlobalIDString = B46B467F2F9012D800A809EC;
 			remoteInfo = GlimmerWidgetExtension;
 		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		B4C4C7C82F5CB6DD00DA81C3 /* Embed Foundation Extensions */ = {
+		B46B46962F9012D900A809EC /* Embed Foundation Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
-				B4C4C7C32F5CB6DD00DA81C3 /* GlimmerWidgetExtension.appex in Embed Foundation Extensions */,
+				B46B46952F9012D900A809EC /* GlimmerWidgetExtension.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -62,9 +62,10 @@
 		B443470C2DFD212E00644724 /* mobile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = mobile.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B44347192DFD212F00644724 /* mobileTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = mobileTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B44347232DFD212F00644724 /* mobileUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = mobileUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		B4C4C7AE2F5CB6DB00DA81C3 /* GlimmerWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = GlimmerWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
-		B4C4C7AF2F5CB6DB00DA81C3 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
-		B4C4C7B12F5CB6DB00DA81C3 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		B45931EF2F97125000B66B89 /* GlimmerWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = GlimmerWidgetExtension.entitlements; sourceTree = "<group>"; };
+		B46B46802F9012D800A809EC /* GlimmerWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = GlimmerWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		B46B46812F9012D800A809EC /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		B46B46832F9012D800A809EC /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -89,16 +90,21 @@
 			);
 			target = B443470B2DFD212E00644724 /* mobile */;
 		};
-		B4C4C7C72F5CB6DD00DA81C3 /* Exceptions for "GlimmerWidget" folder in "GlimmerWidgetExtension" target */ = {
+		B46B469A2F9012D900A809EC /* Exceptions for "GlimmerWidget" folder in "GlimmerWidgetExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
 			);
-			target = B4C4C7AD2F5CB6DB00DA81C3 /* GlimmerWidgetExtension */;
+			target = B46B467F2F9012D800A809EC /* GlimmerWidgetExtension */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		AA0000012FA5000000000001 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
+			sourceTree = "<group>";
+		};
 		B443470E2DFD212E00644724 /* mobile */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -119,10 +125,10 @@
 			path = mobileUITests;
 			sourceTree = "<group>";
 		};
-		B4C4C7B32F5CB6DB00DA81C3 /* GlimmerWidget */ = {
+		B46B46852F9012D800A809EC /* GlimmerWidget */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				B4C4C7C72F5CB6DD00DA81C3 /* Exceptions for "GlimmerWidget" folder in "GlimmerWidgetExtension" target */,
+				B46B469A2F9012D900A809EC /* Exceptions for "GlimmerWidget" folder in "GlimmerWidgetExtension" target */,
 			);
 			path = GlimmerWidget;
 			sourceTree = "<group>";
@@ -159,12 +165,12 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		B4C4C7AB2F5CB6DB00DA81C3 /* Frameworks */ = {
+		B46B467D2F9012D800A809EC /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B4C4C7B22F5CB6DB00DA81C3 /* SwiftUI.framework in Frameworks */,
-				B4C4C7B02F5CB6DB00DA81C3 /* WidgetKit.framework in Frameworks */,
+				B46B46842F9012D800A809EC /* SwiftUI.framework in Frameworks */,
+				B46B46822F9012D800A809EC /* WidgetKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -174,10 +180,12 @@
 		B44347032DFD212E00644724 = {
 			isa = PBXGroup;
 			children = (
+				B45931EF2F97125000B66B89 /* GlimmerWidgetExtension.entitlements */,
 				B443470E2DFD212E00644724 /* mobile */,
 				B443471C2DFD212F00644724 /* mobileTests */,
 				B44347262DFD212F00644724 /* mobileUITests */,
-				B4C4C7B32F5CB6DB00DA81C3 /* GlimmerWidget */,
+				B46B46852F9012D800A809EC /* GlimmerWidget */,
+				AA0000012FA5000000000001 /* Shared */,
 				B4DDCD692E14D54E00FA0D84 /* Frameworks */,
 				B443470D2DFD212E00644724 /* Products */,
 			);
@@ -189,7 +197,7 @@
 				B443470C2DFD212E00644724 /* mobile.app */,
 				B44347192DFD212F00644724 /* mobileTests.xctest */,
 				B44347232DFD212F00644724 /* mobileUITests.xctest */,
-				B4C4C7AE2F5CB6DB00DA81C3 /* GlimmerWidgetExtension.appex */,
+				B46B46802F9012D800A809EC /* GlimmerWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -197,8 +205,8 @@
 		B4DDCD692E14D54E00FA0D84 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				B4C4C7AF2F5CB6DB00DA81C3 /* WidgetKit.framework */,
-				B4C4C7B12F5CB6DB00DA81C3 /* SwiftUI.framework */,
+				B46B46812F9012D800A809EC /* WidgetKit.framework */,
+				B46B46832F9012D800A809EC /* SwiftUI.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -213,14 +221,15 @@
 				B44347082DFD212E00644724 /* Sources */,
 				B44347092DFD212E00644724 /* Frameworks */,
 				B443470A2DFD212E00644724 /* Resources */,
-				B4C4C7C82F5CB6DD00DA81C3 /* Embed Foundation Extensions */,
+				B46B46962F9012D900A809EC /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				B4C4C7C22F5CB6DD00DA81C3 /* PBXTargetDependency */,
+				B46B46942F9012D900A809EC /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
+				AA0000012FA5000000000001 /* Shared */,
 				B443470E2DFD212E00644724 /* mobile */,
 			);
 			name = mobile;
@@ -284,26 +293,27 @@
 			productReference = B44347232DFD212F00644724 /* mobileUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
-		B4C4C7AD2F5CB6DB00DA81C3 /* GlimmerWidgetExtension */ = {
+		B46B467F2F9012D800A809EC /* GlimmerWidgetExtension */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = B4C4C7C42F5CB6DD00DA81C3 /* Build configuration list for PBXNativeTarget "GlimmerWidgetExtension" */;
+			buildConfigurationList = B46B46992F9012D900A809EC /* Build configuration list for PBXNativeTarget "GlimmerWidgetExtension" */;
 			buildPhases = (
-				B4C4C7AA2F5CB6DB00DA81C3 /* Sources */,
-				B4C4C7AB2F5CB6DB00DA81C3 /* Frameworks */,
-				B4C4C7AC2F5CB6DB00DA81C3 /* Resources */,
+				B46B467C2F9012D800A809EC /* Sources */,
+				B46B467D2F9012D800A809EC /* Frameworks */,
+				B46B467E2F9012D800A809EC /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				B4C4C7B32F5CB6DB00DA81C3 /* GlimmerWidget */,
+				AA0000012FA5000000000001 /* Shared */,
+				B46B46852F9012D800A809EC /* GlimmerWidget */,
 			);
 			name = GlimmerWidgetExtension;
 			packageProductDependencies = (
 			);
 			productName = GlimmerWidgetExtension;
-			productReference = B4C4C7AE2F5CB6DB00DA81C3 /* GlimmerWidgetExtension.appex */;
+			productReference = B46B46802F9012D800A809EC /* GlimmerWidgetExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
@@ -313,7 +323,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2630;
+				LastSwiftUpdateCheck = 2640;
 				LastUpgradeCheck = 1640;
 				TargetAttributes = {
 					B443470B2DFD212E00644724 = {
@@ -327,8 +337,8 @@
 						CreatedOnToolsVersion = 16.4;
 						TestTargetID = B443470B2DFD212E00644724;
 					};
-					B4C4C7AD2F5CB6DB00DA81C3 = {
-						CreatedOnToolsVersion = 26.3;
+					B46B467F2F9012D800A809EC = {
+						CreatedOnToolsVersion = 26.4;
 					};
 				};
 			};
@@ -353,7 +363,7 @@
 				B443470B2DFD212E00644724 /* mobile */,
 				B44347182DFD212F00644724 /* mobileTests */,
 				B44347222DFD212F00644724 /* mobileUITests */,
-				B4C4C7AD2F5CB6DB00DA81C3 /* GlimmerWidgetExtension */,
+				B46B467F2F9012D800A809EC /* GlimmerWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -380,7 +390,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		B4C4C7AC2F5CB6DB00DA81C3 /* Resources */ = {
+		B46B467E2F9012D800A809EC /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -411,7 +421,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		B4C4C7AA2F5CB6DB00DA81C3 /* Sources */ = {
+		B46B467C2F9012D800A809EC /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -431,10 +441,10 @@
 			target = B443470B2DFD212E00644724 /* mobile */;
 			targetProxy = B44347242DFD212F00644724 /* PBXContainerItemProxy */;
 		};
-		B4C4C7C22F5CB6DD00DA81C3 /* PBXTargetDependency */ = {
+		B46B46942F9012D900A809EC /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = B4C4C7AD2F5CB6DB00DA81C3 /* GlimmerWidgetExtension */;
-			targetProxy = B4C4C7C12F5CB6DD00DA81C3 /* PBXContainerItemProxy */;
+			target = B46B467F2F9012D800A809EC /* GlimmerWidgetExtension */;
+			targetProxy = B46B46932F9012D900A809EC /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -563,12 +573,14 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = mobile/mobile.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 3Q8T4K9TH9;
+				DEVELOPMENT_TEAM = 26NN77H972;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = mobile/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "clink!";
 				INFOPLIST_KEY_NSMotionUsageDescription = "Used to animate marbles when Shaker mode is on";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -582,7 +594,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = group.com.glimmer.shared;
+				PRODUCT_BUNDLE_IDENTIFIER = Kristie123.mobile;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPABASE_PUBLIC_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zZ29ra2xlYndqc3FjYWl6eW5xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk4NjU5MjEsImV4cCI6MjA2NTQ0MTkyMX0.hoFbrGyd8ZQIMf6rB2-mRn3xlHWBo4UvxnIkBSOxpf4";
 				SUPABASE_URL_KEY = "https://msgokklebwjsqcaizynq.supabase.co";
@@ -597,12 +609,14 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = mobile/mobile.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 3Q8T4K9TH9;
+				DEVELOPMENT_TEAM = 26NN77H972;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = mobile/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "clink!";
 				INFOPLIST_KEY_NSMotionUsageDescription = "Used to animate marbles when Shaker mode is on";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -616,7 +630,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = group.com.glimmer.shared;
+				PRODUCT_BUNDLE_IDENTIFIER = Kristie123.mobile;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPABASE_PUBLIC_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zZ29ra2xlYndqc3FjYWl6eW5xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk4NjU5MjEsImV4cCI6MjA2NTQ0MTkyMX0.hoFbrGyd8ZQIMf6rB2-mRn3xlHWBo4UvxnIkBSOxpf4";
 				SUPABASE_URL_KEY = "https://msgokklebwjsqcaizynq.supabase.co";
@@ -696,14 +710,15 @@
 			};
 			name = Release;
 		};
-		B4C4C7C52F5CB6DD00DA81C3 /* Debug */ = {
+		B46B46972F9012D900A809EC /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = GlimmerWidgetExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 3Q8T4K9TH9;
+				DEVELOPMENT_TEAM = 26NN77H972;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = GlimmerWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = GlimmerWidget;
@@ -715,7 +730,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = group.com.glimmer.shared;
+				PRODUCT_BUNDLE_IDENTIFIER = Kristie123.mobile.GlimmerWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -727,14 +742,15 @@
 			};
 			name = Debug;
 		};
-		B4C4C7C62F5CB6DD00DA81C3 /* Release */ = {
+		B46B46982F9012D900A809EC /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = GlimmerWidgetExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 3Q8T4K9TH9;
+				DEVELOPMENT_TEAM = 26NN77H972;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = GlimmerWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = GlimmerWidget;
@@ -746,7 +762,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = group.com.glimmer.shared;
+				PRODUCT_BUNDLE_IDENTIFIER = Kristie123.mobile.GlimmerWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -797,11 +813,11 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		B4C4C7C42F5CB6DD00DA81C3 /* Build configuration list for PBXNativeTarget "GlimmerWidgetExtension" */ = {
+		B46B46992F9012D900A809EC /* Build configuration list for PBXNativeTarget "GlimmerWidgetExtension" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				B4C4C7C52F5CB6DD00DA81C3 /* Debug */,
-				B4C4C7C62F5CB6DD00DA81C3 /* Release */,
+				B46B46972F9012D900A809EC /* Debug */,
+				B46B46982F9012D900A809EC /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
