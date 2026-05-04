@@ -21,6 +21,7 @@ struct ChangeDateSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var pickedDate: Date
+    @State private var trackerDisplayedMonth: Date
 
     init(
         initialDate: Date,
@@ -35,6 +36,25 @@ struct ChangeDateSheet: View {
         self.onConfirm = onConfirm
         self.onCancel = onCancel
         _pickedDate = State(initialValue: initialDate)
+        _trackerDisplayedMonth = State(initialValue: Calendar.current.startOfMonth(for: initialDate))
+    }
+
+    private var trackerCardHeight: CGFloat {
+        // Base height fits 5 rows; each extra/missing row adjusts by one row's grid pitch.
+        let baseHeight: CGFloat = 470
+        let rowPitch: CGFloat = 58 // 46pt cell + 12pt LazyVGrid spacing
+        let rows = ChangeDateSheet.numberOfWeeks(in: trackerDisplayedMonth)
+        return baseHeight + CGFloat(rows - 5) * rowPitch
+    }
+
+    private static func numberOfWeeks(in month: Date) -> Int {
+        let calendar = Calendar.current
+        let firstOfMonth = calendar.startOfMonth(for: month)
+        guard let range = calendar.range(of: .day, in: .month, for: firstOfMonth) else { return 5 }
+        let firstWeekday = calendar.component(.weekday, from: firstOfMonth)
+        let leadingEmptyDays = (firstWeekday - calendar.firstWeekday + 7) % 7
+        let totalCells = leadingEmptyDays + range.count
+        return Int(ceil(Double(totalCells) / 7.0))
     }
 
     var body: some View {
@@ -83,6 +103,7 @@ struct ChangeDateSheet: View {
                         case .tracker:
                             TrackerStyleCalendar(
                                 selectedDate: $pickedDate,
+                                displayedMonth: $trackerDisplayedMonth,
                                 shakerRecords: shakerRecords,
                                 onDateSelected: { date in
                                     onConfirm(date)
@@ -112,7 +133,8 @@ struct ChangeDateSheet: View {
                         Spacer().frame(height: 24)
                     }
                 }
-                .frame(width: cardWidth, height: calendarStyle == .tracker ? 470 : 491)
+                .frame(width: cardWidth, height: calendarStyle == .tracker ? trackerCardHeight : 491)
+                .animation(.easeInOut(duration: 0.2), value: trackerCardHeight)
                 .background(
                     RoundedRectangle(cornerRadius: 24)
                         .fill(Color(.black)).opacity(0.5)
@@ -142,10 +164,10 @@ struct ChangeDateSheet: View {
 
 private struct TrackerStyleCalendar: View {
     @Binding var selectedDate: Date
+    @Binding var displayedMonth: Date
     let shakerRecords: [String: ShakerRecord]
     let onDateSelected: (Date) -> Void
 
-    @State private var displayedMonth: Date
     @State private var showMonthDropdown = false
 
     private let calendar = Calendar.current
@@ -154,13 +176,14 @@ private struct TrackerStyleCalendar: View {
 
     init(
         selectedDate: Binding<Date>,
+        displayedMonth: Binding<Date>,
         shakerRecords: [String: ShakerRecord],
         onDateSelected: @escaping (Date) -> Void
     ) {
         self._selectedDate = selectedDate
+        self._displayedMonth = displayedMonth
         self.shakerRecords = shakerRecords
         self.onDateSelected = onDateSelected
-        _displayedMonth = State(initialValue: Calendar.current.startOfMonth(for: selectedDate.wrappedValue))
     }
 
     var body: some View {
