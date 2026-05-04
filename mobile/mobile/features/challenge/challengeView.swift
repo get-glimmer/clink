@@ -3,132 +3,181 @@ import SpriteKit
 
 struct ChallengeView: View {
     @StateObject private var viewModel = ChallengeViewModel()
+    @State private var selectedChallengeId: UUID?
+    @State private var isShowingChallengeDetail = false
+    @State private var selectedInvite: InvitedChallengeItem? = nil
+    @State private var showMemberEmojiSetup = false
+    @State private var showEditChallengeList = false
+    @State private var showInvitedChallengeList = false
 
     var body: some View {
-        ZStack {
-            AppColors.neutral1000.ignoresSafeArea()
+        NavigationStack {
+            ZStack {
+                AppColors.neutral1000.ignoresSafeArea()
 
-            VStack(spacing: 24) {
-                // Header
-                HStack {
-                    // Dropdown Button
-                    Button(action: {
-                        viewModel.toggleDropdown()
-                    }) {
-                        HStack(spacing: 8) {
-                            Text(viewModel.selectedCategory)
-                                .appText(AppFont.title1)
-                                .foregroundColor(AppColors.textWhite)
+                VStack(spacing: 24) {
+                    // Header
+                    HStack {
+                        // Dropdown Button
+                        Button(action: {
+                            viewModel.toggleDropdown()
+                        }) {
+                            HStack(spacing: 8) {
+                                Text(viewModel.selectedCategory)
+                                    .appText(AppFont.title3)
+                                    .foregroundColor(AppColors.textWhite)
 
-                            Image(systemName: "chevron.down")
+                                Image(systemName: "chevron.down")
+                                    .foregroundColor(AppColors.textWhite)
+                                    .font(.system(size: 10, weight: .bold))
+                                    .rotationEffect(.degrees(viewModel.isDropdownPresented ? 180 : 0))
+                                    .animation(.easeInOut(duration: 0.2), value: viewModel.isDropdownPresented)
+                            }
+                        }
+                        .anchorPreference(key: DropdownBoundsPreferenceKey.self, value: .bounds) { $0 }
+
+                        Spacer()
+
+                        // Options Button (...)
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                viewModel.toggleOptionsMenu()
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 14, height: 14)
+                                .frame(width: 42, height: 42)
+                                .background(AppColors.neutral900)
+                                .clipShape(Circle())
                                 .foregroundColor(AppColors.textWhite)
-                                .font(.system(size: 10, weight: .bold))
-                                .rotationEffect(.degrees(viewModel.isDropdownPresented ? 180 : 0))
-                                .animation(.easeInOut(duration: 0.2), value: viewModel.isDropdownPresented)
                         }
                     }
-                    .anchorPreference(key: DropdownBoundsPreferenceKey.self, value: .bounds) { $0 }
+                    .padding(.horizontal, 24)
+                    .padding(.top, 16)
+                    .zIndex(1)
 
-                    Spacer()
-
-                    // Options Button (...)
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.25)) {
-                            viewModel.toggleOptionsMenu()
+                    // Content
+                    if viewModel.isLoading {
+                        Spacer()
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: AppColors.textWhite))
+                        Spacer()
+                    } else if let errorMessage = viewModel.errorMessage, viewModel.challenges.isEmpty {
+                        Spacer()
+                        Text(errorMessage)
+                            .appText(AppFont.captionM)
+                            .foregroundColor(AppColors.neutral400)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 40)
+                        Spacer()
+                    } else if viewModel.selectedCategory == "Invited" {
+                        if viewModel.pendingInvites.isEmpty {
+                            Spacer()
+                            Text("No pending invitations")
+                                .appText(AppFont.captionM)
+                                .foregroundColor(AppColors.neutral400)
+                            Spacer()
+                        } else {
+                            ScrollView {
+                                VStack(spacing: 16) {
+                                    ForEach(viewModel.pendingInvites) { invite in
+                                        InvitedChallengeCard(invite: invite)
+                                            .onTapGesture {
+                                                selectedInvite = invite
+                                                showMemberEmojiSetup = true
+                                            }
+                                    }
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.bottom, 100)
+                            }
+                            .refreshable {
+                                await MainActor.run { viewModel.refreshChallenges() }
+                            }
                         }
-                    } label: {
-                        Image(systemName: "ellipsis")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 20, height: 20)
-                            .padding(12)
-                            .background(AppColors.neutral900)
-                            .clipShape(Circle())
-                            .foregroundColor(AppColors.textWhite)
-                    }
-                }
-                .padding(.horizontal, 24)
-                .padding(.top, 16)
-                .zIndex(1)
-
-                // Content
-                if viewModel.isLoading {
-                    Spacer()
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: AppColors.textWhite))
-                    Spacer()
-                } else if let errorMessage = viewModel.errorMessage, viewModel.challenges.isEmpty {
-                    Spacer()
-                    Text(errorMessage)
-                        .appText(AppFont.captionM)
-                        .foregroundColor(AppColors.neutral400)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 40)
-                    Spacer()
-                } else if viewModel.challenges.isEmpty {
-                    Spacer()
-                    Text("No challenges yet")
-                        .appText(AppFont.captionM)
-                        .foregroundColor(AppColors.neutral400)
-                    Spacer()
-                } else {
-                        let now = Date()
-                        let userId = getUserId()
-                        let active = viewModel.challenges.filter { challenge in
-                            guard let end = challenge.endDate else { return true }
-                            let isMember = challenge.members.contains { $0.userId.uuidString == userId }
-                            return end >= now && isMember
-                        }
-                        let completed = viewModel.challenges.filter { challenge in
-                            guard let end = challenge.endDate else { return false }
-                            let isMember = challenge.members.contains { $0.userId.uuidString == userId }
-                            return end < now && isMember
-                        }
-
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 16) {
-                            // Active Challenges
-                            if !active.isEmpty {
-                                Text("Active Challenges")
-                                    .appFont(AppFont.labelM)
-                                    .foregroundColor(Color("Neutral-300"))
-                                    .padding(.top, 16)
-
-                                ForEach(active) { challenge in
+                    } else if viewModel.challenges.isEmpty {
+                        Spacer()
+                        Text("No challenges yet")
+                            .appText(AppFont.captionM)
+                            .foregroundColor(AppColors.neutral400)
+                        Spacer()
+                    } else {
+                        ScrollView {
+                            VStack(spacing: 16) {
+                                ForEach(viewModel.challenges) { challenge in
                                     SwipeableChallengeCard(
                                         challenge: challenge,
+                                        onTap: {
+                                            selectedChallengeId = challenge.id
+                                            isShowingChallengeDetail = true
+                                        },
                                         onDelete: {
                                             viewModel.requestQuit(challenge: challenge)
                                         }
                                     )
                                 }
                             }
-
-                            // Completed
-                            if !completed.isEmpty {
-                                Text("Completed")
-                                    .appFont(AppFont.labelM)
-                                    .foregroundColor(Color("Neutral-300"))
-                                    .padding(.top, 16)
-
-                                ForEach(completed) { challenge in
-                                    SwipeableChallengeCard(
-                                        challenge: challenge,
-                                        onDelete: {
-                                            viewModel.requestQuit(challenge: challenge)
-                                        }
-                                    )
-                                }
-                            }
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 100)
                         }
-                        .padding(.horizontal, 24)
-                        .padding(.bottom, 100)
-                    }
-                    .refreshable {
-                        await MainActor.run { viewModel.refreshChallenges() }
+                        .refreshable {
+                            await MainActor.run { viewModel.refreshChallenges() }
+                        }
                     }
                 }
+                NavigationLink(
+                    isActive: $isShowingChallengeDetail,
+                    destination: {
+                        Group {
+                            if let challengeId = selectedChallengeId {
+                                let selected = viewModel.challenges.first(where: { $0.id == challengeId })
+                                let isOver: Bool = {
+                                    guard let end = selected?.endDate else { return false }
+                                    return Calendar.current.startOfDay(for: end) < Calendar.current.startOfDay(for: Date())
+                                }()
+                                if isOver {
+                                    ChallengeResultView(challengeId: challengeId)
+                                        .navBarHidden(true)
+                                } else {
+                                    ChallengeDetailView(challengeId: challengeId)
+                                        .navBarHidden(true)
+                                }
+                            } else {
+                                Color.clear
+                            }
+                        }
+                    },
+                    label: {
+                        EmptyView()
+                    }
+                )
+                .hidden()
+
+                NavigationLink(
+                    isActive: $showEditChallengeList,
+                    destination: {
+                        EditChallengeListView()
+                            .environmentObject(viewModel)
+                            .navBarHidden(true)
+                    },
+                    label: { EmptyView() }
+                )
+                .hidden()
+
+                NavigationLink(
+                    isActive: $showInvitedChallengeList,
+                    destination: {
+                        InvitedChallengeListView()
+                            .environmentObject(viewModel)
+                            .navBarHidden(true)
+                    },
+                    label: { EmptyView() }
+                )
+                .hidden()
             }
+            .navigationBarHidden(true)
         }
         .dropdownOverlay(
             isPresented: $viewModel.isDropdownPresented,
@@ -140,27 +189,45 @@ struct ChallengeView: View {
             labelTitle: { $0 }
         )
         // MARK: - Options Menu Overlay
-        .overlay(alignment: .bottomLeading) {
+        .overlay {
             if viewModel.showOptionsMenu {
-                ChallengeOptionsSheet(
-                    onTapOutside: {
-                        withAnimation(.easeInOut(duration: 0.25)) {
-                            viewModel.showOptionsMenu = false
+                ZStack(alignment: .topTrailing) {
+                    Color.black.opacity(0.0001)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                viewModel.showOptionsMenu = false
+                            }
                         }
-                    },
-                    onTapCreateChallenge: {
-                        withAnimation(.easeInOut(duration: 0.25)) {
-                            viewModel.showOptionsMenu = false
+
+                    ChallengeActionsMenu(
+                        onCreate: {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                viewModel.showOptionsMenu = false
+                            }
+                            viewModel.showCreateChallenge = true
+                        },
+                        onEdit: {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                viewModel.showOptionsMenu = false
+                            }
+                            showEditChallengeList = true
+                        },
+                        onInvited: {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                viewModel.showOptionsMenu = false
+                            }
+                            showInvitedChallengeList = true
                         }
-                        viewModel.showCreateChallenge = true
-                    }
-                )
+                    )
+                    .padding(.top, 66)
+                    .padding(.trailing, 24)
+                }
                 .transition(.opacity)
-                .ignoresSafeArea()
             }
         }
         .zIndex(999)
-        .animation(.easeInOut(duration: 0.25), value: viewModel.showOptionsMenu)
+        .animation(.easeInOut(duration: 0.2), value: viewModel.showOptionsMenu)
         // MARK: - Quit Challenge Confirmation
         .overlay {
             if viewModel.showQuitConfirmation {
@@ -184,11 +251,128 @@ struct ChallengeView: View {
                 viewModel.refreshChallenges()
             }
         }
+        .fullScreenCover(isPresented: $showMemberEmojiSetup) {
+            if let invite = selectedInvite {
+                MemberEmojiSetupView(
+                    challengeId: invite.challengeId,
+                    emojiRule: invite.emojiRule,
+                    presetEmojis: invite.presetEmojis,
+                    representativeEmoji: invite.presetEmojis.first ?? "",
+                    isOwner: false
+                )
+            }
+        }
+        .onChange(of: showMemberEmojiSetup) { isShowing in
+            if !isShowing { viewModel.refreshChallenges() }
+        }
+        // DEV ONLY: edit challenge sheet, triggered by tapping the shaker
+        .fullScreenCover(isPresented: $viewModel.showEditChallenge) {
+            if let challengeId = viewModel.selectedChallengeId {
+                EditChallengeView(challengeId: challengeId)
+            }
+        }
+        .onChange(of: viewModel.showEditChallenge) { isShowing in
+            if !isShowing {
+                viewModel.refreshChallenges()
+            }
+        }
+        .overlay {
+            if viewModel.showPendingInviteOverlay, let invite = viewModel.pendingInviteForOverlay {
+                ChallengeInvitationOverlay(
+                    invite: invite,
+                    onClose: {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            viewModel.dismissPendingInviteOverlay()
+                        }
+                    },
+                    onJoined: {
+                        viewModel.refreshChallenges()
+                    }
+                )
+                .navBarHidden(true)
+                .transition(.opacity)
+                .zIndex(2000)
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: viewModel.showPendingInviteOverlay)
+        .toolbar(viewModel.showPendingInviteOverlay ? .hidden : .visible, for: .navigationBar)
+        .navigationBarHidden(viewModel.showPendingInviteOverlay)
+        .navigationBarBackButtonHidden(viewModel.showPendingInviteOverlay)
+    }
+}
+
+// MARK: - Invited Challenge Card
+
+struct InvitedChallengeCard: View {
+    let invite: InvitedChallengeItem
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text(invite.dateRangeText)
+                    .appText(AppFont.labelS)
+                    .foregroundColor(.black)
+                    .padding(.horizontal, 12)
+                    .frame(height: 22)
+                    .background(AppColors.green300)
+                    .clipShape(Capsule())
+
+                Spacer()
+
+                Text("Pending")
+                    .appText(AppFont.captionS)
+                    .foregroundColor(AppColors.neutral400)
+                    .padding(.vertical, 4)
+                    .padding(.horizontal, 10)
+                    .background(AppColors.neutral800)
+                    .clipShape(Capsule())
+            }
+
+            Text(invite.title)
+                .appText(AppFont.title3)
+                .foregroundColor(AppColors.textWhite)
+                .lineLimit(2)
+
+            if let inviterName = invite.inviterName {
+                Text("Invited by \(inviterName)")
+                    .appText(AppFont.captionS)
+                    .foregroundColor(AppColors.neutral400)
+            }
+
+            if let message = invite.message,
+               !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Text("\"\(message)\"")
+                    .appText(AppFont.captionM)
+                    .foregroundColor(AppColors.neutral300)
+                    .lineLimit(2)
+            }
+
+            HStack {
+                Image(systemName: "calendar")
+                    .resizable()
+                    .frame(width: 14, height: 14)
+                    .foregroundColor(AppColors.neutral400)
+                Text(invite.frequency)
+                    .appText(AppFont.captionS)
+                    .foregroundColor(AppColors.neutral400)
+
+                Spacer()
+
+                Text("\(invite.memberCount) member\(invite.memberCount == 1 ? "" : "s")")
+                    .appText(AppFont.captionS)
+                    .foregroundColor(AppColors.neutral400)
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity)
+        .background(AppColors.neutral900)
+        .cornerRadius(16)
     }
 }
 
 struct ChallengeCard: View {
     let challenge: ChallengeItem
+    var onTapShaker: (() -> Void)? = nil
 
     var body: some View {
         HStack(spacing: 0) {
@@ -197,10 +381,10 @@ struct ChallengeCard: View {
 
                 // Date Pill (Green)
                 Text(challenge.dateRangeText)
-                    .appText(AppFont.captionS)
+                    .appText(AppFont.labelS)
                     .foregroundColor(Color.black)
-                    .padding(.vertical, 4)
                     .padding(.horizontal, 12)
+                    .frame(height: 22)
                     .background(AppColors.green300)
                     .clipShape(Capsule())
                     .padding(.bottom, 8)
@@ -211,7 +395,8 @@ struct ChallengeCard: View {
                     .foregroundColor(AppColors.textWhite)
                     .fixedSize(horizontal: false, vertical: true)
                     .lineLimit(2)
-                    .padding(.bottom, 12)
+
+                Spacer(minLength: 12)
 
                 // Meta info (Calendar icon + Frequency)
                 HStack(spacing: 6) {
@@ -246,15 +431,22 @@ struct ChallengeCard: View {
                     }
                 }
             }
+            .padding(.top, 15)
+            .padding(.bottom, 19)
+            .frame(maxHeight: .infinity, alignment: .top)
             .layoutPriority(1)
 
             Spacer(minLength: 16)
 
             // Right: Shaker Preview
             ChallengeShakerPreview(challenge: challenge)
-                .frame(width: 100, height: 100)
+                .frame(width: 134.73, height: 134)
+                .onTapGesture { onTapShaker?() }
         }
-        .padding(16)
+        .padding(.leading, 16)
+        .padding(.trailing, 20)
+        .frame(maxWidth: .infinity)
+        .frame(height: 180)
         .background(AppColors.neutral900)
         .cornerRadius(16)
     }
@@ -267,6 +459,7 @@ struct ChallengeShakerPreview: View {
     @State private var scene = ShakerScene(size: .zero)
     @State private var lidColors: [Color] = [.black, .gray]
     @State private var lidOpacity: Double = 0
+    @State private var didConfigure = false
 
     // Lid position & size (matching ShakerView ratios)
     private let lidHeightRatio:   CGFloat = 46.0 / 270.0
@@ -286,12 +479,15 @@ struct ChallengeShakerPreview: View {
                     .frame(width: jarSize.width, height: jarSize.height)
                     .allowsHitTesting(false)
 
-                // Lid gradient (when completed)
+                // Lid gradient (when completed) — hardcoded green to match
+                // ChallengeJarView in the detail view.
                 Rectangle()
                     .fill(
-                        LinearGradient(colors: lidColors,
-                                       startPoint: .leading,
-                                       endPoint: .trailing)
+                        LinearGradient(
+                            colors: lidColors,
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
                     )
                     .frame(
                         width: jarSize.width,
@@ -315,40 +511,64 @@ struct ChallengeShakerPreview: View {
             }
             .frame(width: geo.size.width, height: geo.size.height, alignment: .center)
             .onAppear {
-                if scene.size == .zero {
-                    scene = ShakerScene(size: jarSize)
-                }
-
-                // Preview mode: small emojis, constant gravity, no device motion
-                scene.setEmojiScale(24.0 / 54.0)
-                scene.setMotionEnabled(false)
-                scene.configureBoundaries(inset: 12, lidHeight: 40, bottomExtraDepth: 10)
-                scene.useConstantGravity(18)
-                scene.setHapticsEnabled(false)
-
-                // Clear and re-add emojis
-                scene.resetScene()
-                for emoji in challenge.shakerUserEmojis {
-                    scene.addEmoji(emoji, for: UUID())
-                }
-
-                // Settle emojis to the bottom for preview
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    scene.settleAllToBottom()
-                }
-
-                // Lid color
-                if challenge.shakerIsCompleted {
-                    if let c0 = Color(hex: challenge.shakerLidColorStart),
-                       let c1 = Color(hex: challenge.shakerLidColorEnd) {
-                        lidColors = [c0, c1]
-                    }
-                    lidOpacity = 1
-                } else {
-                    lidOpacity = 0
+                configureSceneIfNeeded(jarSize: jarSize)
+                syncEmojis()
+                applyLid()
+            }
+            .onChange(of: jarSize) { newSize in
+                // GeometryReader's first measurement can be .zero. Re-init
+                // the scene once we actually have a real size.
+                if scene.size == .zero, newSize.width > 0, newSize.height > 0 {
+                    configureSceneIfNeeded(jarSize: newSize)
+                    syncEmojis()
+                    applyLid()
                 }
             }
+            .onChange(of: challenge.shakerUserEmojis) { _ in
+                guard didConfigure else { return }
+                syncEmojis()
+            }
+            .onChange(of: challenge.shakerIsCompleted) { _ in applyLid() }
+            .onChange(of: challenge.shakerLidColorStart) { _ in applyLid() }
+            .onChange(of: challenge.shakerLidColorEnd) { _ in applyLid() }
         }
+    }
+
+    private func configureSceneIfNeeded(jarSize: CGSize) {
+        guard jarSize.width > 0, jarSize.height > 0 else {
+            print("[ShakerPreview] skip configure — jarSize is zero for challenge=\(challenge.id) title=\(challenge.title)")
+            return
+        }
+        if scene.size == .zero {
+            scene = ShakerScene(size: jarSize)
+        }
+        scene.setEmojiScale(24.0 / 54.0)
+        scene.setMotionEnabled(false)
+        scene.configureBoundaries(inset: 12, lidHeight: 40, bottomExtraDepth: 10)
+        scene.useConstantGravity(18)
+        scene.setHapticsEnabled(false)
+        didConfigure = true
+    }
+
+    private func syncEmojis() {
+        print("[ShakerPreview] syncEmojis challenge=\(challenge.id) title=\(challenge.title) sceneSize=\(scene.size) emojis=\(challenge.shakerUserEmojis) sealed=\(challenge.shakerIsCompleted) lidStart=\(challenge.shakerLidColorStart ?? "nil") lidEnd=\(challenge.shakerLidColorEnd ?? "nil")")
+        scene.resetScene()
+        for emoji in challenge.shakerUserEmojis {
+            scene.addEmoji(emoji, for: UUID())
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            scene.settleAllToBottom()
+        }
+    }
+
+    private func applyLid() {
+        if let c0 = Color(hex: challenge.shakerLidColorStart),
+           let c1 = Color(hex: challenge.shakerLidColorEnd) {
+            lidColors = [c0, c1]
+        } else {
+            lidColors = [AppColors.green300, AppColors.green300.opacity(0.7)]
+        }
+        lidOpacity = challenge.shakerIsCompleted ? 1 : 0
     }
 }
 
@@ -356,12 +576,18 @@ struct ChallengeShakerPreview: View {
 
 struct SwipeableChallengeCard: View {
     let challenge: ChallengeItem
+    let onTap: () -> Void
     let onDelete: () -> Void
+    var onTapShaker: (() -> Void)? = nil
 
     @State private var offset: CGFloat = 0
     @State private var showingTrash: Bool = false
+    @State private var dragAxis: DragAxis = .undecided
     private let trashThreshold: CGFloat = -80
     private let deleteThreshold: CGFloat = -160
+    private let axisLockThreshold: CGFloat = 10
+
+    private enum DragAxis { case undecided, horizontal, vertical }
 
     var body: some View {
         ZStack(alignment: .trailing) {
@@ -378,34 +604,60 @@ struct SwipeableChallengeCard: View {
             }
 
             // Card content
-            ChallengeCard(challenge: challenge)
+            ChallengeCard(challenge: challenge, onTapShaker: onTapShaker)
                 .offset(x: offset)
-                .gesture(
-                    DragGesture()
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    if offset != 0 {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            offset = 0
+                            showingTrash = false
+                        }
+                        return
+                    }
+                    onTap()
+                }
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 20)
                         .onChanged { value in
-                            let translation = value.translation.width
-                            if translation < 0 {
-                                offset = translation
-                                showingTrash = translation < trashThreshold
+                            let dx = value.translation.width
+                            let dy = value.translation.height
+
+                            // Lock axis on first meaningful movement so vertical
+                            // scrolling is never partially captured here.
+                            if dragAxis == .undecided {
+                                if abs(dx) >= axisLockThreshold || abs(dy) >= axisLockThreshold {
+                                    dragAxis = abs(dx) > abs(dy) ? .horizontal : .vertical
+                                } else {
+                                    return
+                                }
+                            }
+
+                            guard dragAxis == .horizontal else { return }
+                            if dx < 0 {
+                                offset = dx
+                                showingTrash = dx < trashThreshold
+                            } else if offset != 0 {
+                                offset = min(0, dx + trashThreshold)
                             }
                         }
                         .onEnded { value in
-                            let translation = value.translation.width
-                            if translation < deleteThreshold {
-                                // Swiped far enough — trigger quit
+                            let lockedHorizontal = (dragAxis == .horizontal)
+                            dragAxis = .undecided
+                            guard lockedHorizontal else { return }
+                            let dx = value.translation.width
+                            if dx < deleteThreshold {
                                 withAnimation(.easeInOut(duration: 0.2)) {
                                     offset = 0
                                     showingTrash = false
                                 }
                                 onDelete()
-                            } else if translation < trashThreshold {
-                                // Show trash icon position
+                            } else if dx < trashThreshold {
                                 withAnimation(.easeInOut(duration: 0.2)) {
                                     offset = trashThreshold
                                     showingTrash = true
                                 }
                             } else {
-                                // Snap back
                                 withAnimation(.easeInOut(duration: 0.2)) {
                                     offset = 0
                                     showingTrash = false
@@ -485,18 +737,18 @@ struct QuitChallengeOverlay: View {
 
     var body: some View {
         ZStack {
-            // Blurred background
+            // Blurred + dimmed background
             ZStack {
-                DarkBlurView(style: .systemUltraThinMaterialDark)
+                DarkBlurView(style: .systemThinMaterialDark)
                     .ignoresSafeArea()
-                Color.black.opacity(0.7)
+                Color.black.opacity(0.45)
                     .ignoresSafeArea()
             }
             .contentShape(Rectangle())
             .onTapGesture { onCancel() }
 
             // Confirmation card
-            VStack(spacing: 20) {
+            VStack(alignment: .leading, spacing: 20) {
                 HStack {
                     Text("Quit this challenge?")
                         .appText(AppFont.title3)
@@ -508,26 +760,241 @@ struct QuitChallengeOverlay: View {
                             .foregroundColor(AppColors.neutral400)
                     }
                 }
+                .padding(.horizontal, 25)
 
                 Text("Your progress and shared data will be lost. This action can't be undone.")
-                    .appText(AppFont.captionM)
+                    .font(AppFont.body1.font)
+                    .lineSpacing(2)
                     .foregroundColor(AppColors.neutral400)
                     .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 25)
 
                 Button(action: onQuit) {
                     Text("Quit Challenge")
-                        .appText(AppFont.labelL)
-                        .foregroundColor(.white)
+                        .appText(AppFont.buttonL)
+                        .foregroundColor(AppColors.neutral1000)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
                         .background(Color(red: 1.0, green: 0.45, blue: 0.5))
                         .cornerRadius(12)
                 }
+                .padding(.horizontal, 16)
             }
-            .padding(24)
+            .padding(.vertical, 24)
             .background(AppColors.neutral900)
             .cornerRadius(20)
+            .overlay(
+                RoundedRectangle(cornerRadius: 20)
+                    .stroke(
+                        LinearGradient(
+                            colors: [
+                                Color("Neutral-400").opacity(0.7),
+                                Color("Neutral-600").opacity(0.7)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
+            )
             .padding(.horizontal, 40)
+        }
+        .navBarHidden(true)
+    }
+}
+
+// MARK: - Challenge Actions Dropdown Menu
+
+struct ChallengeActionsMenu: View {
+    let onCreate: () -> Void
+    let onEdit: () -> Void
+    let onInvited: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            row(icon: "plus", title: "Create Challenge", action: onCreate)
+            divider
+            row(icon: "pencil", title: "Edit Challenge", action: onEdit)
+            divider
+            row(icon: "envelope", title: "Invited Challenge", action: onInvited)
+        }
+        .frame(width: 226)
+        .background(AppColors.neutral900)
+        .cornerRadius(16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            Color("Neutral-400").opacity(0.7),
+                            Color("Neutral-600").opacity(0.7)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+        )
+        .shadow(color: Color.black.opacity(0.3), radius: 10, x: 0, y: 5)
+    }
+
+    private var divider: some View {
+        Rectangle()
+            .fill(AppColors.neutral800)
+            .frame(height: 0.5)
+            .padding(.horizontal, 16)
+    }
+
+    private func row(icon: String, title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 14) {
+                Image(systemName: icon)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(AppColors.textWhite)
+                    .frame(width: 20, alignment: .center)
+                Text(title)
+                    .appText(AppFont.labelL)
+                    .foregroundColor(AppColors.textWhite)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 16)
+            .frame(height: 50)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Edit Challenge List Screen
+
+struct EditChallengeListView: View {
+    @EnvironmentObject var viewModel: ChallengeViewModel
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        ZStack {
+            AppColors.neutral1000.ignoresSafeArea()
+
+            VStack(spacing: 24) {
+                ChallengeListHeader(title: "Edit Challenge") { dismiss() }
+
+                if viewModel.challenges.isEmpty {
+                    Spacer()
+                    Text("No challenges yet")
+                        .appText(AppFont.captionM)
+                        .foregroundColor(AppColors.neutral400)
+                    Spacer()
+                } else {
+                    ScrollView {
+                        VStack(spacing: 16) {
+                            ForEach(viewModel.challenges) { challenge in
+                                ChallengeCard(challenge: challenge)
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        viewModel.selectedChallengeId = challenge.id
+                                        viewModel.showEditChallenge = true
+                                    }
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 100)
+                    }
+                    .refreshable {
+                        await MainActor.run { viewModel.refreshChallenges() }
+                    }
+                }
+            }
+        }
+        .navigationBarHidden(true)
+        .onAppear { viewModel.refreshChallenges() }
+    }
+}
+
+// MARK: - Invited Challenge List Screen
+
+struct InvitedChallengeListView: View {
+    @EnvironmentObject var viewModel: ChallengeViewModel
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        ZStack {
+            AppColors.neutral1000.ignoresSafeArea()
+
+            VStack(spacing: 24) {
+                ChallengeListHeader(title: "Invited Challenge") { dismiss() }
+
+                if viewModel.pendingInvites.isEmpty {
+                    Spacer()
+                    Text("No pending invitations")
+                        .appText(AppFont.captionM)
+                        .foregroundColor(AppColors.neutral400)
+                    Spacer()
+                } else {
+                    ScrollView {
+                        VStack(spacing: 16) {
+                            ForEach(viewModel.pendingInvites) { invite in
+                                InvitedChallengeCard(invite: invite)
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        viewModel.pendingInviteForOverlay = invite
+                                        withAnimation(.easeInOut(duration: 0.2)) {
+                                            viewModel.showPendingInviteOverlay = true
+                                        }
+                                    }
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 100)
+                    }
+                    .refreshable {
+                        await MainActor.run { viewModel.refreshChallenges() }
+                    }
+                }
+            }
+        }
+        .navigationBarHidden(true)
+        .onAppear {
+            if viewModel.selectedCategory != "Invited" {
+                viewModel.selectCategory("Invited")
+            } else {
+                viewModel.refreshChallenges()
+            }
         }
     }
 }
+
+// MARK: - Shared header for the list screens
+
+private struct ChallengeListHeader: View {
+    let title: String
+    let onBack: () -> Void
+
+    var body: some View {
+        ZStack {
+            Text(title)
+                .appText(AppFont.title2)
+                .foregroundColor(AppColors.textWhite)
+
+            HStack {
+                Button(action: onBack) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.white.opacity(0.08))
+                            .frame(width: 40, height: 40)
+                            .overlay(
+                                Circle().stroke(Color.white.opacity(0.10), lineWidth: 1)
+                            )
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(AppColors.textWhite)
+                    }
+                }
+                .buttonStyle(.plain)
+                Spacer()
+            }
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 16)
+    }
+}
+

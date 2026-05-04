@@ -69,6 +69,7 @@ class AuthViewModel: ObservableObject {
         await checkSession()
         if isAuthenticated {
             await loadProfile()
+            PushNotificationService.shared.requestPermissionAndRegister()
         }
         isAppReady = true
     }
@@ -308,6 +309,7 @@ class AuthViewModel: ObservableObject {
 
             await loadProfile()
             isAuthenticated = true
+            PushNotificationService.shared.requestPermissionAndRegister()
         } catch {
             isAuthenticated = false
             errorMessage = "Invalid email or password"
@@ -341,6 +343,7 @@ class AuthViewModel: ObservableObject {
     func logout() async {
         guard let client = self.client else { return }
         do {
+            await PushNotificationService.shared.removeDeviceToken()
             try await client.auth.signOut()
             isAuthenticated = false
             profile = nil

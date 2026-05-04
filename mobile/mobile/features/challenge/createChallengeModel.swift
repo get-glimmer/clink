@@ -26,27 +26,30 @@ enum ShakerType: String, CaseIterable, Codable {
 }
 
 enum ProofType: String, CaseIterable, Codable {
-    case photo     = "photo_upload"
-    case checklist = "checklist"
+    case photoRequired = "photo_upload_required"
+    case photoOptional = "photo_upload_optional"
+    case checklist     = "checklist"
+
+    var isPhoto: Bool { self == .photoRequired || self == .photoOptional }
 
     var displayName: String {
         switch self {
-        case .photo:     return "Photo Upload"
-        case .checklist: return "Checklist"
+        case .photoRequired, .photoOptional: return "Photo Upload"
+        case .checklist:                     return "Checklist"
         }
     }
 
     var iconName: String {
         switch self {
-        case .photo:     return "photo"
-        case .checklist: return "checkboxEmpty"
+        case .photoRequired, .photoOptional: return "photo"
+        case .checklist:                     return "checkboxEmpty"
         }
     }
 
     var usesSystemIcon: Bool {
         switch self {
-        case .photo:     return true
-        case .checklist: return false
+        case .photoRequired, .photoOptional: return true
+        case .checklist:                     return false
         }
     }
 }
@@ -65,6 +68,11 @@ enum RepeatType: String, CaseIterable, Codable {
     }
 }
 
+enum EmojiRule: String, CaseIterable, Codable {
+    case selectedOnly = "selected_only"
+    case anyEmoji     = "any_emoji"
+}
+
 // MARK: - DB payload types
 
 struct ChallengeInsert: Encodable {
@@ -78,6 +86,8 @@ struct ChallengeInsert: Encodable {
     let repeat_type: String
     let weekly_days: [Int]?
     let monthly_days: [Int]?
+    let emoji_rule: String
+    let preset_emojis: [String]?
 }
 
 struct ChallengeResponse: Decodable {
@@ -94,4 +104,12 @@ struct ChallengeMemberInsert: Encodable {
     let challenge_id: UUID
     let user_id: UUID
     let role: String
+}
+
+// Payload for inserting a pending invite into challenge_invites.
+struct ChallengeInviteInsert: Encodable {
+    let challenge_id: UUID
+    let inviter_user_id: UUID
+    let invitee_user_id: UUID
+    let message: String?
 }

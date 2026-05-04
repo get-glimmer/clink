@@ -16,6 +16,8 @@ struct ChallengeData: Codable, Identifiable {
     let monthly_days: [Int]?
     let created_at: String?
     let updated_at: String?
+    let emoji_rule: String?
+    let preset_emojis: [String]?
 
     /// Human-readable frequency string for the UI
     var frequencyText: String {
@@ -142,4 +144,39 @@ struct MemberInfo {
     let avatarUrl: String?
     let emoji: String?
     let role: String
+}
+
+// MARK: - Pending Invite DB model
+
+struct InviteData: Decodable {
+    let id: UUID
+    let challenge_id: UUID
+    let inviter_user_id: UUID
+    let message: String?
+    let status: String
+}
+
+// MARK: - UI-Ready model for a pending invitation
+
+struct InvitedChallengeItem: Identifiable {
+    let id: UUID            // invite id
+    let challengeId: UUID
+    let title: String
+    let description: String?
+    let startDate: Date?
+    let endDate: Date?
+    let frequency: String
+    let emojiRule: EmojiRule
+    let presetEmojis: [String]
+    let memberCount: Int
+    let inviterName: String?
+    let message: String?
+
+    var dateRangeText: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "M/d"
+        let start = startDate.map { formatter.string(from: $0) } ?? "?"
+        let end = endDate.map { formatter.string(from: $0) } ?? "?"
+        return "\(start) - \(end)"
+    }
 }

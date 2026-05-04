@@ -3,6 +3,9 @@ import Supabase
 
 class ChallengeViewModel: ObservableObject {
     @Published var challenges: [ChallengeItem] = []
+    @Published var pendingInvites: [InvitedChallengeItem] = []
+    @Published var pendingInviteForOverlay: InvitedChallengeItem? = nil
+    @Published var showPendingInviteOverlay: Bool = false
     @Published var selectedCategory: String = "Challenges"
     @Published var isDropdownPresented: Bool = false
     @Published var isLoading: Bool = false
@@ -16,7 +19,15 @@ class ChallengeViewModel: ObservableObject {
     @Published var challengeToQuit: ChallengeItem? = nil
     @Published var showQuitConfirmation: Bool = false
 
-    let categories = ["Challenges", "My Challenges", "Completed"]
+    // DEV ONLY: edit challenge state
+    @Published var showEditChallenge: Bool = false
+    @Published var selectedChallengeId: UUID? = nil
+
+    // Used to determine ownership for edit access.
+    private(set) var currentUserId: UUID? = nil
+    private var didDismissPendingInviteOverlay = false
+
+    let categories = ["Challenges", "My Challenges", "Completed", "Invited"]
     private let challengeService = ChallengeService()
 
     init() {
@@ -74,6 +85,11 @@ class ChallengeViewModel: ObservableObject {
         showQuitConfirmation = false
     }
 
+    func dismissPendingInviteOverlay() {
+        showPendingInviteOverlay = false
+        didDismissPendingInviteOverlay = true
+    }
+
     // MARK: - Private
 
     private func loadChallenges(refresh: Bool) {
@@ -87,19 +103,38 @@ class ChallengeViewModel: ObservableObject {
                 // Make sure the service has the current user
                 await challengeService.initializeService()
 
-                let fetched: [ChallengeItem]
-                switch self.selectedCategory {
-                case "My Challenges":
-                    fetched = try await challengeService.fetchMyChallenges()
-                case "Completed":
-                    fetched = try await challengeService.fetchCompletedChallenges()
-                default:
-                    fetched = try await challengeService.fetchChallenges()
+                if self.currentUserId == nil,
+                   let session = try? await SupabaseClientManager.shared.client?.auth.session {
+                    await MainActor.run { self.currentUserId = session.user.id }
                 }
 
-                await MainActor.run {
-                    self.challenges = fetched
-                    self.isLoading = false
+                async let pendingInvitesTask: [InvitedChallengeItem] = {
+                    (try? await challengeService.fetchPendingInvites()) ?? []
+                }()
+
+                if self.selectedCategory == "Invited" {
+                    let invites = await pendingInvitesTask
+                    await MainActor.run {
+                        self.updatePendingInvites(invites)
+                        self.isLoading = false
+                    }
+                } else {
+                    let fetched: [ChallengeItem]
+                    switch self.selectedCategory {
+                    case "My Challenges":
+                        fetched = try await challengeService.fetchMyChallenges()
+                    case "Completed":
+                        fetched = try await challengeService.fetchCompletedChallenges()
+                    default:
+                        fetched = try await challengeService.fetchChallenges()
+                    }
+
+                    let invites = await pendingInvitesTask
+                    await MainActor.run {
+                        self.challenges = fetched
+                        self.updatePendingInvites(invites)
+                        self.isLoading = false
+                    }
                 }
             } catch {
                 await MainActor.run {
@@ -107,6 +142,22 @@ class ChallengeViewModel: ObservableObject {
                     self.isLoading = false
                 }
             }
+        }
+    }
+
+    private func updatePendingInvites(_ invites: [InvitedChallengeItem]) {
+        pendingInvites = invites
+
+        guard let first = invites.first else {
+            pendingInviteForOverlay = nil
+            showPendingInviteOverlay = false
+            didDismissPendingInviteOverlay = false
+            return
+        }
+
+        pendingInviteForOverlay = first
+        if !didDismissPendingInviteOverlay {
+            showPendingInviteOverlay = true
         }
     }
 

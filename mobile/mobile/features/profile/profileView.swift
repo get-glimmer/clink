@@ -101,7 +101,7 @@ struct ProfileView: View {
                     }
                     
                     VStack() {
-                        Text(viewModel.profile?.name ?? "")
+                        Text(viewModel.profile?.username ?? "")
                             .padding(.top, 12)
                             .appFont(AppFont.title2)
                             .bold()

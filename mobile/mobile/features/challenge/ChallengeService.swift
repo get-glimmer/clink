@@ -27,7 +27,7 @@ class ChallengeService: ObservableObject {
         }
     }
 
-    // MARK: - Fetch All Challenges (current user is a member)
+    // MARK: - Fetch All Challenges (owned only)
 
     func fetchChallenges() async throws -> [ChallengeItem] {
         guard let supabase = supabase,
@@ -36,7 +36,7 @@ class ChallengeService: ObservableObject {
                           userInfo: [NSLocalizedDescriptionKey: "Service not properly initialized"])
         }
 
-        // 1. Get challenge IDs where the current user is an active member
+        // Challenges tab should include all active participations (owner + member).
         let allMemberships: [ChallengeMemberData] = try await supabase
             .from("challenge_members")
             .select("*")
@@ -44,13 +44,14 @@ class ChallengeService: ObservableObject {
             .execute()
             .value
 
-        // Filter to active members (left_at is nil)
-        let memberships = allMemberships.filter { $0.left_at == nil }
-        let challengeIds = memberships.map { $0.challenge_id.uuidString }
-
+        let activeIds = Set(
+            allMemberships
+                .filter { $0.left_at == nil }
+                .map(\.challenge_id.uuidString)
+        )
+        let challengeIds = Array(activeIds)
         guard !challengeIds.isEmpty else { return [] }
 
-        // 2. Fetch the challenge rows
         let challenges: [ChallengeData] = try await supabase
             .from("challenges")
             .select("*")
@@ -59,13 +60,13 @@ class ChallengeService: ObservableObject {
             .execute()
             .value
 
-        // 3. Assemble ChallengeItems
         var items: [ChallengeItem] = []
         for challenge in challenges {
             let item = try await assembleItem(challenge: challenge, supabase: supabase)
             items.append(item)
         }
 
+        print("[Challenges] fetchChallenges: \(items.count) challenge(s) for userId: \(currentUserId)")
         return items
     }
 
@@ -134,6 +135,80 @@ class ChallengeService: ObservableObject {
         return items
     }
 
+    // MARK: - Fetch Pending Invites (challenges this user was invited to but hasn't accepted)
+
+    func fetchPendingInvites() async throws -> [InvitedChallengeItem] {
+        guard let supabase = supabase,
+              let currentUserId = currentUserId else {
+            throw NSError(domain: "ChallengeService", code: 1,
+                          userInfo: [NSLocalizedDescriptionKey: "Service not properly initialized"])
+        }
+
+        let invites: [InviteData] = try await supabase
+            .from("challenge_invites")
+            .select("id, challenge_id, inviter_user_id, message, status")
+            .eq("invitee_user_id", value: currentUserId)
+            .eq("status", value: "pending")
+            .execute()
+            .value
+
+        guard !invites.isEmpty else { return [] }
+
+        let challengeIds = invites.map { $0.challenge_id.uuidString }
+        let challenges: [ChallengeData] = try await supabase
+            .from("challenges")
+            .select("*")
+            .in("id", value: challengeIds)
+            .execute()
+            .value
+
+        let inviterIds = invites.map { $0.inviter_user_id.uuidString }
+        let inviterProfiles: [ProfileData] = try await supabase
+            .from("profiles")
+            .select("id, name, avatar_url")
+            .in("id", value: inviterIds)
+            .execute()
+            .value
+        let profilesMap = Dictionary(uniqueKeysWithValues: inviterProfiles.map { ($0.id.uuidString, $0) })
+
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+
+        var items: [InvitedChallengeItem] = []
+        for invite in invites {
+            guard let challenge = challenges.first(where: { $0.id == invite.challenge_id }) else { continue }
+
+            let allMembers: [ChallengeMemberData] = try await supabase
+                .from("challenge_members")
+                .select("*")
+                .eq("challenge_id", value: challenge.id.uuidString)
+                .execute()
+                .value
+            let activeMemberCount = allMembers.filter { $0.left_at == nil }.count
+
+            let emojiRule = EmojiRule(rawValue: challenge.emoji_rule ?? "selected_only") ?? .selectedOnly
+            let inviterName = profilesMap[invite.inviter_user_id.uuidString]?.name
+
+            items.append(InvitedChallengeItem(
+                id: invite.id,
+                challengeId: challenge.id,
+                title: challenge.title,
+                description: challenge.description,
+                startDate: challenge.start_date.flatMap { dateFormatter.date(from: $0) },
+                endDate: challenge.end_date.flatMap { dateFormatter.date(from: $0) },
+                frequency: challenge.frequencyText,
+                emojiRule: emojiRule,
+                presetEmojis: challenge.preset_emojis ?? [],
+                memberCount: activeMemberCount,
+                inviterName: inviterName,
+                message: invite.message
+            ))
+        }
+
+        print("[Challenges] fetchPendingInvites: \(items.count) pending invite(s)")
+        return items
+    }
+
     // MARK: - Quit Challenge (set left_at on the current user's membership)
 
     func quitChallenge(_ challengeId: UUID) async throws {
@@ -154,6 +229,11 @@ class ChallengeService: ObservableObject {
     }
 
     // MARK: - Private Helpers
+
+    private struct ChallengeShakerColorRow: Decodable {
+        let lid_color_start: String?
+        let lid_color_end: String?
+    }
 
     private func assembleItem(challenge: ChallengeData, supabase: SupabaseClient) async throws -> ChallengeItem {
         // Members (no join — FK goes through auth.users, not profiles)
@@ -209,34 +289,49 @@ class ChallengeService: ObservableObject {
             .execute()
             .value
 
-        // Challenge Shaker (for current user, today)
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
         let todayStr = dateFormatter.string(from: Date())
 
-        var shakerRow: ChallengeShakerData? = nil
-        if let currentUserId = currentUserId {
-            do {
-                let shakerRows: [ChallengeShakerData] = try await supabase
-                    .from("challenge_shaker")
-                    .select("*")
-                    .eq("challenge_id", value: challenge.id.uuidString)
-                    .eq("date", value: todayStr)
-                    .limit(1)
-                    .execute()
-                    .value
-                shakerRow = shakerRows.first
-                print("[ChallengeShaker] challenge=\(challenge.id), user=\(currentUserId), date=\(todayStr), rows=\(shakerRows.count), isCompleted=\(shakerRow?.iscompleted ?? false), emojis=\(shakerRow?.user_emojis ?? []), lidStart=\(shakerRow?.lid_color_start ?? "nil"), lidEnd=\(shakerRow?.lid_color_end ?? "nil")")
-            } catch {
-                print("[ChallengeShaker] fetch FAILED for challenge=\(challenge.id): \(error)")
-            }
-        } else {
-            print("[ChallengeShaker] skipped — currentUserId is nil")
-        }
-
         // Parse dates
         let startDate = challenge.start_date.flatMap { dateFormatter.date(from: $0) }
         let endDate = challenge.end_date.flatMap { dateFormatter.date(from: $0) }
+
+        // Jar emoji list — cumulative across [start, min(end, today)],
+        // mirroring ChallengeDetailViewModel.buildCumulativeJarItems.
+        // challenge_shaker is never written by the app, so we no longer
+        // read from it for jar/lid state.
+        let cumulativeEmojis = cumulativeJarEmojis(
+            challenge: challenge,
+            activeMembers: activeMembers,
+            completions: completions
+        )
+
+        // Lid sealed state — true when every active member has completed
+        // every task today.
+        let requiredToday = activeMembers.count * tasks.count
+        let completedToday = completions.filter { ($0.is_completed ?? false) && $0.date == todayStr }.count
+        let isSealedToday = requiredToday > 0 && completedToday >= requiredToday
+
+        var lidStart: String?
+        var lidEnd: String?
+        do {
+            let lidRows: [ChallengeShakerColorRow] = try await supabase
+                .from("challenge_shaker")
+                .select("lid_color_start, lid_color_end")
+                .eq("challenge_id", value: challenge.id.uuidString)
+                .eq("date", value: todayStr)
+                .limit(1)
+                .execute()
+                .value
+            lidStart = lidRows.first?.lid_color_start
+            lidEnd = lidRows.first?.lid_color_end
+        } catch {
+            lidStart = nil
+            lidEnd = nil
+        }
+
+        print("[ChallengeJar] challenge=\(challenge.id) title=\(challenge.title) cumulativeJarEmojis=\(cumulativeEmojis) sealedToday=\(isSealedToday) (\(completedToday)/\(requiredToday)) lidStart=\(lidStart ?? "nil") lidEnd=\(lidEnd ?? "nil")")
 
         return ChallengeItem(
             id: challenge.id,
@@ -251,10 +346,55 @@ class ChallengeService: ObservableObject {
             members: members,
             taskCount: tasks.count,
             completedTaskCount: completions.count,
-            shakerIsCompleted: shakerRow?.iscompleted ?? false,
-            shakerUserEmojis: shakerRow?.user_emojis ?? [],
-            shakerLidColorStart: shakerRow?.lid_color_start,
-            shakerLidColorEnd: shakerRow?.lid_color_end
+            shakerIsCompleted: isSealedToday,
+            shakerUserEmojis: cumulativeEmojis,
+            shakerLidColorStart: lidStart,
+            shakerLidColorEnd: lidEnd
         )
+    }
+
+    private func cumulativeJarEmojis(
+        challenge: ChallengeData,
+        activeMembers: [ChallengeMemberData],
+        completions: [ChallengeTaskCompletionData]
+    ) -> [String] {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let startDate = dateFromPostgreSQL(challenge.start_date).map { calendar.startOfDay(for: $0) }
+        let endDate = dateFromPostgreSQL(challenge.end_date).map { calendar.startOfDay(for: $0) }
+        // Cumulative range = [start, min(end, today)], matching
+        // ChallengeDetailViewModel.buildCumulativeJarItems.
+        let effectiveEnd = min(endDate ?? today, today)
+
+        let activeUserIds = Set(activeMembers.map(\.user_id))
+        let emojiByUser: [UUID: String] = Dictionary(
+            uniqueKeysWithValues: activeMembers.map { member in
+                let emoji = (member.member_emoji?.isEmpty == false) ? (member.member_emoji ?? "🙂") : "🙂"
+                return (member.user_id, emoji)
+            }
+        )
+
+        var completionCountByUser: [UUID: Int] = [:]
+        for row in completions {
+            guard row.is_completed == true,
+                  let userId = row.user_id,
+                  activeUserIds.contains(userId),
+                  let dateString = row.date,
+                  let completionDate = dateFromPostgreSQL(dateString).map({ calendar.startOfDay(for: $0) })
+            else { continue }
+
+            if let startDate, completionDate < startDate { continue }
+            if completionDate > effectiveEnd { continue }
+            completionCountByUser[userId, default: 0] += 1
+        }
+
+        var result: [String] = []
+        for member in activeMembers.sorted(by: { $0.user_id.uuidString < $1.user_id.uuidString }) {
+            let count = completionCountByUser[member.user_id] ?? 0
+            guard count > 0 else { continue }
+            let emoji = emojiByUser[member.user_id] ?? "🙂"
+            result.append(contentsOf: Array(repeating: emoji, count: count))
+        }
+        return result
     }
 }
