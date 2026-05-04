@@ -933,6 +933,7 @@ struct ChallengeShareCardView: View {
                 .frame(height: 22)
                 .foregroundColor(AppColors.textWhite)
                 .padding(.top, 18)
+                .padding(.bottom, 15)
 
             ChallengeResultStaticJarView(
                 jarItems: jarItems,
