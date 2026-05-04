@@ -111,30 +111,32 @@ struct InviteFriendsView: View {
                 .padding(.bottom, 16)
 
                 // Search bar
-                HStack(spacing: 10) {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundColor(Color("Neutral-500"))
+                HStack(spacing: 8) {
+                    HStack(spacing: 10) {
+                        Image("inviteSearch")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 24, height: 24)
 
-                    TextField("Search", text: $viewModel.searchText)
-                        .appFont(AppFont.body1)
-                        .foregroundColor(.white)
-
-                    if !viewModel.searchText.isEmpty {
-                        Button {
-                            viewModel.searchText = ""
-                        } label: {
-                            Image(systemName: "xmark")
-                                .foregroundColor(Color("Neutral-500"))
-                                .padding(6)
-                                .background(Color("Neutral-700"))
-                                .clipShape(Circle())
-                        }
+                        TextField("Search", text: $viewModel.searchText)
+                            .appFont(AppFont.body1)
+                            .foregroundColor(.white)
                     }
+                    .padding(.horizontal, 14)
+                    .frame(height: 48)
+                    .background(Color("Neutral-900"))
+                    .clipShape(RoundedRectangle(cornerRadius: 24))
+
+                    Button {
+                        viewModel.searchText = ""
+                    } label: {
+                        Image("inviteSearchCancel")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 44, height: 44)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .padding(.horizontal, 14)
-                .frame(height: 48)
-                .background(Color("Neutral-900"))
-                .clipShape(RoundedRectangle(cornerRadius: 24))
                 .padding(.horizontal, 16)
                 .padding(.bottom, 8)
 
@@ -198,13 +200,14 @@ struct InviteFriendsView: View {
             }
         }
         .navBarHidden(true)
+        .dismissKeyboardOnTap()
         .onAppear { viewModel.load(challengeId: challengeId) }
         .sheet(item: $pendingFriend) { friend in
             InviteMessageSheet(friend: friend) { message in
                 invitedFriends[friend.id] = message
                 pendingFriend = nil
             }
-            .presentationDetents([.height(300)])
+            .presentationDetents([.height(338)])
             .presentationDragIndicator(.visible)
             .presentationBackground(Color("Neutral-900"))
         }
@@ -221,17 +224,25 @@ private struct InviteMessageSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 0) {
             Text("Invite \(friend.username)")
                 .appFont(AppFont.title2)
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
-                .padding(.top, 8)
+                .padding(.top, 29)
+                .padding(.bottom, 18)
 
-            VStack(alignment: .leading, spacing: 8) {
+            Rectangle()
+                .fill(Color("Neutral-800"))
+                .frame(height: 1)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 18)
+
+            VStack(alignment: .leading, spacing: 0) {
                 Text("Add a Message")
-                    .appFont(AppFont.captionM)
-                    .foregroundColor(Color("Neutral-400"))
+                    .appFont(AppFont.labelM)
+                    .foregroundColor(Color("Neutral-300"))
+                    .padding(.bottom, 8)
 
                 // Use .font() directly — appFont applies .fixedSize(vertical:true)
                 // which collapses the TextEditor's interactive area.
@@ -241,9 +252,11 @@ private struct InviteMessageSheet: View {
                     .scrollContentBackground(.hidden)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .frame(height: 88)
-                    .background(Color("Neutral-800"))
-                    .cornerRadius(12)
+                    .frame(minHeight: 90, maxHeight: .infinity, alignment: .top)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .strokeBorder(Color("Neutral-600"), lineWidth: 0.7)
+                    )
                     .onChange(of: message) { newValue in
                         // Limit to 3 lines via newline count
                         let lines = newValue.components(separatedBy: "\n")
@@ -252,22 +265,28 @@ private struct InviteMessageSheet: View {
                         }
                     }
             }
+            .padding(.horizontal, 24)
+            .frame(maxHeight: .infinity, alignment: .top)
+
+            Spacer(minLength: 30)
 
             Button {
                 onSend(message)
                 dismiss()
             } label: {
                 Text("Send Invite")
-                    .appFont(AppFont.labelL)
+                    .appFont(AppFont.buttonL)
                     .foregroundColor(Color("Neutral-1000"))
                     .frame(maxWidth: .infinity)
                     .frame(height: 56)
                     .background(Color("Green-300"))
-                    .cornerRadius(16)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
             }
             .buttonStyle(.plain)
+            .padding(.horizontal, 16)
+            .padding(.bottom, 16)
         }
-        .padding(.horizontal, 20)
-        .padding(.bottom, 16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(Color("Neutral-900").ignoresSafeArea())
     }
 }

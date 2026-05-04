@@ -51,7 +51,6 @@ struct EmojiSetupView: View {
     @State private var pickerEmoji: String = ""
     @State private var isEmojiKeyboardFocused: Bool = false
     @State private var showOwnerEmojiSetup = false
-    @State private var emojiGridCellSize: CGFloat = 70
 
     @State private var randomEmoji: String = "🎉"
     private let randomEmojiPool: [String] = [
@@ -66,7 +65,6 @@ struct EmojiSetupView: View {
         GeometryReader { screen in
             ZStack {
                 AppColors.neutral1000.ignoresSafeArea()
-                    .onAppear { emojiGridCellSize = (screen.size.width - 96) / 4 }
 
                 // Background tap layer — dismisses keyboard when tapping empty space
                 Color.clear
@@ -91,6 +89,7 @@ struct EmojiSetupView: View {
 
                     emojiArea
                         .padding(.horizontal, 24)
+                        .animation(.none, value: viewModel.selectedEmojis)
                         .transaction { $0.animation = nil }
 
                     Spacer()
@@ -105,16 +104,16 @@ struct EmojiSetupView: View {
                             if viewModel.emojiRule == .selectedOnly {
                                 Text("Select at least \(viewModel.minEmojiCount) emoji\(viewModel.minEmojiCount == 1 ? "" : "s") for this challenge")
                                     .appFont(AppFont.captionM)
-                                    .foregroundColor(Color("Neutral-400"))
+                                    .foregroundColor(Color("Neutral-100"))
                                     .multilineTextAlignment(.center)
                                     .padding(.horizontal, 16)
+                                    .padding(.bottom, 14)
                             }
                         }
-                        .frame(height: 103)
+                        .frame(height: 89)
 
                         createButton
                             .padding(.horizontal, 16)
-                            .padding(.top, 14)
                             .padding(.bottom, 16)
                     }
                 }
@@ -185,7 +184,7 @@ struct EmojiSetupView: View {
         }
     }
 
-    // Rule 1: grid of selected emojis + inline add button
+    // Rule 1: count-based emoji layout + inline add button
     @ViewBuilder
     private var selectedEmojisArea: some View {
         if viewModel.selectedEmojis.isEmpty {
@@ -200,65 +199,63 @@ struct EmojiSetupView: View {
             }
             .buttonStyle(.plain)
         } else {
-            let count = viewModel.selectedEmojis.count
-            let cell = min(emojiGridCellSize, 88)
-            let numRows: Int = {
-                if count >= 9 { return 3 }
-                return Int(ceil(Double(count + 1) / 4.0))
-            }()
-            let gridHeight = CGFloat(numRows) * cell + CGFloat(numRows - 1) * 16
+            let layout = selectedEmojiLayout
 
-            LazyVGrid(
-                columns: Array(repeating: GridItem(.fixed(cell), spacing: 16), count: 4),
-                spacing: 16
-            ) {
-                ForEach(0..<min(count, 8), id: \.self) { i in
-                    emojiCell(at: i, size: cell)
-                }
-                // 9th/10th go on a centered row using blank bookends
-                if count >= 9 {
-                    Color.clear.frame(width: cell, height: cell)
-                    emojiCell(at: 8, size: cell)
-                }
-                if count == 10 {
-                    emojiCell(at: 9, size: cell)
-                    Color.clear.frame(width: cell, height: cell)
-                } else if count < 10 {
-                    Button {
-                        isEmojiKeyboardFocused = true
-                    } label: {
-                        Image(systemName: "plus")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.white)
-                            .frame(width: cell, height: cell)
-                            .background(Circle().fill(Color("Neutral-800")))
+            VStack(spacing: layout.rowSpacing) {
+                ForEach(Array(layout.rows.enumerated()), id: \.offset) { _, row in
+                    HStack(spacing: layout.itemSpacing) {
+                        ForEach(row, id: \.self) { item in
+                            switch item {
+                            case .emoji(let index):
+                                emojiCell(at: index, size: layout.itemSize)
+                            case .add:
+                                addEmojiCell(size: layout.itemSize)
+                            }
+                        }
                     }
-                    .buttonStyle(.plain)
-                    if count >= 9 {
-                        Color.clear.frame(width: cell, height: cell)
-                    }
+                    .frame(maxWidth: .infinity)
                 }
             }
-            .frame(height: gridHeight)
+            .frame(maxWidth: .infinity)
         }
     }
 
-    private func emojiCell(at i: Int, size: CGFloat) -> some View {
-        ZStack(alignment: .bottomTrailing) {
+    private func emojiCell(at i: Int, size: CGSize) -> some View {
+        ZStack(alignment: .bottomLeading) {
             Text(viewModel.selectedEmojis[i])
-                .font(.system(size: size * 0.75))
-                .frame(width: size, height: size)
+                .font(.system(size: size.width * 0.78))
+                .frame(width: size.width, height: size.height)
 
             Button {
-                viewModel.selectedEmojis.remove(at: i)
+                var transaction = Transaction()
+                transaction.animation = nil
+                withTransaction(transaction) {
+                    viewModel.selectedEmojis.remove(at: i)
+                }
             } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: size * 0.32))
-                    .foregroundColor(Color("Red-500"))
-                    .background(Circle().fill(Color("Neutral-1000")).padding(2))
+                Image("deleteIcon")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 24, height: 24)
             }
             .buttonStyle(.plain)
+            .padding(.leading, size.width * (64.0 / 96.0))
+            .padding(.bottom, size.height * (19.0 / 144.0))
         }
+    }
+
+    private func addEmojiCell(size: CGSize) -> some View {
+        Button {
+            isEmojiKeyboardFocused = true
+        } label: {
+            Image(systemName: "plus")
+                .font(.system(size: size.width * 0.22, weight: .medium))
+                .foregroundColor(.white)
+                .frame(width: 42, height: 42)
+                .background(Circle().fill(Color("Neutral-800")))
+                .frame(width: size.width, height: size.height)
+        }
+        .buttonStyle(.plain)
     }
 
     // Rule 2: random cycling emoji with radial glow — creator picks emoji later in MemberEmojiSetupView
@@ -290,9 +287,9 @@ struct EmojiSetupView: View {
                 .foregroundColor(.white)
                 .padding(.leading, 4)
 
-            HStack(spacing: 12) {
+            HStack(spacing: 6) {
                 ruleCard(
-                    icon: "😊",
+                    imageName: viewModel.emojiRule == .selectedOnly ? "selectedEmojiSelected" : "selectedEmojiNotSelected",
                     title: "Selected\nemojis only",
                     isSelected: viewModel.emojiRule == .selectedOnly
                 ) {
@@ -300,7 +297,7 @@ struct EmojiSetupView: View {
                 }
 
                 ruleCard(
-                    icon: "🤙",
+                    imageName: viewModel.emojiRule == .anyEmoji ? "anyEmojiSelected" : "anyEmojiNotSelected",
                     title: "Anyone can\nchoose any emoji",
                     isSelected: viewModel.emojiRule == .anyEmoji
                 ) {
@@ -310,20 +307,27 @@ struct EmojiSetupView: View {
         }
     }
 
-    private func ruleCard(icon: String, title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+    private func ruleCard(imageName: String, title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            VStack(alignment: .leading, spacing: 10) {
-                Text(icon)
-                    .font(.system(size: 22))
+            ZStack(alignment: .topLeading) {
+                Image(imageName)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 28, height: 28)
+                    .padding(.top, 13)
+                    .padding(.leading, 13)
 
                 Text(title)
                     .appFont(AppFont.labelM)
                     .foregroundColor(isSelected ? .white : Color("Neutral-500"))
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                    .padding(.leading, 15)
+                    .padding(.bottom, 17)
             }
-            .frame(maxWidth: .infinity, minHeight: 115, alignment: .leading)
-            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(height: 115, alignment: .leading)
             .background(Color("Neutral-900"))
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
@@ -348,7 +352,7 @@ struct EmojiSetupView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12))
             } else {
                 Text("Choose Emoji")
-                    .appFont(AppFont.title3)
+                    .appFont(AppFont.buttonL)
                     .foregroundColor(viewModel.isEmojiSetupValid ? Color("Neutral-1000") : Color("Neutral-500"))
                     .frame(maxWidth: .infinity, minHeight: 56)
                     .background(viewModel.isEmojiSetupValid ? Color("Green-300") : Color("Neutral-800"))
@@ -357,4 +361,78 @@ struct EmojiSetupView: View {
         }
         .disabled(!viewModel.isEmojiSetupValid || viewModel.isLoading)
     }
+}
+
+private extension EmojiSetupView {
+    enum EmojiLayoutItem: Hashable {
+        case emoji(Int)
+        case add
+    }
+
+    struct SelectedEmojiLayout {
+        let itemSize: CGSize
+        let itemSpacing: CGFloat
+        let rowSpacing: CGFloat
+        let rows: [[EmojiLayoutItem]]
+    }
+
+    var selectedEmojiLayout: SelectedEmojiLayout {
+        let count = viewModel.selectedEmojis.count
+        let usesLargeCells = count <= 5
+        let itemSize = usesLargeCells ? CGSize(width: 96, height: 144) : CGSize(width: 75, height: 113)
+        let itemSpacing: CGFloat = usesLargeCells ? 8 : 10
+        let rowSpacing: CGFloat = 0
+
+        var items = viewModel.selectedEmojis.indices.map(EmojiLayoutItem.emoji)
+        if count < 10 {
+            items.append(.add)
+        }
+
+        return SelectedEmojiLayout(
+            itemSize: itemSize,
+            itemSpacing: itemSpacing,
+            rowSpacing: rowSpacing,
+            rows: emojiRows(for: items, emojiCount: count)
+        )
+    }
+
+    func emojiRows(for items: [EmojiLayoutItem], emojiCount: Int) -> [[EmojiLayoutItem]] {
+        switch emojiCount {
+        case 1, 2:
+            return [items]
+        case 3:
+            return [Array(items.prefix(3)), Array(items.suffix(1))]
+        case 4:
+            return [Array(items.prefix(3)), Array(items.suffix(2))]
+        case 5:
+            return [Array(items.prefix(3)), Array(items.suffix(3))]
+        case 6:
+            return [Array(items.prefix(4)), Array(items.suffix(3))]
+        case 7:
+            return [Array(items.prefix(4)), Array(items.dropFirst(4).prefix(4))]
+        case 8:
+            return [Array(items.prefix(4)), Array(items.dropFirst(4).prefix(4)), Array(items.suffix(1))]
+        case 9:
+            return [Array(items.prefix(4)), Array(items.dropFirst(4).prefix(4)), Array(items.suffix(2))]
+        case 10:
+            return [Array(items.prefix(4)), Array(items.dropFirst(4).prefix(4)), Array(items.suffix(2))]
+        default:
+            var rows: [[EmojiLayoutItem]] = []
+            var remaining = items[...]
+            while !remaining.isEmpty {
+                let take = min(4, remaining.count)
+                rows.append(Array(remaining.prefix(take)))
+                remaining = remaining.dropFirst(take)
+            }
+            return rows
+        }
+    }
+}
+
+#Preview {
+    let viewModel = CreateChallengeViewModel()
+    viewModel.emojiRule = .selectedOnly
+    viewModel.selectedEmojis = ["🔥", "👑", "🍗", "🍄", "🐶", "🐷", "🌷", "🍊"]
+
+    return EmojiSetupView(viewModel: viewModel)
 }

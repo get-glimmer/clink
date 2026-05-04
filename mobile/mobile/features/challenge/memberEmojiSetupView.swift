@@ -188,7 +188,6 @@ struct MemberEmojiSetupView: View {
         "🌺","🦊","🐬","🦁","🐼","🍕","🎃","👑","🌙","💥",
         "🎵","🌊","🦄","🐉","🍓","🎭","🌸","🏄","🎪","🦸"
     ]
-
     init(
         challengeId: UUID?,
         emojiRule: EmojiRule,
@@ -229,7 +228,7 @@ struct MemberEmojiSetupView: View {
                 }
                 .frame(width: screen.size.width, height: screen.size.height)
 
-                bottomPanel
+                bottomPanel(bottomInset: screen.safeAreaInsets.bottom)
 
                 // Pinned to the top so UIKit doesn't scroll when this becomes first responder
                 VStack {
@@ -300,28 +299,39 @@ struct MemberEmojiSetupView: View {
     // MARK: - Rule 1: tappable preset emoji grid
 
     private var presetGrid: some View {
-        let columns = Array(repeating: GridItem(.flexible(), spacing: 16), count: 4)
-        return LazyVGrid(columns: columns, spacing: 16) {
-            ForEach(presetEmojis, id: \.self) { emoji in
-                let isUsed = viewModel.usedEmojis.contains(emoji)
-                Text(emoji)
-                    .font(.system(size: 75))
-                    .frame(width: 100, height: 100)
-                    .opacity(isUsed ? 0.35 : 1)
-                    .overlay {
-                        if isUsed {
-                            Image("diagonalWhiteLine")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 100, height: 100)
-                        }
+        let layout = presetEmojiLayout
+        return VStack(spacing: layout.rowSpacing) {
+            ForEach(Array(layout.rows.enumerated()), id: \.offset) { _, row in
+                HStack(spacing: layout.itemSpacing) {
+                    ForEach(row, id: \.self) { index in
+                        presetEmojiCell(at: index, size: layout.itemSize)
                     }
-                    .onTapGesture {
-                        guard !isUsed else { return }
-                        viewModel.selectedEmoji = emoji
-                    }
+                }
+                .frame(maxWidth: .infinity)
             }
         }
+    }
+
+    private func presetEmojiCell(at index: Int, size: CGSize) -> some View {
+        let emoji = presetEmojis[index]
+        let isUsed = viewModel.usedEmojis.contains(emoji)
+
+        return Text(emoji)
+            .font(.system(size: size.width * 0.78))
+            .frame(width: size.width, height: size.height)
+            .opacity(isUsed ? 0.35 : 1)
+            .overlay {
+                if isUsed {
+                    Image("diagonalWhiteLine")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: size.width, height: size.height)
+                }
+            }
+            .onTapGesture {
+                guard !isUsed else { return }
+                viewModel.selectedEmoji = emoji
+            }
     }
 
     // MARK: - Rule 2: random cycling emoji with radial glow
@@ -351,7 +361,7 @@ struct MemberEmojiSetupView: View {
 
     // MARK: - Bottom panel
 
-    private var bottomPanel: some View {
+    private func bottomPanel(bottomInset: CGFloat) -> some View {
         VStack(spacing: 0) {
             Capsule()
                 .fill(Color(red: 0x37/255.0, green: 0x36/255.0, blue: 0x36/255.0))
@@ -368,36 +378,35 @@ struct MemberEmojiSetupView: View {
                 .fill(Color("Neutral-800"))
                 .frame(height: 1)
                 .padding(.horizontal, 16)
-                .padding(.bottom, 24)
+                .padding(.top, 2)
 
-            emojiPreviewArea
-                .frame(height: 92)
-                .padding(.bottom, 24)
+            VStack(spacing: 0) {
+                Spacer(minLength: 0)
 
-            if viewModel.emojiConflictError {
-                Text("This emoji is already taken by another member.")
-                    .appFont(AppFont.captionS)
-                    .foregroundColor(Color("Red-300"))
-                    .padding(.bottom, 8)
+                emojiPreviewArea
+                    .frame(height: 92)
+
+                if viewModel.emojiConflictError {
+                    Text("This emoji is already taken by another member.")
+                        .appFont(AppFont.captionS)
+                        .foregroundColor(Color("Red-300"))
+                        .padding(.top, 12)
+                }
+
+                Spacer(minLength: 0)
             }
+            .frame(maxWidth: .infinity)
 
             joinButton
                 .padding(.horizontal, 16)
-                .padding(.bottom, 16)
+                .padding(.bottom, max(16, 49 - bottomInset))
         }
         .frame(maxWidth: .infinity)
-        .background {
-            ZStack {
-                Color.clear.background(.ultraThinMaterial)
-                Color(red: 32/255, green: 32/255, blue: 32/255, opacity: 0.5)
-            }
-        }
-        .overlay(
-            UnevenRoundedRectangle(
-                topLeadingRadius: 24, bottomLeadingRadius: 0,
-                bottomTrailingRadius: 0, topTrailingRadius: 24
-            )
-            .strokeBorder(Color(white: 161/255, opacity: 0.7), lineWidth: 1)
+        .frame(height: 344, alignment: .top)
+        .liquidGlass(
+            cornerRadius: 24,
+            tint: .clear,
+            tintOpacity: 0
         )
         .clipShape(
             UnevenRoundedRectangle(
@@ -456,5 +465,62 @@ struct MemberEmojiSetupView: View {
             }
         }
         .disabled(viewModel.selectedEmoji.isEmpty || viewModel.isLoading)
+    }
+}
+
+private extension MemberEmojiSetupView {
+    struct PresetEmojiLayout {
+        let itemSize: CGSize
+        let itemSpacing: CGFloat
+        let rowSpacing: CGFloat
+        let rows: [[Int]]
+    }
+
+    var presetEmojiLayout: PresetEmojiLayout {
+        let count = presetEmojis.count
+        let usesLargeCells = count <= 5
+        let itemSize = usesLargeCells ? CGSize(width: 96, height: 144) : CGSize(width: 75, height: 113)
+        let itemSpacing: CGFloat = usesLargeCells ? 8 : 10
+        let rowSpacing: CGFloat = 0
+
+        return PresetEmojiLayout(
+            itemSize: itemSize,
+            itemSpacing: itemSpacing,
+            rowSpacing: rowSpacing,
+            rows: presetEmojiRows(for: count)
+        )
+    }
+
+    func presetEmojiRows(for count: Int) -> [[Int]] {
+        let indices = Array(0..<count)
+        switch count {
+        case 0:
+            return []
+        case 1, 2, 3:
+            return [indices]
+        case 4:
+            return [Array(indices.prefix(3)), Array(indices.suffix(1))]
+        case 5:
+            return [Array(indices.prefix(3)), Array(indices.suffix(2))]
+        case 6:
+            return [Array(indices.prefix(4)), Array(indices.suffix(2))]
+        case 7:
+            return [Array(indices.prefix(4)), Array(indices.suffix(3))]
+        case 8:
+            return [Array(indices.prefix(4)), Array(indices.suffix(4))]
+        case 9:
+            return [Array(indices.prefix(4)), Array(indices.dropFirst(4).prefix(4)), Array(indices.suffix(1))]
+        case 10:
+            return [Array(indices.prefix(4)), Array(indices.dropFirst(4).prefix(4)), Array(indices.suffix(2))]
+        default:
+            var rows: [[Int]] = []
+            var remaining = indices[...]
+            while !remaining.isEmpty {
+                let take = min(4, remaining.count)
+                rows.append(Array(remaining.prefix(take)))
+                remaining = remaining.dropFirst(take)
+            }
+            return rows
+        }
     }
 }
