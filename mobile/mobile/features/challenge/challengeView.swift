@@ -310,10 +310,10 @@ struct InvitedChallengeCard: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text(invite.dateRangeText)
-                    .appText(AppFont.captionS)
+                    .appText(AppFont.labelS)
                     .foregroundColor(.black)
-                    .padding(.vertical, 4)
                     .padding(.horizontal, 12)
+                    .frame(height: 22)
                     .background(AppColors.green300)
                     .clipShape(Capsule())
 
@@ -381,10 +381,10 @@ struct ChallengeCard: View {
 
                 // Date Pill (Green)
                 Text(challenge.dateRangeText)
-                    .appText(AppFont.captionS)
+                    .appText(AppFont.labelS)
                     .foregroundColor(Color.black)
-                    .padding(.vertical, 4)
                     .padding(.horizontal, 12)
+                    .frame(height: 22)
                     .background(AppColors.green300)
                     .clipShape(Capsule())
                     .padding(.bottom, 8)
@@ -617,8 +617,8 @@ struct SwipeableChallengeCard: View {
                     }
                     onTap()
                 }
-                .gesture(
-                    DragGesture(minimumDistance: 12)
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 20)
                         .onChanged { value in
                             let dx = value.translation.width
                             let dy = value.translation.height
@@ -972,7 +972,7 @@ private struct ChallengeListHeader: View {
     var body: some View {
         ZStack {
             Text(title)
-                .appText(AppFont.title3)
+                .appText(AppFont.title2)
                 .foregroundColor(AppColors.textWhite)
 
             HStack {
