@@ -17,7 +17,5 @@
 	<string>$(SUPABASE_PUBLIC_KEY)</string>
 	<key>supabase_url_key</key>
 	<string>$(SUPABASE_URL_KEY)</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Glimmer needs permission to save your challenge result card to your Photos.</string>
 </dict>
 </plist>

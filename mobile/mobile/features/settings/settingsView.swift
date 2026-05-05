@@ -116,7 +116,11 @@ struct SettingsView: View {
                         
                         Divider()
                         
-                        NavigationLink(destination: PrivacyPolicyView()) {
+                        Button {
+                            if let url = URL(string: "https://drive.google.com/file/d/1XnvkL7RAV3MCYENBbi_zybKy-hW8VHio/view") {
+                                UIApplication.shared.open(url)
+                            }
+                        } label: {
                             HStack {
                                 Text("Privacy Policy")
                                     .padding(.top, 14)
@@ -148,7 +152,11 @@ struct SettingsView: View {
                         
                         Divider()
                         
-                        NavigationLink(destination: TermsOfServiceView()) {
+                        Button {
+                            if let url = URL(string: "https://drive.google.com/file/d/1_uQArj0EZwjtRdZWeu2Nk8c2ChsZnPXT/view") {
+                                UIApplication.shared.open(url)
+                            }
+                        } label: {
                             HStack {
                                 Text("Terms of Service")
                                     .padding(.top, 14)
@@ -165,9 +173,13 @@ struct SettingsView: View {
                         
                         Divider()
                         
-                        NavigationLink(destination: AboutView()) {
+                        Button {
+                            if let url = URL(string: "https://www.notion.so/Clink-Support-3574cf9788df801d9d40f900b123a230") {
+                                UIApplication.shared.open(url)
+                            }
+                        } label: {
                             HStack {
-                                Text("About")
+                                Text("Support")
                                     .padding(.top, 14)
                                     .padding(.bottom, 13)
                                     .appFont(AppFont.captionM)
