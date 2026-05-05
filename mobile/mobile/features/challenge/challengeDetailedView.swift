@@ -1,6 +1,7 @@
 import SwiftUI
 import SpriteKit
 import UIKit
+import CoreText
 
 struct ChallengeDetailView: View {
     @Environment(\.dismiss) private var dismiss
@@ -190,9 +191,7 @@ private extension ChallengeDetailView {
     }
 
     var challengeInfoSection: some View {
-        let showDescriptionToggle = viewModel.description.count > 110
-
-        return VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 10) {
             Text(viewModel.dateRangeText)
                 .foregroundColor(AppColors.neutral1000)
                 .appText(AppFont.labelS)
@@ -205,53 +204,10 @@ private extension ChallengeDetailView {
                 .foregroundColor(AppColors.textWhite)
                 .appText(AppFont.title1)
 
-            if showDescriptionToggle {
-                if isDescriptionExpanded {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(viewModel.description)
-                            .foregroundColor(AppColors.neutral300)
-                            .appText(AppFont.body2)
-                            .lineLimit(nil)
-
-                        HStack {
-                            Spacer()
-                            Button("less") {
-                                isDescriptionExpanded = false
-                            }
-                            .buttonStyle(.plain)
-                            .foregroundColor(AppColors.green300)
-                            .appText(AppFont.body1)
-                        }
-                    }
-                } else {
-                    ZStack(alignment: .bottomTrailing) {
-                        Text(viewModel.description)
-                            .foregroundColor(AppColors.neutral300)
-                            .appText(AppFont.body2)
-                            .lineLimit(3)
-                            .truncationMode(.tail)
-                            .overlay(alignment: .bottomTrailing) {
-                                Rectangle()
-                                    .fill(Color.black)
-                                    .frame(width: 84, height: 24)
-                                    .blendMode(.destinationOut)
-                            }
-                            .compositingGroup()
-
-                        Button("...more") {
-                            isDescriptionExpanded = true
-                        }
-                        .buttonStyle(.plain)
-                        .foregroundColor(AppColors.green300)
-                        .appText(AppFont.body1)
-                    }
-                }
-            } else {
-                Text(viewModel.description)
-                    .foregroundColor(AppColors.neutral300)
-                    .appText(AppFont.body2)
-                    .lineLimit(3)
-            }
+            ExpandableDescriptionText(
+                text: viewModel.description,
+                isExpanded: $isDescriptionExpanded
+            )
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -491,6 +447,232 @@ private struct ProgressBar: View {
             }
         }
         .frame(height: 10)
+    }
+}
+
+private struct ExpandableDescriptionText: View {
+    let text: String
+    @Binding var isExpanded: Bool
+
+    @State private var availableWidth: CGFloat = 0
+    @State private var collapsedPrefix = ""
+    @State private var needsToggle = false
+
+    private let collapsedLineLimit = 3
+    private let ellipsisSuffix = "..."
+    private let separatorSuffix = " "
+    private let moreSuffix = "more"
+    private let lessSuffix = "less"
+    private let actionURL = URL(string: "clink-description-toggle://description")!
+
+    var body: some View {
+        inlineText
+            .lineSpacing(AppFont.body2.lineSpacing)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(widthReader)
+            .tint(AppColors.green300)
+            .environment(\.openURL, OpenURLAction { url in
+                guard url.scheme == actionURL.scheme else { return .systemAction }
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isExpanded.toggle()
+                }
+                return .handled
+            })
+            .onAppear(perform: recalculateCollapsedText)
+            .onChange(of: text) { _ in recalculateCollapsedText() }
+            .onChange(of: availableWidth) { _ in recalculateCollapsedText() }
+    }
+
+    private var inlineText: Text {
+        if isExpanded {
+            return Text(attributedText(
+                prefix: text,
+                ellipsis: nil,
+                separator: needsToggle ? separatorSuffix : nil,
+                actionSuffix: needsToggle ? lessSuffix : nil
+            ))
+        }
+
+        if needsToggle {
+            return Text(attributedText(
+                prefix: collapsedPrefix,
+                ellipsis: ellipsisSuffix,
+                separator: separatorSuffix,
+                actionSuffix: moreSuffix
+            ))
+        }
+
+        return Text(attributedText(prefix: text, ellipsis: nil, separator: nil, actionSuffix: nil))
+    }
+
+    private var widthReader: some View {
+        GeometryReader { geo in
+            Color.clear
+                .onAppear {
+                    availableWidth = geo.size.width
+                }
+                .onChange(of: geo.size.width) { width in
+                    availableWidth = width
+                }
+        }
+    }
+
+    private func attributedText(
+        prefix: String,
+        ellipsis: String?,
+        separator: String?,
+        actionSuffix: String?
+    ) -> AttributedString {
+        var result = AttributedString(prefix)
+        result.font = AppFont.body2.font
+        result.foregroundColor = AppColors.neutral300
+
+        if let ellipsis {
+            var dots = AttributedString(ellipsis)
+            dots.font = AppFont.body2.font
+            dots.foregroundColor = AppColors.neutral300
+            result.append(dots)
+        }
+
+        if let separator {
+            var space = AttributedString(separator)
+            space.font = AppFont.body2.font
+            space.foregroundColor = AppColors.neutral300
+            result.append(space)
+        }
+
+        if let actionSuffix {
+            var action = AttributedString(actionSuffix)
+            action.font = AppFont.body1.font
+            action.foregroundColor = AppColors.green300
+            action.link = actionURL
+            result.append(action)
+        }
+
+        return result
+    }
+
+    private func recalculateCollapsedText() {
+        guard availableWidth > 0 else { return }
+
+        let fullLineCount = lineCount(
+            for: measuredString(prefix: text),
+            width: availableWidth
+        )
+        let shouldToggle = fullLineCount > collapsedLineLimit
+        needsToggle = shouldToggle
+
+        guard shouldToggle else {
+            collapsedPrefix = text
+            return
+        }
+
+        collapsedPrefix = bestCollapsedPrefix(
+            for: text,
+            ellipsis: ellipsisSuffix,
+            separator: separatorSuffix,
+            actionSuffix: moreSuffix,
+            width: availableWidth
+        )
+    }
+
+    private func bestCollapsedPrefix(
+        for text: String,
+        ellipsis: String,
+        separator: String,
+        actionSuffix: String,
+        width: CGFloat
+    ) -> String {
+        let characters = Array(text)
+        var low = 0
+        var high = characters.count
+        var best = ""
+
+        while low <= high {
+            let mid = (low + high) / 2
+            let candidate = String(characters.prefix(mid))
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let measured = measuredString(
+                prefix: candidate,
+                ellipsis: ellipsis,
+                separator: separator,
+                actionSuffix: actionSuffix
+            )
+            let lines = lineCount(for: measured, width: width)
+
+            if lines <= collapsedLineLimit {
+                best = candidate
+                low = mid + 1
+            } else {
+                high = mid - 1
+            }
+        }
+
+        return best
+    }
+
+    private func measuredString(
+        prefix: String,
+        ellipsis: String? = nil,
+        separator: String? = nil,
+        actionSuffix: String? = nil
+    ) -> NSAttributedString {
+        let result = NSMutableAttributedString(
+            string: prefix,
+            attributes: measuredAttributes(for: AppFont.body2)
+        )
+
+        if let ellipsis {
+            result.append(NSAttributedString(
+                string: ellipsis,
+                attributes: measuredAttributes(for: AppFont.body2)
+            ))
+        }
+
+        if let separator {
+            result.append(NSAttributedString(
+                string: separator,
+                attributes: measuredAttributes(for: AppFont.body2)
+            ))
+        }
+
+        if let actionSuffix {
+            result.append(NSAttributedString(
+                string: actionSuffix,
+                attributes: measuredAttributes(for: AppFont.body1)
+            ))
+        }
+
+        return result
+    }
+
+    private func measuredAttributes(for style: AppFont.Style) -> [NSAttributedString.Key: Any] {
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.lineSpacing = AppFont.body2.lineSpacing
+
+        return [
+            .font: UIFont(name: style.fontName, size: style.size) ?? UIFont.systemFont(ofSize: style.size),
+            .kern: style.letterSpacing,
+            .paragraphStyle: paragraph
+        ]
+    }
+
+    private func lineCount(for attributedString: NSAttributedString, width: CGFloat) -> Int {
+        guard attributedString.length > 0 else { return 0 }
+
+        let framesetter = CTFramesetterCreateWithAttributedString(attributedString)
+        let path = CGMutablePath()
+        path.addRect(CGRect(x: 0, y: 0, width: width, height: CGFloat.greatestFiniteMagnitude))
+
+        let frame = CTFramesetterCreateFrame(
+            framesetter,
+            CFRange(location: 0, length: attributedString.length),
+            path,
+            nil
+        )
+        let lines = CTFrameGetLines(frame) as? [CTLine] ?? []
+        return lines.count
     }
 }
 
