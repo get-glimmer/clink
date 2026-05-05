@@ -67,7 +67,7 @@ struct EmailSignupView: View {
                             
                             if let error = emailError {
                                 Text(error)
-                                    .appFont(AppFont.captionXS)
+                                    .appFont(AppFont.captionS)
                                     .foregroundColor(Color("Red-300"))
                                     .padding(.leading, 7)
                                     .padding(.top, 2)
@@ -76,7 +76,7 @@ struct EmailSignupView: View {
                         
                         
                         // Password input field
-                        VStack(alignment: .leading) {
+                        VStack(alignment: .leading, spacing: 0) {
                             Text("Password")
                                 .appFont(AppFont.labelL)
                                 .foregroundColor(.white)
@@ -111,9 +111,9 @@ struct EmailSignupView: View {
                             let reqs = authViewModel.passwordRequirements(password)
                             VStack(alignment: .leading) {
                                 Text("Your password must include the following")
-                                    .appFont(AppFont.captionXS)
+                                    .appFont(AppFont.captionS)
                                     .foregroundColor(Color("Neutral-100"))
-                                    .padding(.top, 4)
+                                    .padding(.top, 16)
                                     .padding(.bottom, 6)
                                 
                                 passwordRequirementRow("Minimum 8 characters", check: reqs.min8)
@@ -190,11 +190,14 @@ struct EmailSignupView: View {
      * - Returns: A view representing the requirement row.
      */
     private func passwordRequirementRow(_ text: String, check: Bool) -> some View {
-        HStack {
-            Text(check ? Image("checkboxPasswordFilled") : Image("checkboxPasswordEmpty"))
+        HStack(spacing: 8) {
+            Image(check ? "checkboxPasswordFilled" : "checkboxPasswordEmpty")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 15, height: 15)
             Text(text)
                 .foregroundColor(.white)
-                .appFont(AppFont.captionXS)
+                .appFont(AppFont.captionS)
         }
     }
 }

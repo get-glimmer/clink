@@ -7,80 +7,111 @@
 
 import SwiftUI
 
-/// Fullscreen dim + floating options stack at bottom-left.
+/// Popup menu appearing near the options button (matches DropdownSelector style).
 struct OptionsSheet: View {
     let onTapOutside: () -> Void
     let onTapRoutines: () -> Void
     let onTapCategories: () -> Void
     let onTapAddCategory: () -> Void
     
+    private let rowHeight: CGFloat = 44
+    private let menuWidth: CGFloat = 192
+    private let menuHeight: CGFloat = 152
+    
     var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            // --- Background: blur + dim (tap to close) ---
-            ZStack {
-                DarkBlurView(style: .systemChromeMaterialDark)
-                    .ignoresSafeArea()
-
-                Color.black.opacity(0.7)
-                    .ignoresSafeArea()
-            }
-            .contentShape(Rectangle())
-            .onTapGesture { onTapOutside() }
+        ZStack(alignment: .topTrailing) {
+            // --- Background: transparent tap area (tap to close) ---
+            Color.black.opacity(0.0001)
+                .onTapGesture { onTapOutside() }
             
-            // --- Floating options ---
-            VStack(alignment: .leading, spacing: 30) {
-                OptionRow(systemImage: "clock.arrow.circlepath",
+            // --- Popup menu ---
+            VStack(alignment: .leading, spacing: 0) {
+                OptionRow(iconName: "clock",
                           title: "Routines",
-                          isEnabled: true,
                           action: onTapRoutines)
                 
-                OptionRow(systemImage: "rectangle.grid.1x2",
+                Divider()
+                    .frame(height: 0.5)
+                    .background(Color("Neutral-800"))
+                    .padding(.horizontal, 20)
+                
+                OptionRow(iconName: "type",
+                          iconSize: 22,
                           title: "Categories",
-                          isEnabled: true,
                           action: onTapCategories)
+                
+                Divider()
+                    .frame(height: 0.5)
+                    .background(Color("Neutral-800"))
+                    .padding(.horizontal, 20)
                 
                 OptionRow(systemImage: "plus",
                           title: "Add Category",
-                          isEnabled: true,
                           action: onTapAddCategory)
             }
-            .padding(.bottom, 78)
-            .padding(.leading, 31)
+            .frame(width: menuWidth, height: menuHeight)
+            .background(AppColors.neutral900)
+            .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(
+                        LinearGradient(
+                            colors: [
+                                Color("Neutral-400").opacity(0.7),
+                                Color("Neutral-600").opacity(0.7)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
+            )
+            .shadow(color: Color.black.opacity(0.3), radius: 10, x: 0, y: 5)
+            .padding(.top, 70)
+            .padding(.trailing, 16)
         }
         .navBarHidden(true)
     }
 }
 
-/// One row: green circular icon + title
+/// One row: icon + title
 private struct OptionRow: View {
-    let systemImage: String
+    var iconName: String? = nil
+    var iconSize: CGFloat = 18
+    var systemImage: String? = nil
     let title: String
-    let isEnabled: Bool
     let action: () -> Void
+    
+    private let rowHeight: CGFloat = 48
 
     var body: some View {
-        HStack(spacing: 16) {
-            ZStack {
-                Circle()
-                    .fill(Color("Green-300"))
-                    .frame(width: 44, height: 44)
-
-                Image(systemName: systemImage)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(Color.white)
+        Button(action: action) {
+            HStack(spacing: 8) {
+                if let iconName = iconName {
+                    Image(iconName)
+                        .renderingMode(.template)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: iconSize, height: iconSize)
+                        .foregroundColor(.white)
+                        .frame(width: 20)
+                } else if let systemImage = systemImage {
+                    Image(systemName: systemImage)
+                        .font(.system(size: 14, weight: .regular))
+                        .foregroundColor(.white)
+                        .frame(width: 20)
+                }
+                
+                Text(title)
+                    .foregroundColor(AppColors.textWhite)
+                    .appText(AppFont.labelL)
+                
+                Spacer(minLength: 0)
             }
-
-            Text(title)
-                .appFont(AppFont.title3)
-                .foregroundStyle(.white)
-                .opacity(isEnabled ? 1.0 : 0.5)
+            .padding(.horizontal, 20)
+            .frame(height: rowHeight, alignment: .center)
         }
-        .contentShape(Rectangle())
-        .onTapGesture {
-            guard isEnabled else { return }
-            action()
-        }
-        .allowsHitTesting(isEnabled)
+        .buttonStyle(.plain)
     }
 }
 

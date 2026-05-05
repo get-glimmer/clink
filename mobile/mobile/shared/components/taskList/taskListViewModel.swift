@@ -1,21 +1,32 @@
 import Foundation
 import Combine
+import WidgetKit
 
 @MainActor
 class TaskListViewModel: ObservableObject {
     // MARK: - Variables
     @Published var isSupabaseConnected: Bool = false
     @Published var categoriesWithTasks: [CategoryWithTasks] = [] {
-        didSet { updateAllCompleted() }   // auto‑recalculate
+        didSet {
+            updateAllCompleted()
+            syncTasksToWidget()
+        }
     }
     @Published var isAllCompleted: Bool = false {
         didSet {
-            if oldValue != isAllCompleted && !suppressSync{ Task { await syncShakerCompletion() } }
+            if oldValue != isAllCompleted && !suppressSync {
+                Task { await syncShakerCompletion() }
+                syncTasksToWidget()
+            }
         }
     }
     // Lid color storage
-    @Published var lidColorStart: String? = nil
-    @Published var lidColorEnd:   String? = nil
+    @Published var lidColorStart: String? = nil {
+        didSet { if oldValue != lidColorStart { syncTasksToWidget() } }
+    }
+    @Published var lidColorEnd:   String? = nil {
+        didSet { if oldValue != lidColorEnd { syncTasksToWidget() } }
+    }
     
     // Prevent automatic DB‐sync on initial load
     private var suppressSync: Bool = false
@@ -106,6 +117,13 @@ class TaskListViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
+        // Re-sync widget when shaker emojis have settled
+        NotificationCenter.default.publisher(for: Notification.Name("shakerEmojisSettled"))
+            .debounce(for: .milliseconds(500), scheduler: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.syncTasksToWidget()
+            }
+            .store(in: &cancellables)
     }
     
     // MARK: - pre-fetching (for emoji history)
@@ -334,6 +352,8 @@ class TaskListViewModel: ObservableObject {
                     // ignore load failures
                 }
                 suppressSync = false
+                // Sync widget now that lid colors + completion state are all loaded
+                syncTasksToWidget()
 
 
                 // Also brings shaker data that will be applied to tracker
@@ -427,6 +447,54 @@ class TaskListViewModel: ObservableObject {
         isAllCompleted = !dailyTasks.isEmpty && dailyTasks.allSatisfy { $0.isCompleted }
     }
 
+    func syncWidgetData() { syncTasksToWidget() }
+
+    private func syncTasksToWidget() {
+        let dailyCategories = categoriesWithTasks.filter { $0.category.type == .daily }
+
+        let widgetCategories = dailyCategories.map { cat in
+            let emoji = emojiForDate[cat.category.id] ?? cat.category.emoji
+            return WidgetCategoryTasks(
+                id: cat.category.id,
+                name: cat.category.name,
+                emoji: emoji,
+                tasks: cat.tasks.filter { !$0.isTemporary }.map { task in
+                    WidgetTask(
+                        id: task.id,
+                        title: task.title,
+                        isCompleted: task.isCompleted,
+                        categoryName: cat.category.name,
+                        categoryEmoji: emoji
+                    )
+                }
+            )
+        }
+
+        // Shaker data: collect emojis + positions for completed tasks
+        var completedEmojis: [String] = []
+        var positions: [[Double]] = []
+        for cat in dailyCategories {
+            let emoji = emojiForDate[cat.category.id] ?? cat.category.emoji
+            for task in cat.tasks where task.isCompleted && !task.isTemporary {
+                completedEmojis.append(emoji)
+                if let pos = ShakerScene.widgetPositions[task.id] {
+                    positions.append(pos)
+                }
+            }
+        }
+        let shakerData = WidgetShakerData(
+            emojis: completedEmojis,
+            isAllCompleted: isAllCompleted,
+            lidColorStart: lidColorStart,
+            lidColorEnd: lidColorEnd,
+            emojiPositions: positions.count == completedEmojis.count ? positions : nil
+        )
+
+        WidgetDataStore.shared.saveTasks(widgetCategories)
+        WidgetDataStore.shared.saveShaker(shakerData)
+        WidgetCenter.shared.reloadAllTimelines()
+    }
+
     // Supabase: shaker table sync
     private func syncShakerCompletion() async {
         guard let client = client, let userId = userId else { return }
@@ -471,6 +539,7 @@ class TaskListViewModel: ObservableObject {
             await MainActor.run {
                 lidColorStart = start
                 lidColorEnd   = end
+                syncTasksToWidget()
             }
         } catch { print("[ShakerSync] colour update failed:", error) }
     }

@@ -135,6 +135,76 @@ class ChallengeService: ObservableObject {
         return items
     }
 
+    // MARK: - Favorites (challenge_members.favorite)
+
+    func fetchFavoriteChallenges() async throws -> [ChallengeItem] {
+        guard let supabase = supabase,
+              let currentUserId = currentUserId else {
+            throw NSError(domain: "ChallengeService", code: 1,
+                          userInfo: [NSLocalizedDescriptionKey: "Service not properly initialized"])
+        }
+
+        let memberships: [ChallengeMemberData] = try await supabase
+            .from("challenge_members")
+            .select("*")
+            .eq("user_id", value: currentUserId)
+            .eq("favorite", value: true)
+            .execute()
+            .value
+
+        let challengeIds = Array(Set(
+            memberships
+                .filter { $0.left_at == nil }
+                .map { $0.challenge_id.uuidString }
+        ))
+        guard !challengeIds.isEmpty else { return [] }
+
+        let challenges: [ChallengeData] = try await supabase
+            .from("challenges")
+            .select("*")
+            .in("id", value: challengeIds)
+            .order("end_date", ascending: true)
+            .execute()
+            .value
+
+        var items: [ChallengeItem] = []
+        for challenge in challenges {
+            let item = try await assembleItem(challenge: challenge, supabase: supabase)
+            items.append(item)
+        }
+        return items
+    }
+
+    func isFavorite(challengeId: UUID) async throws -> Bool {
+        guard let supabase = supabase,
+              let currentUserId = currentUserId else { return false }
+
+        let rows: [ChallengeMemberData] = try await supabase
+            .from("challenge_members")
+            .select("*")
+            .eq("user_id", value: currentUserId)
+            .eq("challenge_id", value: challengeId.uuidString)
+            .limit(1)
+            .execute()
+            .value
+        return rows.first?.favorite == true
+    }
+
+    func setFavorite(challengeId: UUID, favorite: Bool) async throws {
+        guard let supabase = supabase,
+              let currentUserId = currentUserId else {
+            throw NSError(domain: "ChallengeService", code: 1,
+                          userInfo: [NSLocalizedDescriptionKey: "Not authenticated"])
+        }
+        struct FavoriteUpdate: Encodable { let favorite: Bool }
+        try await supabase
+            .from("challenge_members")
+            .update(FavoriteUpdate(favorite: favorite))
+            .eq("user_id", value: currentUserId)
+            .eq("challenge_id", value: challengeId.uuidString)
+            .execute()
+    }
+
     // MARK: - Fetch Pending Invites (challenges this user was invited to but hasn't accepted)
 
     func fetchPendingInvites() async throws -> [InvitedChallengeItem] {

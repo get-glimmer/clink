@@ -1,6 +1,7 @@
 import SwiftUI
 import SpriteKit
 import UIKit
+import CoreText
 
 struct ChallengeDetailView: View {
     @Environment(\.dismiss) private var dismiss
@@ -9,6 +10,7 @@ struct ChallengeDetailView: View {
     @State private var selectedProofTaskId: UUID?
     @State private var selectedProofImage: UIImage?
     @State private var showProofSourceDialog = false
+    @State private var showProofSourceOptions = false
     @State private var showCameraPicker = false
     @State private var showPhotoLibraryPicker = false
     @State private var showAllParticipants = false
@@ -69,6 +71,24 @@ struct ChallengeDetailView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
+
+            if showProofSourceDialog {
+                ProofUploadOverlay(
+                    selectedImage: selectedProofImage,
+                    showSourceOptions: showProofSourceOptions,
+                    onClose: closeProofUploadOverlay,
+                    onTapUploadArea: {
+                        withAnimation(.easeInOut(duration: 0.18)) {
+                            showProofSourceOptions.toggle()
+                        }
+                    },
+                    onTakePhoto: presentProofCamera,
+                    onChooseLibrary: presentProofLibrary,
+                    onLogProof: logSelectedProofImage
+                )
+                .transition(.opacity)
+                .zIndex(1000)
+            }
         }
         .task {
             await viewModel.load()
@@ -79,19 +99,6 @@ struct ChallengeDetailView: View {
                 jarRemountToken = UUID()
             }
         }
-        .confirmationDialog("Add Proof Photo", isPresented: $showProofSourceDialog, titleVisibility: .visible) {
-            Button("Take Photo") {
-                if UIImagePickerController.isSourceTypeAvailable(.camera) {
-                    showCameraPicker = true
-                } else {
-                    showPhotoLibraryPicker = true
-                }
-            }
-            Button("Choose from Library") {
-                showPhotoLibraryPicker = true
-            }
-            Button("Cancel", role: .cancel) {}
-        }
         .sheet(isPresented: $showCameraPicker) {
             ChallengeImagePicker(sourceType: .camera, selectedImage: $selectedProofImage)
         }
@@ -99,12 +106,8 @@ struct ChallengeDetailView: View {
             ChallengeImagePicker(sourceType: .photoLibrary, selectedImage: $selectedProofImage)
         }
         .onChange(of: selectedProofImage) { image in
-            guard let image, let taskId = selectedProofTaskId else { return }
-            Task {
-                await viewModel.uploadProofImage(taskId: taskId, image: image)
-                await MainActor.run {
-                    selectedProofImage = nil
-                }
+            if image != nil {
+                showProofSourceOptions = false
             }
         }
         .alert("Error", isPresented: Binding(
@@ -115,10 +118,10 @@ struct ChallengeDetailView: View {
         } message: {
             Text(viewModel.errorMessage ?? "")
         }
-        .sheet(isPresented: $showGallerySheet) {
+        .fullScreenCover(isPresented: $showGallerySheet) {
             FullGallerySheet(items: viewModel.galleryItems)
         }
-        .sheet(isPresented: $showAllCommentsSheet) {
+        .fullScreenCover(isPresented: $showAllCommentsSheet) {
             FullCommunityCommentsSheet(viewModel: viewModel)
         }
         .fullScreenCover(isPresented: $showEditChallenge) {
@@ -141,7 +144,7 @@ struct ChallengeDetailView: View {
 private extension ChallengeDetailView {
     var headerSection: some View {
         HStack {
-            CircleIconButton(systemName: "chevron.left") {
+            HeaderAssetButton(imageName: "dismissButton") {
                 if let onBack {
                     onBack()
                 } else {
@@ -152,16 +155,16 @@ private extension ChallengeDetailView {
             Spacer()
 
             HStack(spacing: 10) {
-                CircleIconButton(systemName: "pencil") {
+                HeaderAssetButton(imageName: "editButton") {
                     showEditChallenge = true
                 }
 
-                CircleIconButton(systemName: "square.and.arrow.up") {
+                HeaderAssetButton(imageName: "shareButton") {
                     showResult = true
                 }
 
-                CircleIconButton(systemName: viewModel.isFavorite ? "star.fill" : "star") {
-                    viewModel.isFavorite.toggle()
+                HeaderAssetButton(imageName: viewModel.isFavorite ? "favoriteOnButton" : "favoriteButton") {
+                    viewModel.toggleFavorite()
                     onTapFavorite?()
                 }
             }
@@ -190,9 +193,7 @@ private extension ChallengeDetailView {
     }
 
     var challengeInfoSection: some View {
-        let showDescriptionToggle = viewModel.description.count > 110
-
-        return VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 10) {
             Text(viewModel.dateRangeText)
                 .foregroundColor(AppColors.neutral1000)
                 .appText(AppFont.labelS)
@@ -205,53 +206,10 @@ private extension ChallengeDetailView {
                 .foregroundColor(AppColors.textWhite)
                 .appText(AppFont.title1)
 
-            if showDescriptionToggle {
-                if isDescriptionExpanded {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(viewModel.description)
-                            .foregroundColor(AppColors.neutral300)
-                            .appText(AppFont.body2)
-                            .lineLimit(nil)
-
-                        HStack {
-                            Spacer()
-                            Button("less") {
-                                isDescriptionExpanded = false
-                            }
-                            .buttonStyle(.plain)
-                            .foregroundColor(AppColors.green300)
-                            .appText(AppFont.body1)
-                        }
-                    }
-                } else {
-                    ZStack(alignment: .bottomTrailing) {
-                        Text(viewModel.description)
-                            .foregroundColor(AppColors.neutral300)
-                            .appText(AppFont.body2)
-                            .lineLimit(3)
-                            .truncationMode(.tail)
-                            .overlay(alignment: .bottomTrailing) {
-                                Rectangle()
-                                    .fill(Color.black)
-                                    .frame(width: 84, height: 24)
-                                    .blendMode(.destinationOut)
-                            }
-                            .compositingGroup()
-
-                        Button("...more") {
-                            isDescriptionExpanded = true
-                        }
-                        .buttonStyle(.plain)
-                        .foregroundColor(AppColors.green300)
-                        .appText(AppFont.body1)
-                    }
-                }
-            } else {
-                Text(viewModel.description)
-                    .foregroundColor(AppColors.neutral300)
-                    .appText(AppFont.body2)
-                    .lineLimit(3)
-            }
+            ExpandableDescriptionText(
+                text: viewModel.description,
+                isExpanded: $isDescriptionExpanded
+            )
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -309,6 +267,7 @@ private extension ChallengeDetailView {
                     TodayTaskRow(
                         title: task.title,
                         isCompleted: task.isCompleted,
+                        canToggleCompletion: viewModel.canToggleTaskCompletion(task),
                         hasProof: task.hasProof,
                         proofURL: task.proofURL,
                         onToggle: {
@@ -316,8 +275,7 @@ private extension ChallengeDetailView {
                         },
                         showAddPhoto: viewModel.isPhotoProofEnabled,
                         onTapAddPhoto: {
-                            selectedProofTaskId = task.id
-                            showProofSourceDialog = true
+                            presentProofUploadOverlay(for: task.id)
                         }
                     )
                 }
@@ -326,7 +284,7 @@ private extension ChallengeDetailView {
                     Task { await viewModel.submitTodayChallenge() }
                 } label: {
                     Text("Complete Day’s Challenge")
-                        .foregroundColor(AppColors.textWhite)
+                        .foregroundColor(viewModel.isCompleteDayButtonEnabled ? AppColors.neutral1000 : AppColors.textWhite)
                         .appText(AppFont.labelL)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
@@ -341,6 +299,57 @@ private extension ChallengeDetailView {
             .cornerRadius(16)
         }
         .padding(.top, 6)
+    }
+
+    func presentProofUploadOverlay(for taskId: UUID) {
+        selectedProofTaskId = taskId
+        selectedProofImage = nil
+        showProofSourceOptions = false
+        withAnimation(.easeInOut(duration: 0.2)) {
+            showProofSourceDialog = true
+        }
+    }
+
+    func closeProofUploadOverlay() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            showProofSourceDialog = false
+        }
+        selectedProofTaskId = nil
+        selectedProofImage = nil
+        showProofSourceOptions = false
+    }
+
+    func presentProofCamera() {
+        showProofSourceOptions = false
+        if UIImagePickerController.isSourceTypeAvailable(.camera) {
+            showCameraPicker = true
+        } else {
+            showPhotoLibraryPicker = true
+        }
+    }
+
+    func presentProofLibrary() {
+        showProofSourceOptions = false
+        showPhotoLibraryPicker = true
+    }
+
+    func logSelectedProofImage() {
+        guard let image = selectedProofImage,
+              let taskId = selectedProofTaskId else { return }
+
+        Task {
+            let didUpload = await viewModel.uploadProofImage(taskId: taskId, image: image)
+            guard didUpload else { return }
+
+            await MainActor.run {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    showProofSourceDialog = false
+                }
+                selectedProofTaskId = nil
+                selectedProofImage = nil
+                showProofSourceOptions = false
+            }
+        }
     }
     
     var participantsSection: some View {
@@ -399,13 +408,14 @@ private extension ChallengeDetailView {
                     .foregroundColor(AppColors.neutral400)
                     .appText(AppFont.captionM)
             } else {
-                HStack(spacing: 8) {
+                LazyVGrid(
+                    columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4),
+                    spacing: 8
+                ) {
                     ForEach(Array(viewModel.galleryItems.prefix(4))) { item in
                         GalleryThumb(imageURL: item.imageURL)
                     }
-                    Spacer(minLength: 0)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .padding(.top, 6)
@@ -454,24 +464,17 @@ private extension ChallengeDetailView {
 
 }
 
-private struct CircleIconButton: View {
-    let systemName: String
+private struct HeaderAssetButton: View {
+    let imageName: String
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            ZStack {
-                Circle()
-                    .fill(Color.white.opacity(0.08))
-                    .frame(width: 40, height: 40)
-                    .overlay(
-                        Circle()
-                            .stroke(Color.white.opacity(0.10), lineWidth: 1)
-                    )
-                Image(systemName: systemName)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(AppColors.textWhite)
-            }
+            Image(imageName)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 44, height: 44)
+                .contentShape(Circle())
         }
         .buttonStyle(.plain)
     }
@@ -491,6 +494,259 @@ private struct ProgressBar: View {
             }
         }
         .frame(height: 10)
+    }
+}
+
+private struct ExpandableDescriptionText: View {
+    let text: String
+    @Binding var isExpanded: Bool
+
+    @State private var availableWidth: CGFloat = 0
+    @State private var collapsedPrefix = ""
+    @State private var needsToggle = false
+
+    private let collapsedLineLimit = 3
+    private let ellipsisSuffix = "..."
+    private let separatorSuffix = " "
+    private let moreSuffix = "more"
+    private let lessSuffix = "less"
+    private let actionURL = URL(string: "clink-description-toggle://description")!
+
+    var body: some View {
+        Group {
+            if isExpanded {
+                expandedText
+            } else {
+                collapsedText
+            }
+        }
+        .background(widthReader)
+        .onAppear(perform: recalculateCollapsedText)
+        .onChange(of: text) { _ in recalculateCollapsedText() }
+        .onChange(of: availableWidth) { _ in recalculateCollapsedText() }
+    }
+
+    private var inlineText: Text {
+        if needsToggle {
+            return Text(attributedText(
+                prefix: collapsedPrefix,
+                ellipsis: ellipsisSuffix,
+                separator: separatorSuffix,
+                actionSuffix: moreSuffix
+            ))
+        }
+
+        return Text(attributedText(prefix: text, ellipsis: nil, separator: nil, actionSuffix: nil))
+    }
+
+    private var collapsedText: some View {
+        inlineText
+            .lineSpacing(AppFont.body2.lineSpacing)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .tint(AppColors.green300)
+            .environment(\.openURL, OpenURLAction { url in
+                guard url.scheme == actionURL.scheme else { return .systemAction }
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isExpanded = true
+                }
+                return .handled
+            })
+    }
+
+    private var expandedText: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(attributedText(prefix: text, ellipsis: nil, separator: nil, actionSuffix: nil))
+                .lineSpacing(AppFont.body2.lineSpacing)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            if needsToggle {
+                HStack {
+                    Spacer(minLength: 0)
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            isExpanded = false
+                        }
+                    } label: {
+                        Text(lessSuffix)
+                            .foregroundColor(AppColors.green300)
+                            .appText(AppFont.body1)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+        }
+    }
+
+    private var widthReader: some View {
+        GeometryReader { geo in
+            Color.clear
+                .onAppear {
+                    availableWidth = geo.size.width
+                }
+                .onChange(of: geo.size.width) { width in
+                    availableWidth = width
+                }
+        }
+    }
+
+    private func attributedText(
+        prefix: String,
+        ellipsis: String?,
+        separator: String?,
+        actionSuffix: String?
+    ) -> AttributedString {
+        var result = AttributedString(prefix)
+        result.font = AppFont.body2.font
+        result.foregroundColor = AppColors.neutral300
+
+        if let ellipsis {
+            var dots = AttributedString(ellipsis)
+            dots.font = AppFont.body2.font
+            dots.foregroundColor = AppColors.neutral300
+            result.append(dots)
+        }
+
+        if let separator {
+            var space = AttributedString(separator)
+            space.font = AppFont.body2.font
+            space.foregroundColor = AppColors.neutral300
+            result.append(space)
+        }
+
+        if let actionSuffix {
+            var action = AttributedString(actionSuffix)
+            action.font = AppFont.body1.font
+            action.foregroundColor = AppColors.green300
+            action.link = actionURL
+            result.append(action)
+        }
+
+        return result
+    }
+
+    private func recalculateCollapsedText() {
+        guard availableWidth > 0 else { return }
+
+        let fullLineCount = lineCount(
+            for: measuredString(prefix: text),
+            width: availableWidth
+        )
+        let shouldToggle = fullLineCount > collapsedLineLimit
+        needsToggle = shouldToggle
+
+        guard shouldToggle else {
+            collapsedPrefix = text
+            return
+        }
+
+        collapsedPrefix = bestCollapsedPrefix(
+            for: text,
+            ellipsis: ellipsisSuffix,
+            separator: separatorSuffix,
+            actionSuffix: moreSuffix,
+            width: availableWidth
+        )
+    }
+
+    private func bestCollapsedPrefix(
+        for text: String,
+        ellipsis: String,
+        separator: String,
+        actionSuffix: String,
+        width: CGFloat
+    ) -> String {
+        let characters = Array(text)
+        var low = 0
+        var high = characters.count
+        var best = ""
+
+        while low <= high {
+            let mid = (low + high) / 2
+            let candidate = String(characters.prefix(mid))
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let measured = measuredString(
+                prefix: candidate,
+                ellipsis: ellipsis,
+                separator: separator,
+                actionSuffix: actionSuffix
+            )
+            let lines = lineCount(for: measured, width: width)
+
+            if lines <= collapsedLineLimit {
+                best = candidate
+                low = mid + 1
+            } else {
+                high = mid - 1
+            }
+        }
+
+        return best
+    }
+
+    private func measuredString(
+        prefix: String,
+        ellipsis: String? = nil,
+        separator: String? = nil,
+        actionSuffix: String? = nil
+    ) -> NSAttributedString {
+        let result = NSMutableAttributedString(
+            string: prefix,
+            attributes: measuredAttributes(for: AppFont.body2)
+        )
+
+        if let ellipsis {
+            result.append(NSAttributedString(
+                string: ellipsis,
+                attributes: measuredAttributes(for: AppFont.body2)
+            ))
+        }
+
+        if let separator {
+            result.append(NSAttributedString(
+                string: separator,
+                attributes: measuredAttributes(for: AppFont.body2)
+            ))
+        }
+
+        if let actionSuffix {
+            result.append(NSAttributedString(
+                string: actionSuffix,
+                attributes: measuredAttributes(for: AppFont.body1)
+            ))
+        }
+
+        return result
+    }
+
+    private func measuredAttributes(for style: AppFont.Style) -> [NSAttributedString.Key: Any] {
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.lineSpacing = AppFont.body2.lineSpacing
+
+        return [
+            .font: UIFont(name: style.fontName, size: style.size) ?? UIFont.systemFont(ofSize: style.size),
+            .kern: style.letterSpacing,
+            .paragraphStyle: paragraph
+        ]
+    }
+
+    private func lineCount(for attributedString: NSAttributedString, width: CGFloat) -> Int {
+        guard attributedString.length > 0 else { return 0 }
+
+        let framesetter = CTFramesetterCreateWithAttributedString(attributedString)
+        let path = CGMutablePath()
+        path.addRect(CGRect(x: 0, y: 0, width: width, height: CGFloat.greatestFiniteMagnitude))
+
+        let frame = CTFramesetterCreateFrame(
+            framesetter,
+            CFRange(location: 0, length: attributedString.length),
+            path,
+            nil
+        )
+        let lines = CTFrameGetLines(frame) as? [CTLine] ?? []
+        return lines.count
     }
 }
 
@@ -570,6 +826,7 @@ private struct WeeklyShakerStatusIcon: View {
 private struct TodayTaskRow: View {
     let title: String
     let isCompleted: Bool
+    let canToggleCompletion: Bool
     let hasProof: Bool
     let proofURL: String?
     let onToggle: () -> Void
@@ -585,6 +842,7 @@ private struct TodayTaskRow: View {
                     .imageScale(.large)
             }
             .buttonStyle(.plain)
+            .disabled(!canToggleCompletion)
 
             Text(title)
                 .foregroundColor(AppColors.textWhite)
@@ -633,6 +891,166 @@ private struct TodayTaskRow: View {
     }
 }
 
+private struct ProofUploadOverlay: View {
+    let selectedImage: UIImage?
+    let showSourceOptions: Bool
+    let onClose: () -> Void
+    let onTapUploadArea: () -> Void
+    let onTakePhoto: () -> Void
+    let onChooseLibrary: () -> Void
+    let onLogProof: () -> Void
+
+    private let cardWidth: CGFloat = 361
+    private let cardHeight: CGFloat = 340
+    private let buttonWidth: CGFloat = 329
+    private let buttonHeight: CGFloat = 50
+
+    var body: some View {
+        ZStack {
+            DarkBlurView(style: .systemChromeMaterialDark)
+                .ignoresSafeArea()
+                .overlay(Color.black.opacity(0.42).ignoresSafeArea())
+
+            VStack(alignment: .leading, spacing: 0) {
+                header
+                    .padding(.horizontal, 25)
+                    .padding(.top, 22)
+
+                uploadArea
+                    .onTapGesture {
+                        if !showSourceOptions || selectedImage != nil {
+                            onTapUploadArea()
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 18)
+
+                Spacer(minLength: 0)
+
+                Button(action: onLogProof) {
+                    Text("Log Proof")
+                        .foregroundColor(selectedImage == nil ? AppColors.neutral600 : AppColors.neutral1000)
+                        .appText(AppFont.buttonL)
+                        .frame(width: buttonWidth, height: buttonHeight)
+                        .background(selectedImage == nil ? AppColors.neutral800 : AppColors.green300)
+                        .cornerRadius(8)
+                }
+                .buttonStyle(.plain)
+                .disabled(selectedImage == nil)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.bottom, 22)
+            }
+            .frame(width: cardWidth, height: cardHeight)
+            .background(Color(red: 32 / 255, green: 32 / 255, blue: 32 / 255).opacity(0.5))
+            .clipShape(RoundedRectangle(cornerRadius: 24))
+            .overlay(
+                RoundedRectangle(cornerRadius: 24)
+                    .stroke(
+                        LinearGradient(
+                            colors: [
+                                Color("Neutral-400").opacity(0.7),
+                                Color("Neutral-600").opacity(0.7)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
+            )
+            .shadow(color: .black.opacity(0.28), radius: 28, x: 0, y: 18)
+            .padding(.horizontal, 16)
+        }
+    }
+
+    private var header: some View {
+        HStack(alignment: .center) {
+            Text("Upload Today’s Proof")
+                .foregroundColor(AppColors.textWhite)
+                .appText(AppFont.title3)
+
+            Spacer()
+
+            Button(action: onClose) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 14, weight: .regular))
+                    .foregroundColor(AppColors.textWhite)
+                    .frame(width: 14, height: 14)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var uploadArea: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 6)
+                .fill(AppColors.neutral800)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(
+                            AppColors.neutral700,
+                            style: StrokeStyle(lineWidth: 1, dash: [6, 6])
+                        )
+                )
+
+            if let selectedImage {
+                GeometryReader { proxy in
+                    Image(uiImage: selectedImage)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .clipped()
+                        .overlay {
+                            if showSourceOptions {
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(Color.black.opacity(0.46))
+                            }
+                        }
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+            }
+
+            if showSourceOptions {
+                HStack(spacing: 10) {
+                    ProofSourceButton(title: "Take Photo", systemName: "camera", action: onTakePhoto)
+                    ProofSourceButton(title: "Library", systemName: "photo", action: onChooseLibrary)
+                }
+                .padding(.horizontal, 14)
+            } else if selectedImage == nil {
+                Image("gallery")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 30, height: 30)
+            }
+        }
+        .frame(width: buttonWidth, height: 188)
+        .contentShape(RoundedRectangle(cornerRadius: 6))
+    }
+}
+
+private struct ProofSourceButton: View {
+    let title: String
+    let systemName: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 8) {
+                Image(systemName: systemName)
+                    .font(.system(size: 20, weight: .medium))
+                Text(title)
+                    .appText(AppFont.captionS)
+            }
+            .foregroundColor(AppColors.textWhite)
+            .frame(maxWidth: .infinity)
+            .frame(height: 86)
+            .background(AppColors.neutral800.opacity(0.85))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 private struct ParticipantRow: View {
     let participant: ChallengeParticipantUI
     let showCrown: Bool
@@ -675,22 +1093,26 @@ private struct GalleryThumb: View {
     let imageURL: String
 
     var body: some View {
-        AsyncImage(url: URL(string: imageURL)) { phase in
-            switch phase {
-            case .success(let image):
-                image
-                    .resizable()
-                    .scaledToFill()
-            default:
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(AppColors.neutral900)
-                    .overlay(
-                        Image(systemName: "photo")
-                            .foregroundColor(AppColors.neutral400)
-                    )
+        GeometryReader { proxy in
+            AsyncImage(url: URL(string: imageURL)) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .clipped()
+                default:
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(AppColors.neutral900)
+                        .overlay(
+                            Image(systemName: "photo")
+                                .foregroundColor(AppColors.neutral400)
+                        )
+                }
             }
         }
-        .frame(width: 89, height: 89)
+        .aspectRatio(1, contentMode: .fit)
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
@@ -698,26 +1120,291 @@ private struct GalleryThumb: View {
 private struct FullGallerySheet: View {
     let items: [ChallengeGalleryItemUI]
     @Environment(\.dismiss) private var dismiss
+    @State private var isFilterDropdownPresented = false
+    @State private var selectedUploaderId: UUID?
+    @State private var selectedDetailItem: ChallengeGalleryItemUI?
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
-                    ForEach(items) { item in
-                        GalleryThumb(imageURL: item.imageURL)
-                    }
+        ZStack(alignment: .topTrailing) {
+            AppColors.neutral1000.ignoresSafeArea()
+
+            VStack(alignment: .leading, spacing: 0) {
+                galleryHeader
+
+                let filteredItems = filteredGalleryItems
+
+                if filteredItems.isEmpty {
+                    Text("No proof photos yet.")
+                        .foregroundColor(AppColors.neutral400)
+                        .appText(AppFont.captionM)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    galleryGrid(items: filteredItems)
                 }
-                .padding(16)
             }
-            .background(AppColors.neutral1000)
-            .navigationTitle("Gallery")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") { dismiss() }
-                }
+
+            Button(action: { dismiss() }) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 18.33, weight: .regular))
+                    .foregroundColor(AppColors.textWhite)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 14)
+            .padding(.trailing, 16)
+
+            if let selectedDetailItem {
+                GalleryPhotoDetailOverlay(
+                    item: selectedDetailItem,
+                    onDismiss: {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            self.selectedDetailItem = nil
+                        }
+                    }
+                )
+                .transition(.opacity)
+                .zIndex(10)
             }
         }
+        .dropdownOverlay(
+            isPresented: $isFilterDropdownPresented,
+            options: uploaderDropdownOptions,
+            selection: $selectedUploaderId,
+            onSelect: { selectedUploaderId = $0 },
+            labelTitle: { option in
+                guard let option else { return "Gallery" }
+                return uploaderName(for: option)
+            }
+        )
+    }
+
+    private var galleryHeader: some View {
+        HStack {
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isFilterDropdownPresented.toggle()
+                }
+            }) {
+                HStack(spacing: 8) {
+                    Text("Gallery")
+                        .appText(AppFont.title3)
+                        .foregroundColor(AppColors.textWhite)
+
+                    Image(systemName: "chevron.down")
+                        .foregroundColor(AppColors.textWhite)
+                        .font(.system(size: 10, weight: .bold))
+                        .rotationEffect(.degrees(isFilterDropdownPresented ? 180 : 0))
+                        .animation(.easeInOut(duration: 0.2), value: isFilterDropdownPresented)
+                }
+            }
+            .buttonStyle(.plain)
+            .anchorPreference(key: DropdownBoundsPreferenceKey.self, value: .bounds) { $0 }
+
+            Spacer()
+        }
+        .padding(.horizontal, 23)
+        .padding(.top, 24)
+        .padding(.bottom, 32)
+    }
+
+    private func galleryGrid(items: [ChallengeGalleryItemUI]) -> some View {
+        ScrollView(showsIndicators: false) {
+            LazyVGrid(
+                columns: [
+                    GridItem(.flexible(), spacing: 16),
+                    GridItem(.flexible(), spacing: 16)
+                ],
+                spacing: 13
+            ) {
+                ForEach(items) { item in
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            selectedDetailItem = item
+                        }
+                    }) {
+                        FullGalleryTile(item: item)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 24)
+        }
+    }
+
+    private var filteredGalleryItems: [ChallengeGalleryItemUI] {
+        guard let selectedUploaderId else { return items }
+        return items.filter { $0.uploaderUserId == selectedUploaderId }
+    }
+
+    private var uploaderOptions: [UUID] {
+        var seen: Set<UUID> = []
+        return items.compactMap { item in
+            guard !seen.contains(item.uploaderUserId) else { return nil }
+            seen.insert(item.uploaderUserId)
+            return item.uploaderUserId
+        }
+    }
+
+    private var uploaderDropdownOptions: [UUID?] {
+        [nil] + uploaderOptions.map { Optional.some($0) }
+    }
+
+    private func uploaderName(for uploaderId: UUID) -> String {
+        items.first(where: { $0.uploaderUserId == uploaderId })?.uploaderName ?? "Unknown"
+    }
+}
+
+private struct FullGalleryTile: View {
+    let item: ChallengeGalleryItemUI
+
+    var body: some View {
+        GeometryReader { proxy in
+            AsyncImage(url: URL(string: item.imageURL)) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .clipped()
+                default:
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(AppColors.neutral900)
+                        .overlay(
+                            Image(systemName: "photo")
+                                .foregroundColor(AppColors.neutral400)
+                        )
+                }
+            }
+            .overlay(alignment: .bottomLeading) {
+                LinearGradient(
+                    colors: [.clear, .black.opacity(0.56)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .allowsHitTesting(false)
+            }
+            .overlay(alignment: .bottomLeading) {
+                HStack(spacing: 7) {
+                    GalleryUploaderAvatar(avatarURL: item.uploaderAvatarURL)
+
+                    Text(item.uploaderName)
+                        .foregroundColor(AppColors.textWhite)
+                        .appText(AppFont.captionS)
+                        .lineLimit(1)
+                }
+                .padding(.leading, 7)
+                .padding(.bottom, 7)
+                .padding(.trailing, 7)
+            }
+        }
+        .aspectRatio(1, contentMode: .fit)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+}
+
+private struct GalleryUploaderAvatar: View {
+    let avatarURL: String?
+    var size: CGFloat = 24
+
+    var body: some View {
+        Group {
+            if let avatarURL,
+               let url = URL(string: avatarURL) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFill()
+                    default:
+                        Circle()
+                            .fill(AppColors.neutral900)
+                    }
+                }
+            } else {
+                Circle()
+                    .fill(AppColors.neutral900)
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(Circle())
+    }
+}
+
+private struct GalleryPhotoDetailOverlay: View {
+    let item: ChallengeGalleryItemUI
+    let onDismiss: () -> Void
+
+    var body: some View {
+        ZStack {
+            DarkBlurView(style: .systemChromeMaterialDark)
+                .ignoresSafeArea()
+                .overlay(Color.black.opacity(0.34).ignoresSafeArea())
+                .onTapGesture {
+                    onDismiss()
+                }
+
+            VStack(spacing: 0) {
+                HStack(alignment: .top) {
+                    HStack(spacing: 8) {
+                        GalleryUploaderAvatar(avatarURL: item.uploaderAvatarURL, size: 40)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(item.uploaderName)
+                                .foregroundColor(AppColors.textWhite)
+                                .appText(AppFont.captionL)
+
+                            Text(formattedDate)
+                                .foregroundColor(AppColors.neutral300)
+                                .appText(AppFont.buttonM)
+                        }
+                    }
+
+                    Spacer()
+
+                    Button(action: onDismiss) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 18.33, weight: .regular))
+                            .foregroundColor(AppColors.textWhite)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 14)
+
+                Spacer(minLength: 0)
+
+                AsyncImage(url: URL(string: item.imageURL)) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFit()
+                    default:
+                        Rectangle()
+                            .fill(AppColors.neutral900)
+                            .overlay(
+                                Image(systemName: "photo")
+                                    .foregroundColor(AppColors.neutral400)
+                            )
+                    }
+                }
+                .frame(maxWidth: .infinity)
+
+                Spacer(minLength: 0)
+            }
+        }
+    }
+
+    private var formattedDate: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MM.dd.yyyy"
+        return formatter.string(from: item.createdAt)
     }
 }
 
@@ -733,21 +1420,9 @@ private struct FullCommunityCommentsSheet: View {
 
             VStack(spacing: 0) {
                 HStack {
-                    Button(action: { dismiss() }) {
-                        ZStack {
-                            Circle()
-                                .fill(Color.white.opacity(0.08))
-                                .frame(width: 40, height: 40)
-                                .overlay(
-                                    Circle()
-                                        .stroke(Color.white.opacity(0.10), lineWidth: 1)
-                                )
-                            Image(systemName: "chevron.left")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(AppColors.textWhite)
-                        }
+                    HeaderAssetButton(imageName: "dismissButton") {
+                        dismiss()
                     }
-                    .buttonStyle(.plain)
 
                     Spacer()
 
@@ -758,11 +1433,11 @@ private struct FullCommunityCommentsSheet: View {
                     Spacer()
 
                     Color.clear
-                        .frame(width: 40, height: 40)
+                        .frame(width: 44, height: 44)
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
-                .padding(.bottom, 16)
+                .padding(.bottom, 24)
 
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 12) {

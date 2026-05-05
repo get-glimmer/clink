@@ -117,7 +117,7 @@ struct AddRoutineSheet: View {
     private var titleSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Title")
-                .appFont(AppFont.labelS)
+                .appFont(AppFont.labelM)
                 .foregroundColor(Color("Neutral-300"))
                 .padding(.leading, 8)
 
@@ -141,7 +141,7 @@ struct AddRoutineSheet: View {
     private var durationSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Duration")
-                .appFont(AppFont.labelS)
+                .appFont(AppFont.labelM)
                 .foregroundColor(Color("Neutral-300"))
                 .padding(.horizontal, 8)
 
@@ -207,16 +207,16 @@ struct AddRoutineSheet: View {
     private var repeatSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Repeat")
-                .appFont(AppFont.labelS)
+                .appFont(AppFont.labelM)
                 .foregroundColor(Color("Neutral-300"))
                 .padding(.horizontal, 8)
 
             VStack(spacing: 0) {
                 HStack {
-                    HStack {
+                    HStack(spacing: 6) {
                         Image("repeat")
                         Text("Repeat")
-                            .appFont(AppFont.labelM)
+                            .appFont(AppFont.labelL)
                             .foregroundColor(Color("Neutral-300"))
                     }
                     Spacer()
@@ -262,10 +262,10 @@ private func durationRow(
     onTap: @escaping () -> Void
 ) -> some View {
         HStack {
-            HStack{
+            HStack(spacing: 6) {
                 Image("duration")
                 Text(title)
-                    .appFont(AppFont.labelM)
+                    .appFont(AppFont.labelL)
                     .foregroundColor(Color("Neutral-300"))
             }
             Spacer()

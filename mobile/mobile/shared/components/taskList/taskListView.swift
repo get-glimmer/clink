@@ -17,7 +17,7 @@ struct TaskListView: View {
     @State private var editingPrivacyOn: [UUID: Bool] = [:]
     
     // task menu sheet state
-    @State private var activeTask: TaskListItem? = nil
+    @Binding var activeTask: TaskListItem?
     
     // used so that fetchCategoriesAndTasks() can fetch data at wanted date
     @Binding var taskSelectedDate: Date
@@ -27,9 +27,10 @@ struct TaskListView: View {
     @State private var keyboardAnimationDuration: Double = 0.25
   
     // now accepts a binded date as a parameter
-    init(taskSelectedDate: Binding<Date>, viewModel: TaskListViewModel) {
+    init(taskSelectedDate: Binding<Date>, viewModel: TaskListViewModel, activeTask: Binding<TaskListItem?>) {
         self._taskSelectedDate = taskSelectedDate
         self.viewModel = viewModel
+        self._activeTask = activeTask
     }
     
     // MARK: - Main View
@@ -72,68 +73,6 @@ struct TaskListView: View {
             withAnimation(.easeInOut(duration: duration)) {
                 keyboardHeight = 0
             }
-        }
-        // MARK: Task Menu Sheet
-        .sheet(item: $activeTask, onDismiss: { activeTask = nil }) { task in
-            let isToday: Bool = task.dueDate.map { Calendar.current.isDateInToday($0) } ?? false
-            let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
-            
-            let holder = viewModel.categoriesWithTasks.first { $0.tasks.contains { $0.id == task.id } }
-            let isArchivedTask = (holder?.category.type == .archived)
-            
-            let dailyCats    = viewModel.categoriesWithTasks.filter { $0.category.type == .daily }.map { $0.category }
-            let archivedCats = viewModel.categoriesWithTasks.filter { $0.category.type == .archived }.map { $0.category }
-            
-            let menuHeight: CGFloat = isArchivedTask ? 317 : 380
-            
-            TaskMenuSheet(
-                taskTitle: task.title,
-                isDueToday: isToday,
-                initialDueDate: task.dueDate,
-
-                isArchivedTask: isArchivedTask,
-                dailyCategories: dailyCats,
-                archivedCategories: archivedCats,
-                
-                // actions
-                onDoToday: {
-                    Task { await viewModel.updateTaskDate(taskId: task.id, newDate: Date()) }
-                    activeTask = nil
-                },
-                onDoTomorrow: {
-                    Task { await viewModel.updateTaskDate(taskId: task.id, newDate: tomorrow) }
-                    activeTask = nil
-                },
-                onConfirmChangeDate: { picked in
-                    Task { await viewModel.updateTaskDate(taskId: task.id, newDate: picked) }
-                    activeTask = nil
-                },
-                onMakeRoutine: {
-                },
-                onDelete: {
-                    Task { await viewModel.deleteTask(task: task) }
-                    activeTask = nil
-                },
-                
-                onArchiveToCategory: { selected in
-                    Task { await viewModel.moveTaskToCategory(taskId: task.id, toCategoryId: selected.id) }
-                    activeTask = nil
-                },
-                onReassignToDaily: { selectedDaily in
-                    Task { await viewModel.moveTaskToCategory(taskId: task.id, toCategoryId: selectedDaily.id) }
-                    // 이어지는 액션은 TaskMenuSheet 내부에서 pendingAction 으로 처리됨
-                },
-                
-                onEditTitle: { newTitle in
-                    Task { await viewModel.updateTaskTitle(taskId: task.id, newTitle: newTitle) }
-                },
-                viewModel: viewModel,
-                baseRoutineCategory: holder?.category  
-            )
-            .presentationDetents([ .height(menuHeight) ])
-            .presentationCornerRadius(24)
-            .presentationDragIndicator(.hidden)
-            .presentationBackground(.clear)
         }
         .scrollDismissesKeyboard(.interactively)
     }

@@ -115,8 +115,9 @@ final class ChallengeResultViewModel: ObservableObject {
 
             let activeMembers = members.filter { $0.left_at == nil }
 
-            let profiles = await fetchProfiles(client: client, userIds: activeMembers.map(\.user_id))
             let proofs = await fetchProofs(client: client)
+            let proofUploaderIds = proofs.map(\.uploader_user_id)
+            let profiles = await fetchProfiles(client: client, userIds: activeMembers.map(\.user_id) + proofUploaderIds)
 
             let startDate = dateFromPostgreSQL(challenge.start_date)
             let endDate = dateFromPostgreSQL(challenge.end_date)
@@ -222,7 +223,20 @@ final class ChallengeResultViewModel: ObservableObject {
             highlights = proofs
                 .sorted { (parseISO($0.created_at) ?? .distantPast) > (parseISO($1.created_at) ?? .distantPast) }
                 .prefix(3)
-                .map { ChallengeGalleryItemUI(id: $0.id, imageURL: $0.proof_url, createdAt: parseISO($0.created_at) ?? .distantPast) }
+                .map { proof in
+                    let profile = profiles[proof.uploader_user_id]
+                    let uploaderName = profile?.name?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+                        ? (profile?.name ?? "Unknown")
+                        : "Unknown"
+                    return ChallengeGalleryItemUI(
+                        id: proof.id,
+                        imageURL: proof.proof_url,
+                        createdAt: parseISO(proof.created_at) ?? .distantPast,
+                        uploaderUserId: proof.uploader_user_id,
+                        uploaderName: uploaderName,
+                        uploaderAvatarURL: profile?.avatar_url
+                    )
+                }
         } catch {
             errorMessage = "Failed to load result: \(error.localizedDescription)"
         }
@@ -492,7 +506,100 @@ struct ChallengeResultJarView: View {
         // view. lidColorStart/End are still accepted for backwards-compat
         // but ignored.
         lidColors = [AppColors.green300, AppColors.green300.opacity(0.7)]
-        lidOpacity = isSealed ? 1 : 0
+        // Hide the lid color when the shaker has no emojis — empty jar
+        // shouldn't look sealed.
+        lidOpacity = jarItems.isEmpty ? 0 : 1
+    }
+}
+
+// MARK: - Dome Shape
+
+/// A shape with a smooth dome (quadratic-bezier arc) across the top edge
+/// and a straight bottom + sides. Used to create the curved section
+/// header on the result view.
+struct DomeShape: Shape {
+    /// Vertical distance from the side (where the arc meets the edge)
+    /// down to the apex of the dome at the horizontal center.
+    var arcHeight: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        // Side edges start at arcHeight below the top so the curve has
+        // room to peak at rect.minY in the middle.
+        path.move(to: CGPoint(x: rect.minX, y: rect.minY + arcHeight))
+        path.addQuadCurve(
+            to: CGPoint(x: rect.maxX, y: rect.minY + arcHeight),
+            control: CGPoint(x: rect.midX, y: rect.minY)
+        )
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.closeSubpath()
+        return path
+    }
+}
+
+// MARK: - Static Jar (no SpriteKit, used for ImageRenderer / share card)
+
+/// Image-only jar view used wherever SpriteKit can't render — most
+/// importantly inside `ImageRenderer`, which produces a broken-asset
+/// placeholder for `SpriteView`. Lays the emojis out in a simple
+/// wrapping arrangement so the snapshot still reads as a "jar".
+struct ChallengeResultStaticJarView: View {
+    let jarItems: [JarItemUI]
+    let isSealed: Bool
+
+    private let lidHeightRatio:   CGFloat = 46.0 / 270.0
+    private let lidCornerRatio:   CGFloat = 13.0 / 270.0
+    private let lidTopInsetRatio: CGFloat = 23.5 / 270.0
+
+    var body: some View {
+        GeometryReader { geo in
+            let side = min(geo.size.width, geo.size.height)
+            ZStack {
+                Image("jarBase")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: side, height: side)
+
+                if !jarItems.isEmpty {
+                    Rectangle()
+                        .fill(
+                            LinearGradient(
+                                colors: [AppColors.green300, AppColors.green300.opacity(0.7)],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(width: side, height: side * lidHeightRatio)
+                        .cornerRadius(side * lidCornerRatio)
+                        .offset(y: -side / 2 + side * lidTopInsetRatio)
+                }
+
+                emojiPile(side: side)
+
+                Image("glitchLid")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: side, height: side)
+            }
+            .frame(width: geo.size.width, height: geo.size.height, alignment: .center)
+        }
+        .aspectRatio(1, contentMode: .fit)
+    }
+
+    @ViewBuilder
+    private func emojiPile(side: CGFloat) -> some View {
+        if !jarItems.isEmpty {
+            let columns = Array(repeating: GridItem(.flexible(), spacing: 2), count: 5)
+            LazyVGrid(columns: columns, spacing: 2) {
+                ForEach(jarItems) { item in
+                    Text(item.emoji)
+                        .font(.system(size: side * 0.085))
+                }
+            }
+            .frame(width: side * 0.7, height: side * 0.5, alignment: .bottom)
+            .offset(y: side * 0.18)
+        }
     }
 }
 
@@ -521,32 +628,47 @@ struct ChallengeResultView: View {
                     .progressViewStyle(CircularProgressViewStyle(tint: AppColors.textWhite))
             } else {
                 ScrollView(showsIndicators: false) {
-                    VStack(spacing: 20) {
-                        headerSection
-                            .padding(.top, 4)
+                    VStack(spacing: 0) {
+                        // Top group — transparent over neutral1000
+                        VStack(spacing: 28) {
+                            headerSection
 
-                        titleSection
+                            titleSection
+                                .padding(.top, -8)
 
-                        ChallengeResultJarView(
-                            jarItems: viewModel.jarItems,
-                            lidColorStart: viewModel.lidColorStart,
-                            lidColorEnd: viewModel.lidColorEnd,
-                            isSealed: viewModel.isSealed
+                            ChallengeResultJarView(
+                                jarItems: viewModel.jarItems,
+                                lidColorStart: viewModel.lidColorStart,
+                                lidColorEnd: viewModel.lidColorEnd,
+                                isSealed: viewModel.isSealed
+                            )
+                            .frame(height: 320)
+
+                            statsRow
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 24)
+
+                        // Dome section — #181818 with rounded top corners,
+                        // extends to the bottom of the screen.
+                        VStack(spacing: 28) {
+                            dreamTeamSection
+                            highlightsSection
+                                .padding(.top, 5)
+                            shareButton
+                                .padding(.top, 4)
+                        }
+                        .padding(.top, 52)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 60)
+                        .frame(maxWidth: .infinity)
+                        .background(
+                            DomeShape(arcHeight: 18)
+                                .fill(Color(hex: "181818") ?? Color.black)
                         )
-                        .frame(height: 320)
-
-                        statsRow
-
-                        dreamTeamSection
-
-                        highlightsSection
-                            .padding(.bottom, 12)
-
-                        shareButton
-                            .padding(.bottom, 24)
                     }
-                    .padding(.horizontal, 16)
                 }
+                .ignoresSafeArea(.all, edges: .bottom)
             }
         }
         .navigationBarBackButtonHidden(true)
@@ -574,8 +696,8 @@ struct ChallengeResultView: View {
                 dismiss()
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(AppColors.textWhite)
+                    .font(.system(size: 18, weight: .regular))
+                    .foregroundColor(AppColors.neutral400)
                     .frame(width: 36, height: 36)
             }
             .buttonStyle(.plain)
@@ -583,12 +705,12 @@ struct ChallengeResultView: View {
     }
 
     private var titleSection: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 8) {
             Text(viewModel.dateRangeText)
                 .foregroundColor(AppColors.neutral1000)
                 .appText(AppFont.labelS)
                 .padding(.horizontal, 12)
-                .padding(.vertical, 6)
+                .frame(height: 22)
                 .background(AppColors.green300)
                 .cornerRadius(999)
 
@@ -596,19 +718,21 @@ struct ChallengeResultView: View {
                 .foregroundColor(AppColors.textWhite)
                 .appText(AppFont.title1)
                 .multilineTextAlignment(.center)
+                .padding(.top, 4)
 
             Text(viewModel.subtitle)
                 .foregroundColor(AppColors.neutral300)
-                .appText(AppFont.body2)
+                .appText(AppFont.body1)
         }
+        .frame(maxWidth: .infinity)
     }
 
     private var statsRow: some View {
         HStack(spacing: 0) {
             statCell(value: "\(viewModel.participantsCount)", label: "PARTICIPANTS")
-            Divider().frame(width: 1, height: 36).background(AppColors.neutral800)
+            Rectangle().fill(AppColors.neutral800).frame(width: 1, height: 67)
             statCell(value: "\(viewModel.totalDays)", label: "DAYS")
-            Divider().frame(width: 1, height: 36).background(AppColors.neutral800)
+            Rectangle().fill(AppColors.neutral800).frame(width: 1, height: 67)
             statCell(value: "\(viewModel.overallPercent)%", label: "COMPLETED")
         }
         .padding(.vertical, 8)
@@ -618,16 +742,16 @@ struct ChallengeResultView: View {
         VStack(spacing: 6) {
             Text(value)
                 .foregroundColor(AppColors.textWhite)
-                .appText(AppFont.title2)
+                .appText(AppFont.labelL)
             Text(label)
-                .foregroundColor(AppColors.neutral400)
+                .foregroundColor(AppColors.textWhite)
                 .appText(AppFont.captionXS)
         }
         .frame(maxWidth: .infinity)
     }
 
     private var dreamTeamSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 20) {
             HStack {
                 Text("The Dream Team")
                     .foregroundColor(AppColors.textWhite)
@@ -637,12 +761,14 @@ struct ChallengeResultView: View {
                     .appText(AppFont.labelM)
                 Spacer()
                 if viewModel.dreamTeam.count > 3 {
-                    Button(showAllParticipants ? "Show less" : "View all") {
+                    Button {
                         showAllParticipants.toggle()
+                    } label: {
+                        Text(showAllParticipants ? "Show less" : "View all")
+                            .appText(AppFont.buttonM)
+                            .foregroundColor(AppColors.green300)
                     }
                     .buttonStyle(.plain)
-                    .foregroundColor(AppColors.green300)
-                    .appText(AppFont.buttonM)
                 }
             }
 
@@ -651,13 +777,14 @@ struct ChallengeResultView: View {
                 dreamTeamRow(rank: idx + 1, p: p, showCrown: idx == 0)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func dreamTeamRow(rank: Int, p: ChallengeResultParticipantUI, showCrown: Bool) -> some View {
         HStack(spacing: 12) {
             Text("\(rank)")
                 .foregroundColor(AppColors.neutral300)
-                .appText(AppFont.captionM)
+                .appText(AppFont.labelM)
                 .frame(width: 16)
 
             ZStack(alignment: .bottomTrailing) {
@@ -684,8 +811,8 @@ struct ChallengeResultView: View {
             Spacer()
 
             Text("\(p.percent)%")
-                .foregroundColor(AppColors.textWhite)
-                .appText(AppFont.labelM)
+                .foregroundColor(AppColors.neutral300)
+                .appText(AppFont.labelL)
         }
     }
 
@@ -700,7 +827,7 @@ struct ChallengeResultView: View {
                     .foregroundColor(AppColors.neutral400)
                     .appText(AppFont.captionM)
             } else {
-                HStack(spacing: 8) {
+                HStack(spacing: 6) {
                     ForEach(viewModel.highlights) { item in
                         AsyncImage(url: URL(string: item.imageURL)) { phase in
                             switch phase {
@@ -710,13 +837,13 @@ struct ChallengeResultView: View {
                                 RoundedRectangle(cornerRadius: 8).fill(AppColors.neutral900)
                             }
                         }
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 110)
+                        .frame(width: 114, height: 114)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
                 }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var shareButton: some View {
@@ -727,7 +854,7 @@ struct ChallengeResultView: View {
                 Image(systemName: "camera")
                     .font(.system(size: 16, weight: .semibold))
                 Text("Share Result")
-                    .appText(AppFont.labelL)
+                    .appText(AppFont.buttonL)
             }
             .foregroundColor(AppColors.neutral1000)
             .frame(maxWidth: .infinity)
@@ -759,7 +886,11 @@ struct ChallengeShareCardView: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.85).ignoresSafeArea()
+            // Blurred + dimmed background showing the result view behind
+            DarkBlurView(style: .systemThinMaterialDark)
+                .ignoresSafeArea()
+            Color.black.opacity(0.45)
+                .ignoresSafeArea()
 
             VStack(spacing: 20) {
                 HStack {
@@ -768,8 +899,8 @@ struct ChallengeShareCardView: View {
                         dismiss()
                     } label: {
                         Image(systemName: "xmark")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(AppColors.textWhite)
+                            .font(.system(size: 18, weight: .regular))
+                            .foregroundColor(AppColors.neutral400)
                             .frame(width: 36, height: 36)
                     }
                     .buttonStyle(.plain)
@@ -779,13 +910,11 @@ struct ChallengeShareCardView: View {
 
                 Text("Save or share your challenge\nresult card with friends.")
                     .foregroundColor(AppColors.textWhite)
-                    .appText(AppFont.labelM)
+                    .appText(AppFont.title3)
                     .multilineTextAlignment(.center)
 
                 cardContent
-                    .padding(.horizontal, 24)
-
-                Spacer()
+                    .padding(.horizontal, 16)
 
                 HStack(spacing: 12) {
                     actionButton(systemName: "arrow.down.to.line", title: "Save") {
@@ -795,10 +924,13 @@ struct ChallengeShareCardView: View {
                         share()
                     }
                 }
-                .padding(.horizontal, 24)
-                .padding(.bottom, 32)
+                .padding(.horizontal, 16)
+                .padding(.top, 4)
+
+                Spacer()
             }
         }
+        .presentationBackground(.clear)
         .sheet(isPresented: $showShareSheet) {
             if let renderedImage {
                 ShareSheet(items: [renderedImage])
@@ -808,30 +940,32 @@ struct ChallengeShareCardView: View {
 
     private var cardContent: some View {
         VStack(spacing: 16) {
-            Text("clink")
+            Image("clink")
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .frame(height: 22)
                 .foregroundColor(AppColors.textWhite)
-                .appText(AppFont.title2)
                 .padding(.top, 18)
+                .padding(.bottom, 15)
 
-            ChallengeResultJarView(
+            ChallengeResultStaticJarView(
                 jarItems: jarItems,
-                lidColorStart: lidColorStart,
-                lidColorEnd: lidColorEnd,
                 isSealed: isSealed
             )
             .frame(height: 240)
 
             Text(title)
                 .foregroundColor(AppColors.textWhite)
-                .appText(AppFont.labelL)
+                .appText(AppFont.title2)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 12)
 
             HStack(spacing: 0) {
                 cardStat(value: "\(participantsCount)", label: "PARTICIPANTS")
-                Divider().frame(width: 1, height: 32).background(AppColors.neutral800)
+                Rectangle().fill(AppColors.neutral800).frame(width: 1, height: 67)
                 cardStat(value: dateRangeText, label: "PERIOD")
-                Divider().frame(width: 1, height: 32).background(AppColors.neutral800)
+                Rectangle().fill(AppColors.neutral800).frame(width: 1, height: 67)
                 VStack(spacing: 6) {
                     HStack(spacing: 4) {
                         Text("\(myPercent)%")
@@ -841,17 +975,41 @@ struct ChallengeShareCardView: View {
                             .font(.system(size: 14))
                     }
                     Text("COMPLETED")
-                        .foregroundColor(AppColors.neutral400)
+                        .foregroundColor(AppColors.textWhite)
                         .appText(AppFont.captionXS)
                 }
                 .frame(maxWidth: .infinity)
             }
-            .padding(.vertical, 14)
+            .padding(.vertical, 8)
             .padding(.horizontal, 12)
         }
         .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(AppColors.neutral900)
+            RoundedRectangle(cornerRadius: 16)
+                .fill(
+                    LinearGradient(
+                        gradient: Gradient(stops: [
+                            .init(color: AppColors.neutral800, location: 0.0),
+                            .init(color: AppColors.neutral900, location: 0.15),
+                            .init(color: AppColors.neutral1000, location: 1.0)
+                        ]),
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            Color("Neutral-400").opacity(0.5),
+                            Color("Neutral-600").opacity(0.5)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 0.5
+                )
         )
     }
 
@@ -861,7 +1019,7 @@ struct ChallengeShareCardView: View {
                 .foregroundColor(AppColors.textWhite)
                 .appText(AppFont.labelL)
             Text(label)
-                .foregroundColor(AppColors.neutral400)
+                .foregroundColor(AppColors.textWhite)
                 .appText(AppFont.captionXS)
         }
         .frame(maxWidth: .infinity)
@@ -873,13 +1031,13 @@ struct ChallengeShareCardView: View {
                 Image(systemName: systemName)
                     .font(.system(size: 14, weight: .semibold))
                 Text(title)
-                    .appText(AppFont.labelL)
+                    .appText(AppFont.buttonL)
             }
-            .foregroundColor(AppColors.textWhite)
+            .foregroundColor(AppColors.neutral1000)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
-            .background(AppColors.neutral800)
-            .cornerRadius(12)
+            .frame(height: 50)
+            .background(Color.white)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
     }
@@ -910,4 +1068,3 @@ struct ChallengeShareCardView: View {
 }
 
 // MARK: - Share Sheet
-
