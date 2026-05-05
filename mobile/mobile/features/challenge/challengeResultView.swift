@@ -115,8 +115,9 @@ final class ChallengeResultViewModel: ObservableObject {
 
             let activeMembers = members.filter { $0.left_at == nil }
 
-            let profiles = await fetchProfiles(client: client, userIds: activeMembers.map(\.user_id))
             let proofs = await fetchProofs(client: client)
+            let proofUploaderIds = proofs.map(\.uploader_user_id)
+            let profiles = await fetchProfiles(client: client, userIds: activeMembers.map(\.user_id) + proofUploaderIds)
 
             let startDate = dateFromPostgreSQL(challenge.start_date)
             let endDate = dateFromPostgreSQL(challenge.end_date)
@@ -222,7 +223,20 @@ final class ChallengeResultViewModel: ObservableObject {
             highlights = proofs
                 .sorted { (parseISO($0.created_at) ?? .distantPast) > (parseISO($1.created_at) ?? .distantPast) }
                 .prefix(3)
-                .map { ChallengeGalleryItemUI(id: $0.id, imageURL: $0.proof_url, createdAt: parseISO($0.created_at) ?? .distantPast) }
+                .map { proof in
+                    let profile = profiles[proof.uploader_user_id]
+                    let uploaderName = profile?.name?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+                        ? (profile?.name ?? "Unknown")
+                        : "Unknown"
+                    return ChallengeGalleryItemUI(
+                        id: proof.id,
+                        imageURL: proof.proof_url,
+                        createdAt: parseISO(proof.created_at) ?? .distantPast,
+                        uploaderUserId: proof.uploader_user_id,
+                        uploaderName: uploaderName,
+                        uploaderAvatarURL: profile?.avatar_url
+                    )
+                }
         } catch {
             errorMessage = "Failed to load result: \(error.localizedDescription)"
         }
@@ -1054,4 +1068,3 @@ struct ChallengeShareCardView: View {
 }
 
 // MARK: - Share Sheet
-

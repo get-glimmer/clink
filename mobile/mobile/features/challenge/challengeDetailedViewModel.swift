@@ -39,6 +39,9 @@ struct ChallengeGalleryItemUI: Identifiable {
     let id: UUID
     let imageURL: String
     let createdAt: Date
+    let uploaderUserId: UUID
+    let uploaderName: String
+    let uploaderAvatarURL: String?
 }
 
 struct ChallengeCommentUI: Identifiable {
@@ -100,6 +103,7 @@ final class ChallengeDetailViewModel: ObservableObject {
     @Published var isSendingComment = false
     @Published var currentUserAvatarURL: String?
     @Published var isPhotoProofEnabled = true
+    @Published var isPhotoProofRequired = false
 
     @Published var isFavorite = false
 
@@ -131,32 +135,27 @@ final class ChallengeDetailViewModel: ObservableObject {
         await fetchAll(showLoading: false)
     }
 
-    func toggleFavorite() async {
-        guard let client else { return }
-        let resolvedUserId: UUID?
-        if let existing = currentUserId {
-            resolvedUserId = existing
-        } else if let session = try? await client.auth.session {
-            resolvedUserId = session.user.id
-        } else {
-            resolvedUserId = nil
+    func toggleFavorite() {
+        let targetValue = !isFavorite
+        isFavorite = targetValue
+
+        Task {
+            await persistFavorite(targetValue)
         }
-        guard let userId = resolvedUserId else { return }
-        currentUserId = userId
+    }
 
-        let newValue = !isFavorite
-        isFavorite = newValue
+    private func persistFavorite(_ favorite: Bool) async {
+        guard let client, let userId = currentUserId else { return }
 
-        struct FavoriteUpdate: Encodable { let favorite: Bool }
         do {
             try await client
                 .from("challenge_members")
-                .update(FavoriteUpdate(favorite: newValue))
-                .eq("user_id", value: userId.uuidString)
+                .update(["favorite": favorite])
                 .eq("challenge_id", value: challengeId.uuidString)
+                .eq("user_id", value: userId.uuidString)
                 .execute()
         } catch {
-            isFavorite = !newValue
+            isFavorite = !favorite
             errorMessage = "Failed to update favorite: \(error.localizedDescription)"
         }
     }
@@ -164,14 +163,19 @@ final class ChallengeDetailViewModel: ObservableObject {
     func toggleTask(taskId: UUID) {
         guard isTaskToggleAllowed(on: Date()) else { return }
         guard let idx = todayTasks.firstIndex(where: { $0.id == taskId }) else { return }
+        guard canToggleTaskCompletion(todayTasks[idx]) else { return }
         todayTasks[idx].isCompleted.toggle()
     }
 
-    func uploadProofImage(taskId: UUID, image: UIImage) async {
-        guard let client, let userId = currentUserId else { return }
+    func canToggleTaskCompletion(_ task: TodayTaskUI) -> Bool {
+        !isPhotoProofRequired || task.hasProof
+    }
+
+    func uploadProofImage(taskId: UUID, image: UIImage) async -> Bool {
+        guard let client, let userId = currentUserId else { return false }
         guard let imageData = image.jpegData(compressionQuality: 0.8) else {
             errorMessage = "Failed to process selected image."
-            return
+            return false
         }
 
         isUploadingProof = true
@@ -216,14 +220,14 @@ final class ChallengeDetailViewModel: ObservableObject {
                     .upload(filePath, data: imageData, options: FileOptions(contentType: "image/jpeg", upsert: false))
             } catch {
                 errorMessage = "Proof upload failed (storage RLS/policy): \(error.localizedDescription)"
-                return
+                return false
             }
             
             guard let proofURL = try? client.storage
                 .from("challenge-proofs")
                 .getPublicURL(path: filePath).absoluteString else {
                 errorMessage = "Failed to get proof image URL."
-                return
+                return false
             }
 
             if let existing = existingRows.first {
@@ -259,9 +263,29 @@ final class ChallengeDetailViewModel: ObservableObject {
                     .execute()
             }
 
-            await refreshAfterMutation()
+            await applyProofUploadLocally(client: client, completedTaskId: taskId)
+            return true
         } catch {
             errorMessage = "Proof metadata save failed (table RLS/policy): \(error.localizedDescription)"
+            return false
+        }
+    }
+
+    private func applyProofUploadLocally(client: SupabaseClient, completedTaskId: UUID) async {
+        let pendingCompletionByTask = Dictionary(
+            uniqueKeysWithValues: todayTasks.map { ($0.id, $0.isCompleted) }
+        )
+
+        proofPhotos = await fetchProofRowsSafely(client: client)
+        buildUI()
+
+        for idx in todayTasks.indices {
+            let taskId = todayTasks[idx].id
+            todayTasks[idx].isCompleted = pendingCompletionByTask[taskId] ?? todayTasks[idx].isCompleted
+        }
+
+        if let idx = todayTasks.firstIndex(where: { $0.id == completedTaskId }) {
+            todayTasks[idx].isCompleted = true
         }
     }
 
@@ -686,6 +710,9 @@ final class ChallengeDetailViewModel: ObservableObject {
 
             challenge = loadedChallenge
             members = try await memberRows
+            isFavorite = members.first {
+                $0.user_id == currentUserId && $0.left_at == nil
+            }?.favorite ?? false
             tasks = try await taskRows
             completions = try await completionRows
             let loadedShakerRows = await challengeShakerRows
@@ -695,10 +722,11 @@ final class ChallengeDetailViewModel: ObservableObject {
             isFavorite = members.first { $0.user_id == currentUserId }?.favorite == true
             proofPhotos = await fetchProofRowsSafely(client: client)
             let commenterIds = comments.compactMap { $0.commenter_id }
+            let proofUploaderIds = proofPhotos.map(\.uploader_user_id)
             profilesByUserId = await fetchProfilesMapSafely(
                 client: client,
                 members: members,
-                additionalUserIds: commenterIds
+                additionalUserIds: commenterIds + proofUploaderIds
             )
 
             buildUI()
@@ -720,7 +748,9 @@ final class ChallengeDetailViewModel: ObservableObject {
         let endDate = dateFromPostgreSQL(challenge.end_date)
 
         title = challenge.title
-        isPhotoProofEnabled = challenge.proof_type.lowercased() != "checklist"
+        let proofType = challenge.proof_type.lowercased()
+        isPhotoProofEnabled = proofType != "checklist"
+        isPhotoProofRequired = proofType == "photo_upload_required"
         if let rawDescription = challenge.description?.trimmingCharacters(in: .whitespacesAndNewlines),
            !rawDescription.isEmpty {
             description = rawDescription
@@ -774,10 +804,18 @@ final class ChallengeDetailViewModel: ObservableObject {
 
         galleryItems = proofPhotos
             .map { proof in
-                ChallengeGalleryItemUI(
+                let profile = profilesByUserId[proof.uploader_user_id]
+                let uploaderName = profile?.name?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+                    ? (profile?.name ?? "Unknown")
+                    : "Unknown"
+
+                return ChallengeGalleryItemUI(
                     id: proof.id,
                     imageURL: proof.proof_url,
-                    createdAt: parseDateTime(proof.created_at) ?? .distantPast
+                    createdAt: parseDateTime(proof.created_at) ?? .distantPast,
+                    uploaderUserId: proof.uploader_user_id,
+                    uploaderName: uploaderName,
+                    uploaderAvatarURL: profile?.avatar_url
                 )
             }
             .sorted { $0.createdAt > $1.createdAt }
