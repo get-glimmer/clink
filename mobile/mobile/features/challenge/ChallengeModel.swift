@@ -48,6 +48,7 @@ struct ChallengeMemberData: Codable {
     let joined_at: String?
     let left_at: String?
     let member_emoji: String?
+    let favorite: Bool?
 }
 
 struct ChallengeMemberProfile: Codable {

@@ -131,6 +131,36 @@ final class ChallengeDetailViewModel: ObservableObject {
         await fetchAll(showLoading: false)
     }
 
+    func toggleFavorite() async {
+        guard let client else { return }
+        let resolvedUserId: UUID?
+        if let existing = currentUserId {
+            resolvedUserId = existing
+        } else if let session = try? await client.auth.session {
+            resolvedUserId = session.user.id
+        } else {
+            resolvedUserId = nil
+        }
+        guard let userId = resolvedUserId else { return }
+        currentUserId = userId
+
+        let newValue = !isFavorite
+        isFavorite = newValue
+
+        struct FavoriteUpdate: Encodable { let favorite: Bool }
+        do {
+            try await client
+                .from("challenge_members")
+                .update(FavoriteUpdate(favorite: newValue))
+                .eq("user_id", value: userId.uuidString)
+                .eq("challenge_id", value: challengeId.uuidString)
+                .execute()
+        } catch {
+            isFavorite = !newValue
+            errorMessage = "Failed to update favorite: \(error.localizedDescription)"
+        }
+    }
+
     func toggleTask(taskId: UUID) {
         guard isTaskToggleAllowed(on: Date()) else { return }
         guard let idx = todayTasks.firstIndex(where: { $0.id == taskId }) else { return }
@@ -662,6 +692,7 @@ final class ChallengeDetailViewModel: ObservableObject {
             challengeShakerByDate = Dictionary(uniqueKeysWithValues: loadedShakerRows.map { ($0.date, $0) })
             todayChallengeShakerRow = challengeShakerByDate[formattedDate(Date())]
             comments = (try? await commentRows) ?? []
+            isFavorite = members.first { $0.user_id == currentUserId }?.favorite == true
             proofPhotos = await fetchProofRowsSafely(client: client)
             let commenterIds = comments.compactMap { $0.commenter_id }
             profilesByUserId = await fetchProfilesMapSafely(

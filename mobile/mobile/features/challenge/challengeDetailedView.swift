@@ -161,7 +161,7 @@ private extension ChallengeDetailView {
                 }
 
                 CircleIconButton(systemName: viewModel.isFavorite ? "star.fill" : "star") {
-                    viewModel.isFavorite.toggle()
+                    Task { await viewModel.toggleFavorite() }
                     onTapFavorite?()
                 }
             }

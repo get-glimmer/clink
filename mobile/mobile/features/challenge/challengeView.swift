@@ -23,7 +23,7 @@ struct ChallengeView: View {
                             viewModel.toggleDropdown()
                         }) {
                             HStack(spacing: 8) {
-                                Text(viewModel.selectedCategory)
+                                Text("Challenges")
                                     .appText(AppFont.title3)
                                     .foregroundColor(AppColors.textWhite)
 
