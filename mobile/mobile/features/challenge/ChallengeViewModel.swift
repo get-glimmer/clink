@@ -6,7 +6,7 @@ class ChallengeViewModel: ObservableObject {
     @Published var pendingInvites: [InvitedChallengeItem] = []
     @Published var pendingInviteForOverlay: InvitedChallengeItem? = nil
     @Published var showPendingInviteOverlay: Bool = false
-    @Published var selectedCategory: String = "Challenges"
+    @Published var selectedCategory: String = "Active"
     @Published var isDropdownPresented: Bool = false
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
@@ -27,7 +27,7 @@ class ChallengeViewModel: ObservableObject {
     private(set) var currentUserId: UUID? = nil
     private var didDismissPendingInviteOverlay = false
 
-    let categories = ["Challenges", "My Challenges", "Completed", "Invited"]
+    let categories = ["Active", "Favorite", "Completed", "All"]
     private let challengeService = ChallengeService()
 
     init() {
@@ -121,10 +121,17 @@ class ChallengeViewModel: ObservableObject {
                 } else {
                     let fetched: [ChallengeItem]
                     switch self.selectedCategory {
-                    case "My Challenges":
-                        fetched = try await challengeService.fetchMyChallenges()
                     case "Completed":
                         fetched = try await challengeService.fetchCompletedChallenges()
+                    case "Favorite":
+                        fetched = try await challengeService.fetchFavoriteChallenges()
+                    case "Active":
+                        let all = try await challengeService.fetchChallenges()
+                        let today = Calendar.current.startOfDay(for: Date())
+                        fetched = all.filter { item in
+                            guard let end = item.endDate else { return true }
+                            return Calendar.current.startOfDay(for: end) >= today
+                        }
                     default:
                         fetched = try await challengeService.fetchChallenges()
                     }

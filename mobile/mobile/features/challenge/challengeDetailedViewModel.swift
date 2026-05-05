@@ -719,6 +719,7 @@ final class ChallengeDetailViewModel: ObservableObject {
             challengeShakerByDate = Dictionary(uniqueKeysWithValues: loadedShakerRows.map { ($0.date, $0) })
             todayChallengeShakerRow = challengeShakerByDate[formattedDate(Date())]
             comments = (try? await commentRows) ?? []
+            isFavorite = members.first { $0.user_id == currentUserId }?.favorite == true
             proofPhotos = await fetchProofRowsSafely(client: client)
             let commenterIds = comments.compactMap { $0.commenter_id }
             let proofUploaderIds = proofPhotos.map(\.uploader_user_id)
