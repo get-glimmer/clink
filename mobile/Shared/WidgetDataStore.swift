@@ -26,6 +26,7 @@ struct WidgetShakerData: Codable {
     let isAllCompleted: Bool
     let lidColorStart: String?     // hex color
     let lidColorEnd: String?       // hex color
+    let emojiPositions: [[Double]]? // [[normalizedX, normalizedY], ...] from SpriteKit scene
 }
 
 // MARK: - Data Store
@@ -83,7 +84,7 @@ final class WidgetDataStore {
         }
         defaults?.set(encoded, forKey: shakerKey)
         defaults?.synchronize()
-        print("[WidgetDataStore] saved shaker: \(data.emojis.count) emojis \(data.emojis), allDone=\(data.isAllCompleted)")
+        print("[WidgetDataStore] saved shaker: \(data.emojis.count) emojis \(data.emojis), allDone=\(data.isAllCompleted), lidStart=\(data.lidColorStart ?? "nil"), lidEnd=\(data.lidColorEnd ?? "nil")")
     }
 
     func loadShaker() -> WidgetShakerData? {

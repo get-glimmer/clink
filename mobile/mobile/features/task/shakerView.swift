@@ -379,6 +379,8 @@ struct ShakerView: View {
             if let c0 = Color(hex: viewModel.lidColorStart),
                let c1 = Color(hex: viewModel.lidColorEnd) {
                 lidColors = [c0, c1]
+                // Re-sync widget to ensure lid colors are included
+                viewModel.syncWidgetData()
             } else {
                 // 첫 seal → 마블에서 추출 후 DB 저장
                 lidColors = gradientFromScene()
