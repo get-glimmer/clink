@@ -1,17 +1,17 @@
 {
   "images" : [
     {
-      "filename" : "jarBase1x.png",
+      "filename" : "jar1x.png",
       "idiom" : "universal",
       "scale" : "1x"
     },
     {
-      "filename" : "jarBase2x.png",
+      "filename" : "jar2x.png",
       "idiom" : "universal",
       "scale" : "2x"
     },
     {
-      "filename" : "jarBase3x.png",
+      "filename" : "jar3x.png",
       "idiom" : "universal",
       "scale" : "3x"
     }

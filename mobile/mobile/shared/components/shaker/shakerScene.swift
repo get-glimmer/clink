@@ -24,6 +24,10 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
     
     // Storage for marbles keyed by Task UUID
     private var marbles: [UUID: SKLabelNode] = [:]
+
+    // Shared positions for widget (normalized -1...1 relative to scene center)
+    static var widgetPositions: [UUID: [Double]] = [:]
+    static var widgetSceneSize: CGSize = .zero
     
     // Callback for when notes emoji is tapped
     var onNotesEmojiTapped: (() -> Void)?
@@ -66,7 +70,32 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
     required init?(coder: NSCoder) { fatalError("not implemented") }
     
     deinit { stopMotion() }
-    
+
+    private var positionSaveCounter = 0
+    private var didSaveSettled = false
+    override func didSimulatePhysics() {
+        positionSaveCounter += 1
+        guard positionSaveCounter >= 60 else { return }
+        positionSaveCounter = 0
+
+        guard !marbles.isEmpty else { return }
+        let allSettled = marbles.values.allSatisfy { node in
+            guard let body = node.physicsBody else { return true }
+            return hypot(body.velocity.dx, body.velocity.dy) < 5
+        }
+        if allSettled && !didSaveSettled {
+            didSaveSettled = true
+            savePositionsForWidget()
+            // Notify the view model so it re-syncs widget data with positions
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(name: Notification.Name("shakerEmojisSettled"), object: nil)
+            }
+        } else if !allSettled {
+            didSaveSettled = false
+        }
+    }
+
+
     override func didMove(to view: SKView) {
         backgroundColor = .clear
         setupPhysicsBoundaries()
@@ -179,8 +208,12 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
                 node.physicsBody?.angularVelocity = 0
             }
         }
+        savePositionsForWidget()
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: Notification.Name("shakerEmojisSettled"), object: nil)
+        }
     }
-    
+
     private func stopMotion() {
         motion.stopDeviceMotionUpdates()
     }
@@ -208,7 +241,7 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
         addChild(node)
         marbles[taskId] = node
     }
-    
+
     // Drops a glowing emoji reaction into the scene with special effects
     func addGlowingEmoji(_ symbol: String, for taskId: UUID) {
         guard marbles[taskId] == nil else { return }
@@ -252,14 +285,14 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
         node.addChild(glowEffect)
         
         addChild(node)
-        
+
         // Ensure no pulsing/thumping animations are applied
         node.removeAllActions()
         node.setScale(1.0)
-        
+
         marbles[taskId] = node
     }
-    
+
     // Updates the emoji text for an existing marble without resetting physics.
     func updateEmoji(_ symbol: String, for taskId: UUID) {
         guard let node = marbles[taskId] else { return }
@@ -311,6 +344,20 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
         return marbles.values.contains { $0.text == symbol }
     }
     
+    // MARK: - Widget Position Export
+    /// Saves current marble positions (normalized) so the widget can render them.
+    func savePositionsForWidget() {
+        guard size.width > 0, size.height > 0 else { return }
+        let halfW = size.width / 2
+        let halfH = size.height / 2
+        ShakerScene.widgetSceneSize = size
+        ShakerScene.widgetPositions = marbles.mapValues { node in
+            [Double(node.position.x / halfW), Double(-node.position.y / halfH)]
+        }
+    }
+
+
+
     // MARK: - Helpers
     private func makeBody() -> SKPhysicsBody {
         let body = SKPhysicsBody(circleOfRadius: 25.6 * emojiScaleFactor)
