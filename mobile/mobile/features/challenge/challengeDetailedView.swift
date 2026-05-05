@@ -10,6 +10,7 @@ struct ChallengeDetailView: View {
     @State private var selectedProofTaskId: UUID?
     @State private var selectedProofImage: UIImage?
     @State private var showProofSourceDialog = false
+    @State private var showProofSourceOptions = false
     @State private var showCameraPicker = false
     @State private var showPhotoLibraryPicker = false
     @State private var showAllParticipants = false
@@ -70,6 +71,24 @@ struct ChallengeDetailView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
+
+            if showProofSourceDialog {
+                ProofUploadOverlay(
+                    selectedImage: selectedProofImage,
+                    showSourceOptions: showProofSourceOptions,
+                    onClose: closeProofUploadOverlay,
+                    onTapUploadArea: {
+                        withAnimation(.easeInOut(duration: 0.18)) {
+                            showProofSourceOptions.toggle()
+                        }
+                    },
+                    onTakePhoto: presentProofCamera,
+                    onChooseLibrary: presentProofLibrary,
+                    onLogProof: logSelectedProofImage
+                )
+                .transition(.opacity)
+                .zIndex(1000)
+            }
         }
         .task {
             await viewModel.load()
@@ -80,19 +99,6 @@ struct ChallengeDetailView: View {
                 jarRemountToken = UUID()
             }
         }
-        .confirmationDialog("Add Proof Photo", isPresented: $showProofSourceDialog, titleVisibility: .visible) {
-            Button("Take Photo") {
-                if UIImagePickerController.isSourceTypeAvailable(.camera) {
-                    showCameraPicker = true
-                } else {
-                    showPhotoLibraryPicker = true
-                }
-            }
-            Button("Choose from Library") {
-                showPhotoLibraryPicker = true
-            }
-            Button("Cancel", role: .cancel) {}
-        }
         .sheet(isPresented: $showCameraPicker) {
             ChallengeImagePicker(sourceType: .camera, selectedImage: $selectedProofImage)
         }
@@ -100,12 +106,8 @@ struct ChallengeDetailView: View {
             ChallengeImagePicker(sourceType: .photoLibrary, selectedImage: $selectedProofImage)
         }
         .onChange(of: selectedProofImage) { image in
-            guard let image, let taskId = selectedProofTaskId else { return }
-            Task {
-                await viewModel.uploadProofImage(taskId: taskId, image: image)
-                await MainActor.run {
-                    selectedProofImage = nil
-                }
+            if image != nil {
+                showProofSourceOptions = false
             }
         }
         .alert("Error", isPresented: Binding(
@@ -265,6 +267,7 @@ private extension ChallengeDetailView {
                     TodayTaskRow(
                         title: task.title,
                         isCompleted: task.isCompleted,
+                        canToggleCompletion: viewModel.canToggleTaskCompletion(task),
                         hasProof: task.hasProof,
                         proofURL: task.proofURL,
                         onToggle: {
@@ -272,8 +275,7 @@ private extension ChallengeDetailView {
                         },
                         showAddPhoto: viewModel.isPhotoProofEnabled,
                         onTapAddPhoto: {
-                            selectedProofTaskId = task.id
-                            showProofSourceDialog = true
+                            presentProofUploadOverlay(for: task.id)
                         }
                     )
                 }
@@ -282,7 +284,7 @@ private extension ChallengeDetailView {
                     Task { await viewModel.submitTodayChallenge() }
                 } label: {
                     Text("Complete Day’s Challenge")
-                        .foregroundColor(AppColors.textWhite)
+                        .foregroundColor(viewModel.isCompleteDayButtonEnabled ? AppColors.neutral1000 : AppColors.textWhite)
                         .appText(AppFont.labelL)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
@@ -297,6 +299,57 @@ private extension ChallengeDetailView {
             .cornerRadius(16)
         }
         .padding(.top, 6)
+    }
+
+    func presentProofUploadOverlay(for taskId: UUID) {
+        selectedProofTaskId = taskId
+        selectedProofImage = nil
+        showProofSourceOptions = false
+        withAnimation(.easeInOut(duration: 0.2)) {
+            showProofSourceDialog = true
+        }
+    }
+
+    func closeProofUploadOverlay() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            showProofSourceDialog = false
+        }
+        selectedProofTaskId = nil
+        selectedProofImage = nil
+        showProofSourceOptions = false
+    }
+
+    func presentProofCamera() {
+        showProofSourceOptions = false
+        if UIImagePickerController.isSourceTypeAvailable(.camera) {
+            showCameraPicker = true
+        } else {
+            showPhotoLibraryPicker = true
+        }
+    }
+
+    func presentProofLibrary() {
+        showProofSourceOptions = false
+        showPhotoLibraryPicker = true
+    }
+
+    func logSelectedProofImage() {
+        guard let image = selectedProofImage,
+              let taskId = selectedProofTaskId else { return }
+
+        Task {
+            let didUpload = await viewModel.uploadProofImage(taskId: taskId, image: image)
+            guard didUpload else { return }
+
+            await MainActor.run {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    showProofSourceDialog = false
+                }
+                selectedProofTaskId = nil
+                selectedProofImage = nil
+                showProofSourceOptions = false
+            }
+        }
     }
     
     var participantsSection: some View {
@@ -779,6 +832,7 @@ private struct WeeklyShakerStatusIcon: View {
 private struct TodayTaskRow: View {
     let title: String
     let isCompleted: Bool
+    let canToggleCompletion: Bool
     let hasProof: Bool
     let proofURL: String?
     let onToggle: () -> Void
@@ -794,6 +848,7 @@ private struct TodayTaskRow: View {
                     .imageScale(.large)
             }
             .buttonStyle(.plain)
+            .disabled(!canToggleCompletion)
 
             Text(title)
                 .foregroundColor(AppColors.textWhite)
@@ -839,6 +894,166 @@ private struct TodayTaskRow: View {
             }
         }
         .contentShape(Rectangle())
+    }
+}
+
+private struct ProofUploadOverlay: View {
+    let selectedImage: UIImage?
+    let showSourceOptions: Bool
+    let onClose: () -> Void
+    let onTapUploadArea: () -> Void
+    let onTakePhoto: () -> Void
+    let onChooseLibrary: () -> Void
+    let onLogProof: () -> Void
+
+    private let cardWidth: CGFloat = 361
+    private let cardHeight: CGFloat = 340
+    private let buttonWidth: CGFloat = 329
+    private let buttonHeight: CGFloat = 50
+
+    var body: some View {
+        ZStack {
+            DarkBlurView(style: .systemChromeMaterialDark)
+                .ignoresSafeArea()
+                .overlay(Color.black.opacity(0.42).ignoresSafeArea())
+
+            VStack(alignment: .leading, spacing: 0) {
+                header
+                    .padding(.horizontal, 25)
+                    .padding(.top, 22)
+
+                uploadArea
+                    .onTapGesture {
+                        if !showSourceOptions || selectedImage != nil {
+                            onTapUploadArea()
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 18)
+
+                Spacer(minLength: 0)
+
+                Button(action: onLogProof) {
+                    Text("Log Proof")
+                        .foregroundColor(selectedImage == nil ? AppColors.neutral600 : AppColors.neutral1000)
+                        .appText(AppFont.buttonL)
+                        .frame(width: buttonWidth, height: buttonHeight)
+                        .background(selectedImage == nil ? AppColors.neutral800 : AppColors.green300)
+                        .cornerRadius(8)
+                }
+                .buttonStyle(.plain)
+                .disabled(selectedImage == nil)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.bottom, 22)
+            }
+            .frame(width: cardWidth, height: cardHeight)
+            .background(Color(red: 32 / 255, green: 32 / 255, blue: 32 / 255).opacity(0.5))
+            .clipShape(RoundedRectangle(cornerRadius: 24))
+            .overlay(
+                RoundedRectangle(cornerRadius: 24)
+                    .stroke(
+                        LinearGradient(
+                            colors: [
+                                Color("Neutral-400").opacity(0.7),
+                                Color("Neutral-600").opacity(0.7)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
+            )
+            .shadow(color: .black.opacity(0.28), radius: 28, x: 0, y: 18)
+            .padding(.horizontal, 16)
+        }
+    }
+
+    private var header: some View {
+        HStack(alignment: .center) {
+            Text("Upload Today’s Proof")
+                .foregroundColor(AppColors.textWhite)
+                .appText(AppFont.title3)
+
+            Spacer()
+
+            Button(action: onClose) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 14, weight: .regular))
+                    .foregroundColor(AppColors.textWhite)
+                    .frame(width: 14, height: 14)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var uploadArea: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 6)
+                .fill(AppColors.neutral800)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(
+                            AppColors.neutral700,
+                            style: StrokeStyle(lineWidth: 1, dash: [6, 6])
+                        )
+                )
+
+            if let selectedImage {
+                GeometryReader { proxy in
+                    Image(uiImage: selectedImage)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .clipped()
+                        .overlay {
+                            if showSourceOptions {
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(Color.black.opacity(0.46))
+                            }
+                        }
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+            }
+
+            if showSourceOptions {
+                HStack(spacing: 10) {
+                    ProofSourceButton(title: "Take Photo", systemName: "camera", action: onTakePhoto)
+                    ProofSourceButton(title: "Library", systemName: "photo", action: onChooseLibrary)
+                }
+                .padding(.horizontal, 14)
+            } else if selectedImage == nil {
+                Image("gallery")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 30, height: 30)
+            }
+        }
+        .frame(width: buttonWidth, height: 188)
+        .contentShape(RoundedRectangle(cornerRadius: 6))
+    }
+}
+
+private struct ProofSourceButton: View {
+    let title: String
+    let systemName: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 8) {
+                Image(systemName: systemName)
+                    .font(.system(size: 20, weight: .medium))
+                Text(title)
+                    .appText(AppFont.captionS)
+            }
+            .foregroundColor(AppColors.textWhite)
+            .frame(maxWidth: .infinity)
+            .frame(height: 86)
+            .background(AppColors.neutral800.opacity(0.85))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
+        .buttonStyle(.plain)
     }
 }
 

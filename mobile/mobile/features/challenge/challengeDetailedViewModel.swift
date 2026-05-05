@@ -100,6 +100,7 @@ final class ChallengeDetailViewModel: ObservableObject {
     @Published var isSendingComment = false
     @Published var currentUserAvatarURL: String?
     @Published var isPhotoProofEnabled = true
+    @Published var isPhotoProofRequired = false
 
     @Published var isFavorite = false
 
@@ -134,14 +135,19 @@ final class ChallengeDetailViewModel: ObservableObject {
     func toggleTask(taskId: UUID) {
         guard isTaskToggleAllowed(on: Date()) else { return }
         guard let idx = todayTasks.firstIndex(where: { $0.id == taskId }) else { return }
+        guard canToggleTaskCompletion(todayTasks[idx]) else { return }
         todayTasks[idx].isCompleted.toggle()
     }
 
-    func uploadProofImage(taskId: UUID, image: UIImage) async {
-        guard let client, let userId = currentUserId else { return }
+    func canToggleTaskCompletion(_ task: TodayTaskUI) -> Bool {
+        !isPhotoProofRequired || task.hasProof
+    }
+
+    func uploadProofImage(taskId: UUID, image: UIImage) async -> Bool {
+        guard let client, let userId = currentUserId else { return false }
         guard let imageData = image.jpegData(compressionQuality: 0.8) else {
             errorMessage = "Failed to process selected image."
-            return
+            return false
         }
 
         isUploadingProof = true
@@ -186,14 +192,14 @@ final class ChallengeDetailViewModel: ObservableObject {
                     .upload(filePath, data: imageData, options: FileOptions(contentType: "image/jpeg", upsert: false))
             } catch {
                 errorMessage = "Proof upload failed (storage RLS/policy): \(error.localizedDescription)"
-                return
+                return false
             }
             
             guard let proofURL = try? client.storage
                 .from("challenge-proofs")
                 .getPublicURL(path: filePath).absoluteString else {
                 errorMessage = "Failed to get proof image URL."
-                return
+                return false
             }
 
             if let existing = existingRows.first {
@@ -229,9 +235,29 @@ final class ChallengeDetailViewModel: ObservableObject {
                     .execute()
             }
 
-            await refreshAfterMutation()
+            await applyProofUploadLocally(client: client, completedTaskId: taskId)
+            return true
         } catch {
             errorMessage = "Proof metadata save failed (table RLS/policy): \(error.localizedDescription)"
+            return false
+        }
+    }
+
+    private func applyProofUploadLocally(client: SupabaseClient, completedTaskId: UUID) async {
+        let pendingCompletionByTask = Dictionary(
+            uniqueKeysWithValues: todayTasks.map { ($0.id, $0.isCompleted) }
+        )
+
+        proofPhotos = await fetchProofRowsSafely(client: client)
+        buildUI()
+
+        for idx in todayTasks.indices {
+            let taskId = todayTasks[idx].id
+            todayTasks[idx].isCompleted = pendingCompletionByTask[taskId] ?? todayTasks[idx].isCompleted
+        }
+
+        if let idx = todayTasks.firstIndex(where: { $0.id == completedTaskId }) {
+            todayTasks[idx].isCompleted = true
         }
     }
 
@@ -689,7 +715,9 @@ final class ChallengeDetailViewModel: ObservableObject {
         let endDate = dateFromPostgreSQL(challenge.end_date)
 
         title = challenge.title
-        isPhotoProofEnabled = challenge.proof_type.lowercased() != "checklist"
+        let proofType = challenge.proof_type.lowercased()
+        isPhotoProofEnabled = proofType != "checklist"
+        isPhotoProofRequired = proofType == "photo_upload_required"
         if let rawDescription = challenge.description?.trimmingCharacters(in: .whitespacesAndNewlines),
            !rawDescription.isEmpty {
             description = rawDescription
