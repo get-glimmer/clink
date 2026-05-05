@@ -48,6 +48,57 @@ class PushNotificationService {
         }
     }
 
+    /// Send a nudge to remind someone to complete their tasks
+    /// - Parameters:
+    ///   - targetUserId: The user to nudge
+    ///   - type: "personal" or "challenge"
+    ///   - challengeTitle: Optional challenge name for challenge nudges
+    func sendTaskNudge(to targetUserId: String, type: String, challengeTitle: String? = nil) async {
+        guard let supabase = supabase else { return }
+
+        do {
+            let session = try await supabase.auth.session
+            let senderName = try await getSenderName(userId: session.user.id.uuidString)
+
+            let body: String
+            if type == "challenge", let title = challengeTitle {
+                body = "\(senderName) is reminding you to finish your tasks in \(title)"
+            } else {
+                body = "\(senderName) is reminding you to finish your tasks today"
+            }
+
+            try await supabase.functions.invoke(
+                "send-push",
+                options: .init(body: [
+                    "user_id": targetUserId,
+                    "title": "Task Reminder",
+                    "body": body
+                ] as [String: String])
+            )
+        } catch {
+            print("Failed to send nudge: \(error)")
+        }
+    }
+
+    private func getSenderName(userId: String) async throws -> String {
+        guard let supabase = supabase else { return "Someone" }
+
+        struct NameRow: Decodable {
+            let name: String?
+            let username: String?
+        }
+
+        let response: NameRow = try await supabase
+            .from("profiles")
+            .select("name, username")
+            .eq("id", value: userId)
+            .single()
+            .execute()
+            .value
+
+        return response.name ?? response.username ?? "Someone"
+    }
+
     func removeDeviceToken() async {
         guard let supabase = supabase else { return }
 
