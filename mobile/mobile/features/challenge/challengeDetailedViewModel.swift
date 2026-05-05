@@ -39,6 +39,9 @@ struct ChallengeGalleryItemUI: Identifiable {
     let id: UUID
     let imageURL: String
     let createdAt: Date
+    let uploaderUserId: UUID
+    let uploaderName: String
+    let uploaderAvatarURL: String?
 }
 
 struct ChallengeCommentUI: Identifiable {
@@ -690,10 +693,11 @@ final class ChallengeDetailViewModel: ObservableObject {
             comments = (try? await commentRows) ?? []
             proofPhotos = await fetchProofRowsSafely(client: client)
             let commenterIds = comments.compactMap { $0.commenter_id }
+            let proofUploaderIds = proofPhotos.map(\.uploader_user_id)
             profilesByUserId = await fetchProfilesMapSafely(
                 client: client,
                 members: members,
-                additionalUserIds: commenterIds
+                additionalUserIds: commenterIds + proofUploaderIds
             )
 
             buildUI()
@@ -771,10 +775,18 @@ final class ChallengeDetailViewModel: ObservableObject {
 
         galleryItems = proofPhotos
             .map { proof in
-                ChallengeGalleryItemUI(
+                let profile = profilesByUserId[proof.uploader_user_id]
+                let uploaderName = profile?.name?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+                    ? (profile?.name ?? "Unknown")
+                    : "Unknown"
+
+                return ChallengeGalleryItemUI(
                     id: proof.id,
                     imageURL: proof.proof_url,
-                    createdAt: parseDateTime(proof.created_at) ?? .distantPast
+                    createdAt: parseDateTime(proof.created_at) ?? .distantPast,
+                    uploaderUserId: proof.uploader_user_id,
+                    uploaderName: uploaderName,
+                    uploaderAvatarURL: profile?.avatar_url
                 )
             }
             .sorted { $0.createdAt > $1.createdAt }

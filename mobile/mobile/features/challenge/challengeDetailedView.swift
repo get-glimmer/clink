@@ -118,7 +118,7 @@ struct ChallengeDetailView: View {
         } message: {
             Text(viewModel.errorMessage ?? "")
         }
-        .sheet(isPresented: $showGallerySheet) {
+        .fullScreenCover(isPresented: $showGallerySheet) {
             FullGallerySheet(items: viewModel.galleryItems)
         }
         .fullScreenCover(isPresented: $showAllCommentsSheet) {
@@ -1120,26 +1120,291 @@ private struct GalleryThumb: View {
 private struct FullGallerySheet: View {
     let items: [ChallengeGalleryItemUI]
     @Environment(\.dismiss) private var dismiss
+    @State private var isFilterDropdownPresented = false
+    @State private var selectedUploaderId: UUID?
+    @State private var selectedDetailItem: ChallengeGalleryItemUI?
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
-                    ForEach(items) { item in
-                        GalleryThumb(imageURL: item.imageURL)
-                    }
+        ZStack(alignment: .topTrailing) {
+            AppColors.neutral1000.ignoresSafeArea()
+
+            VStack(alignment: .leading, spacing: 0) {
+                galleryHeader
+
+                let filteredItems = filteredGalleryItems
+
+                if filteredItems.isEmpty {
+                    Text("No proof photos yet.")
+                        .foregroundColor(AppColors.neutral400)
+                        .appText(AppFont.captionM)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    galleryGrid(items: filteredItems)
                 }
-                .padding(16)
             }
-            .background(AppColors.neutral1000)
-            .navigationTitle("Gallery")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") { dismiss() }
-                }
+
+            Button(action: { dismiss() }) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 18.33, weight: .regular))
+                    .foregroundColor(AppColors.textWhite)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 14)
+            .padding(.trailing, 16)
+
+            if let selectedDetailItem {
+                GalleryPhotoDetailOverlay(
+                    item: selectedDetailItem,
+                    onDismiss: {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            self.selectedDetailItem = nil
+                        }
+                    }
+                )
+                .transition(.opacity)
+                .zIndex(10)
             }
         }
+        .dropdownOverlay(
+            isPresented: $isFilterDropdownPresented,
+            options: uploaderDropdownOptions,
+            selection: $selectedUploaderId,
+            onSelect: { selectedUploaderId = $0 },
+            labelTitle: { option in
+                guard let option else { return "Gallery" }
+                return uploaderName(for: option)
+            }
+        )
+    }
+
+    private var galleryHeader: some View {
+        HStack {
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isFilterDropdownPresented.toggle()
+                }
+            }) {
+                HStack(spacing: 8) {
+                    Text("Gallery")
+                        .appText(AppFont.title3)
+                        .foregroundColor(AppColors.textWhite)
+
+                    Image(systemName: "chevron.down")
+                        .foregroundColor(AppColors.textWhite)
+                        .font(.system(size: 10, weight: .bold))
+                        .rotationEffect(.degrees(isFilterDropdownPresented ? 180 : 0))
+                        .animation(.easeInOut(duration: 0.2), value: isFilterDropdownPresented)
+                }
+            }
+            .buttonStyle(.plain)
+            .anchorPreference(key: DropdownBoundsPreferenceKey.self, value: .bounds) { $0 }
+
+            Spacer()
+        }
+        .padding(.horizontal, 23)
+        .padding(.top, 24)
+        .padding(.bottom, 32)
+    }
+
+    private func galleryGrid(items: [ChallengeGalleryItemUI]) -> some View {
+        ScrollView(showsIndicators: false) {
+            LazyVGrid(
+                columns: [
+                    GridItem(.flexible(), spacing: 16),
+                    GridItem(.flexible(), spacing: 16)
+                ],
+                spacing: 13
+            ) {
+                ForEach(items) { item in
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            selectedDetailItem = item
+                        }
+                    }) {
+                        FullGalleryTile(item: item)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 24)
+        }
+    }
+
+    private var filteredGalleryItems: [ChallengeGalleryItemUI] {
+        guard let selectedUploaderId else { return items }
+        return items.filter { $0.uploaderUserId == selectedUploaderId }
+    }
+
+    private var uploaderOptions: [UUID] {
+        var seen: Set<UUID> = []
+        return items.compactMap { item in
+            guard !seen.contains(item.uploaderUserId) else { return nil }
+            seen.insert(item.uploaderUserId)
+            return item.uploaderUserId
+        }
+    }
+
+    private var uploaderDropdownOptions: [UUID?] {
+        [nil] + uploaderOptions.map { Optional.some($0) }
+    }
+
+    private func uploaderName(for uploaderId: UUID) -> String {
+        items.first(where: { $0.uploaderUserId == uploaderId })?.uploaderName ?? "Unknown"
+    }
+}
+
+private struct FullGalleryTile: View {
+    let item: ChallengeGalleryItemUI
+
+    var body: some View {
+        GeometryReader { proxy in
+            AsyncImage(url: URL(string: item.imageURL)) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .clipped()
+                default:
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(AppColors.neutral900)
+                        .overlay(
+                            Image(systemName: "photo")
+                                .foregroundColor(AppColors.neutral400)
+                        )
+                }
+            }
+            .overlay(alignment: .bottomLeading) {
+                LinearGradient(
+                    colors: [.clear, .black.opacity(0.56)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .allowsHitTesting(false)
+            }
+            .overlay(alignment: .bottomLeading) {
+                HStack(spacing: 7) {
+                    GalleryUploaderAvatar(avatarURL: item.uploaderAvatarURL)
+
+                    Text(item.uploaderName)
+                        .foregroundColor(AppColors.textWhite)
+                        .appText(AppFont.captionS)
+                        .lineLimit(1)
+                }
+                .padding(.leading, 7)
+                .padding(.bottom, 7)
+                .padding(.trailing, 7)
+            }
+        }
+        .aspectRatio(1, contentMode: .fit)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+}
+
+private struct GalleryUploaderAvatar: View {
+    let avatarURL: String?
+    var size: CGFloat = 24
+
+    var body: some View {
+        Group {
+            if let avatarURL,
+               let url = URL(string: avatarURL) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFill()
+                    default:
+                        Circle()
+                            .fill(AppColors.neutral900)
+                    }
+                }
+            } else {
+                Circle()
+                    .fill(AppColors.neutral900)
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(Circle())
+    }
+}
+
+private struct GalleryPhotoDetailOverlay: View {
+    let item: ChallengeGalleryItemUI
+    let onDismiss: () -> Void
+
+    var body: some View {
+        ZStack {
+            DarkBlurView(style: .systemChromeMaterialDark)
+                .ignoresSafeArea()
+                .overlay(Color.black.opacity(0.34).ignoresSafeArea())
+                .onTapGesture {
+                    onDismiss()
+                }
+
+            VStack(spacing: 0) {
+                HStack(alignment: .top) {
+                    HStack(spacing: 8) {
+                        GalleryUploaderAvatar(avatarURL: item.uploaderAvatarURL, size: 40)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(item.uploaderName)
+                                .foregroundColor(AppColors.textWhite)
+                                .appText(AppFont.captionL)
+
+                            Text(formattedDate)
+                                .foregroundColor(AppColors.neutral300)
+                                .appText(AppFont.buttonM)
+                        }
+                    }
+
+                    Spacer()
+
+                    Button(action: onDismiss) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 18.33, weight: .regular))
+                            .foregroundColor(AppColors.textWhite)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 14)
+
+                Spacer(minLength: 0)
+
+                AsyncImage(url: URL(string: item.imageURL)) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFit()
+                    default:
+                        Rectangle()
+                            .fill(AppColors.neutral900)
+                            .overlay(
+                                Image(systemName: "photo")
+                                    .foregroundColor(AppColors.neutral400)
+                            )
+                    }
+                }
+                .frame(maxWidth: .infinity)
+
+                Spacer(minLength: 0)
+            }
+        }
+    }
+
+    private var formattedDate: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MM.dd.yyyy"
+        return formatter.string(from: item.createdAt)
     }
 }
 
