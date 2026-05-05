@@ -121,7 +121,7 @@ struct ChallengeDetailView: View {
         .sheet(isPresented: $showGallerySheet) {
             FullGallerySheet(items: viewModel.galleryItems)
         }
-        .sheet(isPresented: $showAllCommentsSheet) {
+        .fullScreenCover(isPresented: $showAllCommentsSheet) {
             FullCommunityCommentsSheet(viewModel: viewModel)
         }
         .fullScreenCover(isPresented: $showEditChallenge) {
@@ -1155,21 +1155,9 @@ private struct FullCommunityCommentsSheet: View {
 
             VStack(spacing: 0) {
                 HStack {
-                    Button(action: { dismiss() }) {
-                        ZStack {
-                            Circle()
-                                .fill(Color.white.opacity(0.08))
-                                .frame(width: 40, height: 40)
-                                .overlay(
-                                    Circle()
-                                        .stroke(Color.white.opacity(0.10), lineWidth: 1)
-                                )
-                            Image(systemName: "chevron.left")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(AppColors.textWhite)
-                        }
+                    HeaderAssetButton(imageName: "dismissButton") {
+                        dismiss()
                     }
-                    .buttonStyle(.plain)
 
                     Spacer()
 
@@ -1180,11 +1168,11 @@ private struct FullCommunityCommentsSheet: View {
                     Spacer()
 
                     Color.clear
-                        .frame(width: 40, height: 40)
+                        .frame(width: 44, height: 44)
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
-                .padding(.bottom, 16)
+                .padding(.bottom, 24)
 
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 12) {
