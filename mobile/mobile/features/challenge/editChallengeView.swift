@@ -208,8 +208,7 @@ struct EditChallengeView: View {
                 Image("trashcan")
                     .renderingMode(.template)
                     .foregroundColor(Color("Red-500"))
-                    .frame(width: 38, height: 38)
-                    .background(Circle().fill(Color("Neutral-900")))
+                    .frame(width: 44, height: 44)
             }
             .buttonStyle(.plain)
         }
@@ -250,7 +249,7 @@ struct EditChallengeView: View {
 
             // Use .font() directly — appFont's .fixedSize(vertical:true) collapses the tappable area.
             TextEditor(text: $viewModel.descriptionText)
-                .font(AppFont.body2.font)
+                .font(AppFont.body1.font)
                 .foregroundColor(Color("White"))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
@@ -259,7 +258,7 @@ struct EditChallengeView: View {
                 .overlay(alignment: .topLeading) {
                     if viewModel.descriptionText.isEmpty {
                         Text("Add a short description...")
-                            .font(AppFont.body2.font)
+                            .font(AppFont.body1.font)
                             .foregroundColor(Color("Neutral-500"))
                             .padding(.horizontal, 16)
                             .padding(.vertical, 14)
@@ -360,7 +359,7 @@ struct EditChallengeView: View {
                             .scaledToFit()
                             .frame(width: 24, height: 24)
                         Text("Repeat")
-                            .appFont(AppFont.labelM)
+                            .appFont(AppFont.labelL)
                             .foregroundColor(Color("Neutral-300"))
                     }
                     Spacer()
@@ -569,9 +568,9 @@ struct EditChallengeView: View {
     private var invitedSection: some View {
         if !viewModel.members.isEmpty || !viewModel.pendingInvites.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
-                sectionLabel("Members")
+                sectionLabel("Invite Friends")
 
-                let rowHeight: CGFloat = 60  // 50 item + 10 bottom spacing
+                let rowHeight: CGFloat = 58  // 50 item + 4 top + 4 bottom inset
                 let totalCount = viewModel.members.count + viewModel.pendingInvites.count
 
                 List {
@@ -583,14 +582,15 @@ struct EditChallengeView: View {
                                 .foregroundColor(.white)
                             Spacer()
                             Text(member.role == "owner" ? "Owner" : "Joined")
-                                .appFont(AppFont.captionS)
+                                .appFont(AppFont.buttonM)
                                 .foregroundColor(member.role == "owner" ? Color("Neutral-200") : Color("Neutral-500"))
                         }
                         .padding(.horizontal, 14)
                         .frame(height: 50)
-                        .listRowBackground(Color("Neutral-900").clipShape(RoundedRectangle(cornerRadius: 10)))
+                        .background(Color("Neutral-900").clipShape(RoundedRectangle(cornerRadius: 10)))
+                        .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
-                        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 10, trailing: 0))
+                        .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                             if member.role != "owner" {
                                 Button(role: .destructive) {
@@ -610,14 +610,15 @@ struct EditChallengeView: View {
                                 .foregroundColor(.white)
                             Spacer()
                             Text(invite.status.capitalized)
-                                .appFont(AppFont.captionS)
+                                .appFont(AppFont.buttonM)
                                 .foregroundColor(Color("Neutral-500"))
                         }
                         .padding(.horizontal, 14)
                         .frame(height: 50)
-                        .listRowBackground(Color("Neutral-900").clipShape(RoundedRectangle(cornerRadius: 10)))
+                        .background(Color("Neutral-900").clipShape(RoundedRectangle(cornerRadius: 10)))
+                        .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
-                        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 10, trailing: 0))
+                        .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                             Button(role: .destructive) {
                                 Task { await viewModel.deleteInvite(inviteId: invite.id) }
@@ -666,7 +667,6 @@ struct EditChallengeView: View {
             outlineButton(title: "Add Friends", iconName: "addFriends", isSystem: false, isDashed: true, iconSize: CGSize(width: 14, height: 14)) {
                 showInviteFriends = true
             }
-            outlineButton(title: "Invite via Link", iconName: "inviteViaLink", isSystem: false, isDashed: false, iconSize: CGSize(width: 16, height: 8)) {}
         }
     }
 
@@ -748,7 +748,7 @@ struct EditChallengeView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12))
             } else {
                 Text("Save Changes")
-                    .appFont(AppFont.title3)
+                    .appFont(AppFont.buttonL)
                     .foregroundColor(viewModel.isSaveEnabled ? Color("Neutral-1000") : Color("Neutral-600"))
                     .frame(maxWidth: .infinity, minHeight: 56)
                     .background(viewModel.isSaveEnabled ? Color("Green-300") : Color("Neutral-800"))
@@ -770,7 +770,7 @@ struct EditChallengeView: View {
 
     private func sectionLabel(_ title: String) -> some View {
         Text(title)
-            .appFont(AppFont.labelS)
+            .appFont(AppFont.labelM)
             .foregroundColor(Color("Neutral-300"))
             .padding(.leading, 6)
     }
@@ -789,11 +789,11 @@ struct EditChallengeView: View {
                 .scaledToFit()
                 .frame(width: 24, height: 24)
             Text(title)
-                .appFont(AppFont.labelM)
+                .appFont(AppFont.labelL)
                 .foregroundColor(Color("Neutral-300"))
             Spacer()
             Text(value)
-                .appFont(AppFont.body2)
+                .appFont(AppFont.body1)
                 .foregroundColor(Color("White"))
             Image(trailingIconName)
                 .foregroundColor(Color("Neutral-400"))
@@ -802,7 +802,7 @@ struct EditChallengeView: View {
         .frame(height: 52)
     }
 
-    private func outlineButton(title: String, iconName: String, isSystem: Bool, isDashed: Bool, iconSize: CGSize? = nil, action: @escaping () -> Void) -> some View {
+    private func outlineButton(title: String, iconName: String, isSystem: Bool, isDashed: Bool, showBorder: Bool = true, iconSize: CGSize? = nil, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 10) {
                 if isSystem {
@@ -822,7 +822,7 @@ struct EditChallengeView: View {
             .background(Color("Neutral-900"))
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color("Neutral-700"), style: StrokeStyle(lineWidth: 1, dash: isDashed ? [6, 6] : []))
+                    .stroke(showBorder ? Color("Neutral-700") : Color.clear, style: StrokeStyle(lineWidth: 1, dash: isDashed ? [6, 6] : []))
             )
         }
         .buttonStyle(.plain)

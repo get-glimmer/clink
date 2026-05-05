@@ -52,13 +52,7 @@ struct EmojiSetupView: View {
     @State private var isEmojiKeyboardFocused: Bool = false
     @State private var showOwnerEmojiSetup = false
 
-    @State private var randomEmoji: String = "🎉"
-    private let randomEmojiPool: [String] = [
-        "😀","😂","🥰","😎","🤩","🎉","🔥","💪","🌟","⚡️",
-        "🎯","🏆","💫","🌈","🦋","🍀","💎","🚀","🎸","🎨",
-        "🌺","🦊","🐬","🦁","🐼","🍕","🎃","👑","🌙","💥",
-        "🎵","🌊","🦄","🐉","🍓","🎭","🌸","🏄","🎪","🦸"
-    ]
+    @State private var randomEmoji: String = SystemEmojiLibrary.randomEmoji()
     private let randomEmojiTimer = Timer.publish(every: 0.2, on: .main, in: .common).autoconnect()
 
     var body: some View {
@@ -274,7 +268,7 @@ struct EmojiSetupView: View {
         }
         .onReceive(randomEmojiTimer) { _ in
             guard viewModel.emojiRule == .anyEmoji else { return }
-            randomEmoji = randomEmojiPool.randomElement() ?? "🎉"
+            randomEmoji = SystemEmojiLibrary.randomEmoji()
         }
     }
 

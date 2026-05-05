@@ -514,7 +514,6 @@ struct CreateChallengeView: View {
                 outlineButton(title: "Add Friends", iconName: "addFriends", isSystem: false, isDashed: true, iconSize: CGSize(width: 14, height: 14)) {
                     showInviteFriends = true
                 }
-                outlineButton(title: "Invite via Link", iconName: "inviteViaLink", isSystem: false, isDashed: false, showBorder: false, iconSize: CGSize(width: 16, height: 8)) {}
             }
         }
     }
@@ -525,14 +524,14 @@ struct CreateChallengeView: View {
             showEmojiSetup = true
         } label: {
             Text("Continue")
-                .appFont(AppFont.title3)
+                .appFont(AppFont.buttonL)
                 .foregroundColor(viewModel.isCreateEnabled ? Color("Neutral-1000") : Color("Neutral-500"))
                 .frame(maxWidth: .infinity, minHeight: 56)
                 .background(viewModel.isCreateEnabled ? Color("Green-300") : Color("Neutral-800"))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
         }
         .disabled(!viewModel.isCreateEnabled)
-        .padding(.top, 8)
+        .padding(.top, 20)
     }
 
     // MARK: - Date display formatter (e.g. "Feb 11, 2026")
@@ -598,6 +597,7 @@ struct CreateChallengeView: View {
             .foregroundColor(Color("Neutral-300"))
             .frame(maxWidth: .infinity, minHeight: 50)
             .background(Color("Neutral-900"))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
                     .stroke(

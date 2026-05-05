@@ -181,13 +181,7 @@ struct MemberEmojiSetupView: View {
     @State private var pickedEmoji: String = ""
     @State private var isEmojiKeyboardFocused: Bool = false
 
-    @State private var randomEmoji: String = "🎉"
-    private let randomEmojiPool: [String] = [
-        "😀","😂","🥰","😎","🤩","🎉","🔥","💪","🌟","⚡️",
-        "🎯","🏆","💫","🌈","🦋","🍀","💎","🚀","🎸","🎨",
-        "🌺","🦊","🐬","🦁","🐼","🍕","🎃","👑","🌙","💥",
-        "🎵","🌊","🦄","🐉","🍓","🎭","🌸","🏄","🎪","🦸"
-    ]
+    @State private var randomEmoji: String = SystemEmojiLibrary.randomEmoji()
     init(
         challengeId: UUID?,
         emojiRule: EmojiRule,
@@ -353,7 +347,7 @@ struct MemberEmojiSetupView: View {
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 200_000_000)
                 if viewModel.selectedEmoji.isEmpty {
-                    randomEmoji = randomEmojiPool.randomElement() ?? "🎉"
+                    randomEmoji = SystemEmojiLibrary.randomEmoji()
                 }
             }
         }
@@ -364,7 +358,7 @@ struct MemberEmojiSetupView: View {
     private func bottomPanel(bottomInset: CGFloat) -> some View {
         VStack(spacing: 0) {
             Capsule()
-                .fill(Color(red: 0x37/255.0, green: 0x36/255.0, blue: 0x36/255.0))
+                .fill(Color.white.opacity(0.38))
                 .frame(width: 44, height: 3)
                 .padding(.top, 9)
                 .padding(.bottom, 16)
@@ -405,15 +399,63 @@ struct MemberEmojiSetupView: View {
         .frame(height: 344, alignment: .top)
         .liquidGlass(
             cornerRadius: 24,
-            tint: .clear,
-            tintOpacity: 0
+            tint: .white,
+            tintOpacity: 0.06
         )
+        .overlay(alignment: .top) {
+            LinearGradient(
+                colors: [
+                    Color.white.opacity(0.65),
+                    Color.white.opacity(0.18),
+                    Color.clear
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(height: 1.5)
+            .padding(.horizontal, 20)
+        }
+        .overlay {
+            UnevenRoundedRectangle(
+                topLeadingRadius: 24, bottomLeadingRadius: 0,
+                bottomTrailingRadius: 0, topTrailingRadius: 24
+            )
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.28),
+                            Color.white.opacity(0.08),
+                            Color.black.opacity(0.12)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+        }
         .clipShape(
             UnevenRoundedRectangle(
                 topLeadingRadius: 24, bottomLeadingRadius: 0,
                 bottomTrailingRadius: 0, topTrailingRadius: 24
             )
         )
+        .shadow(color: .black.opacity(0.22), radius: 18, x: 0, y: 8)
+        .shadow(color: .white.opacity(0.05), radius: 6, x: 0, y: -1)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.black.opacity(0.18),
+                            Color.clear
+                        ],
+                        startPoint: .bottom,
+                        endPoint: .top
+                    )
+                )
+                .frame(height: 56)
+                .allowsHitTesting(false)
+        }
     }
 
     @ViewBuilder
