@@ -104,6 +104,7 @@ struct ChallengeMemberInsert: Encodable {
     let challenge_id: UUID
     let user_id: UUID
     let role: String
+    let member_emoji: String?
 }
 
 // Payload for inserting a pending invite into challenge_invites.

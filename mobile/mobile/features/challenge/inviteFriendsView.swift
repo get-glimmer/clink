@@ -16,7 +16,8 @@ class InviteFriendsViewModel: ObservableObject {
     @Published var friends: [FriendInviteItem] = []
     @Published var searchText: String = ""
     @Published var isLoading: Bool = false
-    @Published var excludedIds: Set<String> = []   // lowercased user IDs already in the challenge
+    @Published var joinedIds: Set<String> = []              // active members already in the challenge
+    @Published var inviteStatusById: [String: String] = [:] // userId → invite status from DB
 
     private let service = CommunityService()
     private let client = SupabaseClientManager.shared.client
@@ -40,7 +41,7 @@ class InviteFriendsViewModel: ObservableObject {
 
                 if let challengeId, let client {
                     struct MemberRow: Decodable { let user_id: String; let left_at: String? }
-                    struct InviteRow: Decodable { let invitee_user_id: String? }
+                    struct InviteRow: Decodable { let invitee_user_id: String?; let status: String }
 
                     let allMembers: [MemberRow] = try await client
                         .from("challenge_members")
@@ -53,14 +54,16 @@ class InviteFriendsViewModel: ObservableObject {
 
                     let invites: [InviteRow] = try await client
                         .from("challenge_invites")
-                        .select("invitee_user_id")
+                        .select("invitee_user_id, status")
                         .eq("challenge_id", value: challengeId.uuidString)
                         .execute()
                         .value
 
-                    let memberIds = members.map { $0.user_id.lowercased() }
-                    let inviteIds = invites.compactMap { $0.invitee_user_id?.lowercased() }
-                    excludedIds = Set(memberIds + inviteIds)
+                    joinedIds = Set(members.map { $0.user_id.lowercased() })
+                    inviteStatusById = Dictionary(uniqueKeysWithValues: invites.compactMap { row in
+                        guard let uid = row.invitee_user_id?.lowercased() else { return nil }
+                        return (uid, row.status)
+                    })
                 }
             } catch {
                 print("[Challenges] ❌ InviteFriendsViewModel failed to load: \(error)")
@@ -108,30 +111,32 @@ struct InviteFriendsView: View {
                 .padding(.bottom, 16)
 
                 // Search bar
-                HStack(spacing: 10) {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundColor(Color("Neutral-500"))
+                HStack(spacing: 8) {
+                    HStack(spacing: 10) {
+                        Image("inviteSearch")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 24, height: 24)
 
-                    TextField("Search", text: $viewModel.searchText)
-                        .appFont(AppFont.body1)
-                        .foregroundColor(.white)
-
-                    if !viewModel.searchText.isEmpty {
-                        Button {
-                            viewModel.searchText = ""
-                        } label: {
-                            Image(systemName: "xmark")
-                                .foregroundColor(Color("Neutral-500"))
-                                .padding(6)
-                                .background(Color("Neutral-700"))
-                                .clipShape(Circle())
-                        }
+                        TextField("Search", text: $viewModel.searchText)
+                            .appFont(AppFont.body1)
+                            .foregroundColor(.white)
                     }
+                    .padding(.horizontal, 14)
+                    .frame(height: 48)
+                    .background(Color("Neutral-900"))
+                    .clipShape(RoundedRectangle(cornerRadius: 24))
+
+                    Button {
+                        viewModel.searchText = ""
+                    } label: {
+                        Image("inviteSearchCancel")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 44, height: 44)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .padding(.horizontal, 14)
-                .frame(height: 48)
-                .background(Color("Neutral-900"))
-                .clipShape(RoundedRectangle(cornerRadius: 24))
                 .padding(.horizontal, 16)
                 .padding(.bottom, 8)
 
@@ -151,16 +156,24 @@ struct InviteFriendsView: View {
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 0) {
                             ForEach(viewModel.filteredFriends) { friend in
-                                let isExcluded = viewModel.excludedIds.contains(friend.id.lowercased())
-                                let isInvited = invitedFriends[friend.id] != nil
+                                let isJoined     = viewModel.joinedIds.contains(friend.id.lowercased())
+                                let dbStatus     = viewModel.inviteStatusById[friend.id.lowercased()]
+                                let isInvited    = invitedFriends[friend.id] != nil
+                                let isDisabled   = isJoined || dbStatus != nil || isInvited
+                                let statusLabel: String = {
+                                    if isJoined { return "Joined" }
+                                    if isInvited { return "Invited" }
+                                    if let s = dbStatus { return s.prefix(1).uppercased() + s.dropFirst() }
+                                    return "Invite"
+                                }()
 
                                 HStack(spacing: 12) {
                                     AvatarView(imageURLOrName: friend.avatarUrl, size: 44)
-                                        .opacity(isExcluded ? 0.5 : 1)
+                                        .opacity(isDisabled ? 0.5 : 1)
 
                                     Text(friend.username)
                                         .appFont(AppFont.labelM)
-                                        .foregroundColor(isExcluded ? Color("Neutral-500") : .white)
+                                        .foregroundColor(isDisabled ? Color("Neutral-500") : .white)
 
                                     Spacer()
 
@@ -171,12 +184,12 @@ struct InviteFriendsView: View {
                                             pendingFriend = friend
                                         }
                                     } label: {
-                                        Text(isExcluded ? "Joined" : (isInvited ? "Invited" : "Invite"))
+                                        Text(statusLabel)
                                             .appFont(AppFont.labelM)
                                             .foregroundColor(Color("Neutral-500"))
                                     }
                                     .buttonStyle(.plain)
-                                    .disabled(isExcluded || isInvited)
+                                    .disabled(isDisabled)
                                 }
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 12)
@@ -187,13 +200,14 @@ struct InviteFriendsView: View {
             }
         }
         .navBarHidden(true)
+        .dismissKeyboardOnTap()
         .onAppear { viewModel.load(challengeId: challengeId) }
         .sheet(item: $pendingFriend) { friend in
             InviteMessageSheet(friend: friend) { message in
                 invitedFriends[friend.id] = message
                 pendingFriend = nil
             }
-            .presentationDetents([.height(300)])
+            .presentationDetents([.height(338)])
             .presentationDragIndicator(.visible)
             .presentationBackground(Color("Neutral-900"))
         }
@@ -210,17 +224,25 @@ private struct InviteMessageSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 0) {
             Text("Invite \(friend.username)")
                 .appFont(AppFont.title2)
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
-                .padding(.top, 8)
+                .padding(.top, 29)
+                .padding(.bottom, 18)
 
-            VStack(alignment: .leading, spacing: 8) {
+            Rectangle()
+                .fill(Color("Neutral-800"))
+                .frame(height: 1)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 18)
+
+            VStack(alignment: .leading, spacing: 0) {
                 Text("Add a Message")
-                    .appFont(AppFont.captionM)
-                    .foregroundColor(Color("Neutral-400"))
+                    .appFont(AppFont.labelM)
+                    .foregroundColor(Color("Neutral-300"))
+                    .padding(.bottom, 8)
 
                 // Use .font() directly — appFont applies .fixedSize(vertical:true)
                 // which collapses the TextEditor's interactive area.
@@ -230,9 +252,11 @@ private struct InviteMessageSheet: View {
                     .scrollContentBackground(.hidden)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .frame(height: 88)
-                    .background(Color("Neutral-800"))
-                    .cornerRadius(12)
+                    .frame(minHeight: 90, maxHeight: .infinity, alignment: .top)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .strokeBorder(Color("Neutral-600"), lineWidth: 0.7)
+                    )
                     .onChange(of: message) { newValue in
                         // Limit to 3 lines via newline count
                         let lines = newValue.components(separatedBy: "\n")
@@ -241,22 +265,28 @@ private struct InviteMessageSheet: View {
                         }
                     }
             }
+            .padding(.horizontal, 24)
+            .frame(maxHeight: .infinity, alignment: .top)
+
+            Spacer(minLength: 30)
 
             Button {
                 onSend(message)
                 dismiss()
             } label: {
                 Text("Send Invite")
-                    .appFont(AppFont.labelL)
+                    .appFont(AppFont.buttonL)
                     .foregroundColor(Color("Neutral-1000"))
                     .frame(maxWidth: .infinity)
                     .frame(height: 56)
                     .background(Color("Green-300"))
-                    .cornerRadius(16)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
             }
             .buttonStyle(.plain)
+            .padding(.horizontal, 16)
+            .padding(.bottom, 16)
         }
-        .padding(.horizontal, 20)
-        .padding(.bottom, 16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(Color("Neutral-900").ignoresSafeArea())
     }
 }

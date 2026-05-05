@@ -39,6 +39,16 @@ struct PendingInviteInfo: Identifiable {
     let status: String  // raw value from challenge_invites.status (e.g. "pending", "declined")
 }
 
+struct TaskEntry: Equatable {
+    var id: UUID?     // nil for newly added tasks that don't exist in DB yet
+    var title: String
+}
+
+struct ChallengeTaskUpdate: Encodable {
+    let task_title: String
+    let sortorder: Int
+}
+
 struct ChallengeUpdate: Encodable {
     let title: String
     let description: String?

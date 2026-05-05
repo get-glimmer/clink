@@ -159,31 +159,6 @@ struct ProfileView: View {
                     .sheet(isPresented: $showShareSheet) {
                         ShareSheet(items: ["Check out this app! Download it here: https://apps.apple.com/app/idYOUR_APP_ID"])
                     }
-                    
-                    // MARK: - Appearance Section
-                    HStack {
-                        Text("Appearance")
-                            .appFont(AppFont.labelL)
-                            .foregroundColor(.white)
-                        Spacer()
-                    }
-                    .padding(.top, 23)
-                    .padding(.leading, 6)
-                    
-                    // 활성화 시킬려면 selectedAppearance == 각자 값이여야됨
-                    HStack(spacing: 16) {
-                        AppearanceBox(iconName: "System", title: "System", isSelected: selectedAppearance == 0) {
-                            selectedAppearance = 2
-                        }
-                        AppearanceBox(iconName: "Light", title: "Light", isSelected: selectedAppearance == 1) {
-                            selectedAppearance = 2
-                        }
-                        AppearanceBox(iconName: "Dark", title: "Dark", isSelected: selectedAppearance == 2) {
-                            selectedAppearance = 2
-                        }
-                        
-                    }
-                    .padding(.top, 15)
                     Spacer()
                 }
                 .padding(.horizontal, 16)
@@ -199,7 +174,6 @@ struct ProfileView: View {
                     }
                 }
             }
-//            .background(.neutral1000)
         }
     }
 }
