@@ -408,13 +408,14 @@ private extension ChallengeDetailView {
                     .foregroundColor(AppColors.neutral400)
                     .appText(AppFont.captionM)
             } else {
-                HStack(spacing: 8) {
+                LazyVGrid(
+                    columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4),
+                    spacing: 8
+                ) {
                     ForEach(Array(viewModel.galleryItems.prefix(4))) { item in
                         GalleryThumb(imageURL: item.imageURL)
                     }
-                    Spacer(minLength: 0)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .padding(.top, 6)
@@ -1099,22 +1100,26 @@ private struct GalleryThumb: View {
     let imageURL: String
 
     var body: some View {
-        AsyncImage(url: URL(string: imageURL)) { phase in
-            switch phase {
-            case .success(let image):
-                image
-                    .resizable()
-                    .scaledToFill()
-            default:
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(AppColors.neutral900)
-                    .overlay(
-                        Image(systemName: "photo")
-                            .foregroundColor(AppColors.neutral400)
-                    )
+        GeometryReader { proxy in
+            AsyncImage(url: URL(string: imageURL)) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .clipped()
+                default:
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(AppColors.neutral900)
+                        .overlay(
+                            Image(systemName: "photo")
+                                .foregroundColor(AppColors.neutral400)
+                        )
+                }
             }
         }
-        .frame(width: 89, height: 89)
+        .aspectRatio(1, contentMode: .fit)
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
