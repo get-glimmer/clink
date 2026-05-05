@@ -144,7 +144,7 @@ struct ChallengeDetailView: View {
 private extension ChallengeDetailView {
     var headerSection: some View {
         HStack {
-            CircleIconButton(systemName: "chevron.left") {
+            HeaderAssetButton(imageName: "dismissButton") {
                 if let onBack {
                     onBack()
                 } else {
@@ -155,15 +155,15 @@ private extension ChallengeDetailView {
             Spacer()
 
             HStack(spacing: 10) {
-                CircleIconButton(systemName: "pencil") {
+                HeaderAssetButton(imageName: "editButton") {
                     showEditChallenge = true
                 }
 
-                CircleIconButton(systemName: "square.and.arrow.up") {
+                HeaderAssetButton(imageName: "shareButton") {
                     showResult = true
                 }
 
-                CircleIconButton(systemName: viewModel.isFavorite ? "star.fill" : "star") {
+                HeaderAssetButton(imageName: "favoriteButton") {
                     viewModel.isFavorite.toggle()
                     onTapFavorite?()
                 }
@@ -464,24 +464,17 @@ private extension ChallengeDetailView {
 
 }
 
-private struct CircleIconButton: View {
-    let systemName: String
+private struct HeaderAssetButton: View {
+    let imageName: String
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            ZStack {
-                Circle()
-                    .fill(Color.white.opacity(0.08))
-                    .frame(width: 40, height: 40)
-                    .overlay(
-                        Circle()
-                            .stroke(Color.white.opacity(0.10), lineWidth: 1)
-                    )
-                Image(systemName: systemName)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(AppColors.textWhite)
-            }
+            Image(imageName)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 44, height: 44)
+                .contentShape(Circle())
         }
         .buttonStyle(.plain)
     }
