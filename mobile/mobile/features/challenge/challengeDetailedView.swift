@@ -466,34 +466,20 @@ private struct ExpandableDescriptionText: View {
     private let actionURL = URL(string: "clink-description-toggle://description")!
 
     var body: some View {
-        inlineText
-            .lineSpacing(AppFont.body2.lineSpacing)
-            .fixedSize(horizontal: false, vertical: true)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(widthReader)
-            .tint(AppColors.green300)
-            .environment(\.openURL, OpenURLAction { url in
-                guard url.scheme == actionURL.scheme else { return .systemAction }
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    isExpanded.toggle()
-                }
-                return .handled
-            })
-            .onAppear(perform: recalculateCollapsedText)
-            .onChange(of: text) { _ in recalculateCollapsedText() }
-            .onChange(of: availableWidth) { _ in recalculateCollapsedText() }
+        Group {
+            if isExpanded {
+                expandedText
+            } else {
+                collapsedText
+            }
+        }
+        .background(widthReader)
+        .onAppear(perform: recalculateCollapsedText)
+        .onChange(of: text) { _ in recalculateCollapsedText() }
+        .onChange(of: availableWidth) { _ in recalculateCollapsedText() }
     }
 
     private var inlineText: Text {
-        if isExpanded {
-            return Text(attributedText(
-                prefix: text,
-                ellipsis: nil,
-                separator: needsToggle ? separatorSuffix : nil,
-                actionSuffix: needsToggle ? lessSuffix : nil
-            ))
-        }
-
         if needsToggle {
             return Text(attributedText(
                 prefix: collapsedPrefix,
@@ -504,6 +490,47 @@ private struct ExpandableDescriptionText: View {
         }
 
         return Text(attributedText(prefix: text, ellipsis: nil, separator: nil, actionSuffix: nil))
+    }
+
+    private var collapsedText: some View {
+        inlineText
+            .lineSpacing(AppFont.body2.lineSpacing)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .tint(AppColors.green300)
+            .environment(\.openURL, OpenURLAction { url in
+                guard url.scheme == actionURL.scheme else { return .systemAction }
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isExpanded = true
+                }
+                return .handled
+            })
+    }
+
+    private var expandedText: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(attributedText(prefix: text, ellipsis: nil, separator: nil, actionSuffix: nil))
+                .lineSpacing(AppFont.body2.lineSpacing)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            if needsToggle {
+                HStack {
+                    Spacer(minLength: 0)
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            isExpanded = false
+                        }
+                    } label: {
+                        Text(lessSuffix)
+                            .foregroundColor(AppColors.green300)
+                            .appText(AppFont.body1)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+        }
     }
 
     private var widthReader: some View {
