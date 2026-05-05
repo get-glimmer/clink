@@ -14,6 +14,7 @@ struct FriendDetailView: View {
     @State private var hasAnyNotes: Bool = false
     @StateObject private var friendTaskViewModel: TaskListViewModel
     @State private var emojiObserver: NSObjectProtocol?
+    @State private var nudgeSent = false
     
     init(friend: Friend) {
         self.friend = friend
@@ -224,6 +225,27 @@ struct FriendDetailView: View {
                 }
                 Spacer()
                 HStack(spacing: 8) {
+                    // Nudge
+                    Button(action: {
+                        guard !nudgeSent else { return }
+                        nudgeSent = true
+                        Task {
+                            await PushNotificationService.shared.sendTaskNudge(
+                                to: friend.userId,
+                                type: "personal"
+                            )
+                            try? await Task.sleep(nanoseconds: 2_000_000_000)
+                            nudgeSent = false
+                        }
+                    }) {
+                        Image(systemName: nudgeSent ? "bell.fill" : "bell")
+                            .resizable()
+                            .renderingMode(.template)
+                            .foregroundColor(nudgeSent ? AppColors.textWhite : AppColors.neutral400)
+                            .frame(width: 20, height: 20)
+                            .frame(width: 44, height: 44)
+                            .background(Circle().fill(AppColors.neutral900))
+                    }
                     // Toggle between Calendar and Shaker
                     Button(action: { showingCalendar.toggle() }) {
                         Group {

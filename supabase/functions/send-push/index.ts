@@ -109,7 +109,7 @@ Deno.serve(async (req) => {
         };
 
         const res = await fetch(
-          `https://api.development.push.apple.com/3/device/${token}`,
+          `https://api.push.apple.com/3/device/${token}`,
           {
             method: "POST",
             headers: {

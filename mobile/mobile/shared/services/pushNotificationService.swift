@@ -39,12 +39,12 @@ class PushNotificationService {
 
             try await supabase
                 .from("device_tokens")
-                .upsert(row, onConflict: "user_id, token")
+                .upsert(row, onConflict: "user_id,token")
                 .execute()
 
-            print("Device token saved to Supabase")
+            print("[Token] saved to Supabase for user: \(userId)")
         } catch {
-            print("Failed to save device token: \(error)")
+            print("[Token] ERROR saving to Supabase: \(error)")
         }
     }
 
@@ -54,11 +54,18 @@ class PushNotificationService {
     ///   - type: "personal" or "challenge"
     ///   - challengeTitle: Optional challenge name for challenge nudges
     func sendTaskNudge(to targetUserId: String, type: String, challengeTitle: String? = nil) async {
-        guard let supabase = supabase else { return }
+        print("[Nudge] sendTaskNudge called for user: \(targetUserId)")
+        guard let supabase = supabase else {
+            print("[Nudge] ERROR: Supabase client is nil")
+            return
+        }
 
         do {
             let session = try await supabase.auth.session
+            print("[Nudge] sender id: \(session.user.id.uuidString)")
+
             let senderName = try await getSenderName(userId: session.user.id.uuidString)
+            print("[Nudge] sender name: \(senderName)")
 
             let body: String
             if type == "challenge", let title = challengeTitle {
@@ -67,6 +74,7 @@ class PushNotificationService {
                 body = "\(senderName) is reminding you to finish your tasks today"
             }
 
+            print("[Nudge] invoking send-push edge function...")
             try await supabase.functions.invoke(
                 "send-push",
                 options: .init(body: [
@@ -75,8 +83,9 @@ class PushNotificationService {
                     "body": body
                 ] as [String: String])
             )
+            print("[Nudge] edge function invoked successfully")
         } catch {
-            print("Failed to send nudge: \(error)")
+            print("[Nudge] ERROR: \(error)")
         }
     }
 
