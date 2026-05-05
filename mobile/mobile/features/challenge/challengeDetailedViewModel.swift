@@ -135,6 +135,31 @@ final class ChallengeDetailViewModel: ObservableObject {
         await fetchAll(showLoading: false)
     }
 
+    func toggleFavorite() {
+        let targetValue = !isFavorite
+        isFavorite = targetValue
+
+        Task {
+            await persistFavorite(targetValue)
+        }
+    }
+
+    private func persistFavorite(_ favorite: Bool) async {
+        guard let client, let userId = currentUserId else { return }
+
+        do {
+            try await client
+                .from("challenge_members")
+                .update(["favorite": favorite])
+                .eq("challenge_id", value: challengeId.uuidString)
+                .eq("user_id", value: userId.uuidString)
+                .execute()
+        } catch {
+            isFavorite = !favorite
+            errorMessage = "Failed to update favorite: \(error.localizedDescription)"
+        }
+    }
+
     func toggleTask(taskId: UUID) {
         guard isTaskToggleAllowed(on: Date()) else { return }
         guard let idx = todayTasks.firstIndex(where: { $0.id == taskId }) else { return }
@@ -685,6 +710,9 @@ final class ChallengeDetailViewModel: ObservableObject {
 
             challenge = loadedChallenge
             members = try await memberRows
+            isFavorite = members.first {
+                $0.user_id == currentUserId && $0.left_at == nil
+            }?.favorite ?? false
             tasks = try await taskRows
             completions = try await completionRows
             let loadedShakerRows = await challengeShakerRows

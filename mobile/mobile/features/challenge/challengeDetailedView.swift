@@ -163,8 +163,8 @@ private extension ChallengeDetailView {
                     showResult = true
                 }
 
-                HeaderAssetButton(imageName: "favoriteButton") {
-                    viewModel.isFavorite.toggle()
+                HeaderAssetButton(imageName: viewModel.isFavorite ? "favoriteOnButton" : "favoriteButton") {
+                    viewModel.toggleFavorite()
                     onTapFavorite?()
                 }
             }
