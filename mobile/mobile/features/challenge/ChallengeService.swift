@@ -279,13 +279,30 @@ class ChallengeService: ObservableObject {
         return items
     }
 
-    // MARK: - Quit Challenge (set left_at on the current user's membership)
+    // MARK: - Quit Challenge
+    // Marks the current user's membership as left. If the quitter is the owner,
+    // ownership is transferred to a random remaining active member. If the
+    // quitter is the sole active member, the challenge itself is deleted.
 
     func quitChallenge(_ challengeId: UUID) async throws {
         guard let supabase = supabase,
               let currentUserId = currentUserId else {
             throw NSError(domain: "ChallengeService", code: 1,
                           userInfo: [NSLocalizedDescriptionKey: "Service not properly initialized"])
+        }
+
+        struct OwnerRow: Decodable { let owner_user_id: UUID }
+        let ownerRows: [OwnerRow] = try await supabase
+            .from("challenges")
+            .select("owner_user_id")
+            .eq("id", value: challengeId.uuidString)
+            .limit(1)
+            .execute()
+            .value
+
+        guard let ownerUserId = ownerRows.first?.owner_user_id.uuidString else {
+            // Challenge is already gone; nothing to do.
+            return
         }
 
         let now = ISO8601DateFormatter().string(from: Date())
@@ -295,6 +312,43 @@ class ChallengeService: ObservableObject {
             .update(["left_at": now])
             .eq("challenge_id", value: challengeId.uuidString)
             .eq("user_id", value: currentUserId)
+            .execute()
+
+        guard ownerUserId.lowercased() == currentUserId.lowercased() else {
+            return
+        }
+
+        struct RemainingMember: Decodable { let user_id: UUID }
+        let remaining: [RemainingMember] = try await supabase
+            .from("challenge_members")
+            .select("user_id")
+            .eq("challenge_id", value: challengeId.uuidString)
+            .is("left_at", value: nil)
+            .execute()
+            .value
+
+        if remaining.isEmpty {
+            try await supabase
+                .from("challenges")
+                .delete()
+                .eq("id", value: challengeId.uuidString)
+                .execute()
+            return
+        }
+
+        guard let newOwner = remaining.randomElement()?.user_id.uuidString else { return }
+
+        try await supabase
+            .from("challenges")
+            .update(["owner_user_id": newOwner])
+            .eq("id", value: challengeId.uuidString)
+            .execute()
+
+        try await supabase
+            .from("challenge_members")
+            .update(["role": "owner"])
+            .eq("challenge_id", value: challengeId.uuidString)
+            .eq("user_id", value: newOwner)
             .execute()
     }
 
