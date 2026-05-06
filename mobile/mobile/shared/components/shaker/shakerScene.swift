@@ -38,6 +38,8 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
     private var customBottomExtra: CGFloat?
     // Emoji size scaling (1.0 = default)
     private var emojiScaleFactor: CGFloat = 1.0
+    private let baseEmojiFontSize: CGFloat = 54
+    private let baseEmojiBodyRadius: CGFloat = 25.6
     
     // MARK: - Edge-loop inset
     private let inset: CGFloat = 18
@@ -122,6 +124,7 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
     // Adjust emoji scale for preview tiles vs detail
     func setEmojiScale(_ factor: CGFloat) {
         emojiScaleFactor = max(0.5, min(factor, 1.5))
+        applyEmojiSizing()
     }
     
     private func setupPhysicsBoundaries() {
@@ -227,7 +230,8 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
     // Drops an emoji into the scene identified by taskId. If already exists it will be ignored.
     func addEmoji(_ symbol: String, for taskId: UUID) {
         guard marbles[taskId] == nil else { return }
-        let margin: CGFloat = 14 * emojiScaleFactor
+        let targetScale = effectiveEmojiScale(forCount: marbles.count + 1)
+        let margin: CGFloat = 14 * targetScale
         let minX = -size.width/2 + margin*2
         let maxX =  size.width/2 - margin*2
         // Guard against invalid ranges when scene size is not yet laid out
@@ -238,19 +242,21 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
         
         let node = SKLabelNode(fontNamed: "AppleColorEmoji")
         node.text = symbol
-        node.fontSize = 54 * emojiScaleFactor // base 54pt; preview scales down
+        node.fontSize = baseEmojiFontSize * targetScale
         node.verticalAlignmentMode = .center
         node.position = CGPoint(x: spawnX, y: spawnY)
         node.zPosition = 50
-        node.physicsBody = makeBody()
+        node.physicsBody = makeBody(scale: targetScale)
         addChild(node)
         marbles[taskId] = node
+        applyEmojiSizing()
     }
 
     // Drops a glowing emoji reaction into the scene with special effects
     func addGlowingEmoji(_ symbol: String, for taskId: UUID) {
         guard marbles[taskId] == nil else { return }
-        let margin: CGFloat = 14 * emojiScaleFactor
+        let targetScale = effectiveEmojiScale(forCount: marbles.count + 1)
+        let margin: CGFloat = 14 * targetScale
         let minX = -size.width/2 + margin*2
         let maxX =  size.width/2 - margin*2
 
@@ -262,11 +268,11 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
         
         let node = SKLabelNode(fontNamed: "AppleColorEmoji")
         node.text = symbol
-        node.fontSize = 54 * emojiScaleFactor // match regular size; preview uses smaller scale
+        node.fontSize = baseEmojiFontSize * targetScale
         node.verticalAlignmentMode = .center
         node.position = CGPoint(x: spawnX, y: spawnY)
         node.zPosition = 55 // Higher than regular emojis
-        node.physicsBody = makeBody()
+        node.physicsBody = makeBody(scale: targetScale)
         // Mark as reaction so we can identify later
         node.name = "reaction"
         
@@ -296,6 +302,7 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
         node.setScale(1.0)
 
         marbles[taskId] = node
+        applyEmojiSizing()
     }
 
     // Updates the emoji text for an existing marble without resetting physics.
@@ -315,6 +322,7 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
         guard let node = marbles[taskId] else { return }
         node.removeFromParent()
         marbles.removeValue(forKey: taskId)
+        applyEmojiSizing()
     }
     
     // Removes one occurrence of an emoji by its symbol (first match)
@@ -322,6 +330,7 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
         if let match = marbles.first(where: { $0.value.text == symbol }) {
             match.value.removeFromParent()
             marbles.removeValue(forKey: match.key)
+            applyEmojiSizing()
         }
     }
 
@@ -335,6 +344,7 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
         if let match = marbles.first(where: { $0.value.name == "reaction" && $0.value.text == symbol }) {
             match.value.removeFromParent()
             marbles.removeValue(forKey: match.key)
+            applyEmojiSizing()
         }
     }
     
@@ -364,8 +374,8 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
 
 
     // MARK: - Helpers
-    private func makeBody() -> SKPhysicsBody {
-        let body = SKPhysicsBody(circleOfRadius: 25.6 * emojiScaleFactor)
+    private func makeBody(scale: CGFloat? = nil) -> SKPhysicsBody {
+        let body = SKPhysicsBody(circleOfRadius: baseEmojiBodyRadius * (scale ?? effectiveEmojiScale(forCount: marbles.count)))
         body.usesPreciseCollisionDetection = true
         body.restitution = 0.1
         body.friction = 0.9
@@ -377,6 +387,33 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
         body.contactTestBitMask = 0x1 << 0   // 다른 marble과 충돌
         body.collisionBitMask = 0xFFFFFFFF   // 기본 충돌
         return body
+    }
+
+    private func dynamicEmojiScale(for count: Int) -> CGFloat {
+        if count > 16 { return 0.6 }
+        return 1.0
+    }
+
+    private func effectiveEmojiScale(forCount count: Int) -> CGFloat {
+        emojiScaleFactor * dynamicEmojiScale(for: count)
+    }
+
+    private func applyEmojiSizing() {
+        let scale = effectiveEmojiScale(forCount: marbles.count)
+        for node in marbles.values {
+            let velocity = node.physicsBody?.velocity ?? .zero
+            let angularVelocity = node.physicsBody?.angularVelocity ?? 0
+            node.fontSize = baseEmojiFontSize * scale
+            node.physicsBody = makeBody(scale: scale)
+            node.physicsBody?.velocity = velocity
+            node.physicsBody?.angularVelocity = angularVelocity
+
+            for effect in node.children.compactMap({ $0 as? SKEffectNode }) {
+                for glowLabel in effect.children.compactMap({ $0 as? SKLabelNode }) {
+                    glowLabel.fontSize = node.fontSize
+                }
+            }
+        }
     }
     
     // Procedural soft radial glow texture (1.0 center → 0 at edge)
