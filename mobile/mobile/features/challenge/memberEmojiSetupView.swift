@@ -1,5 +1,4 @@
 import SwiftUI
-import MCEmojiPicker
 
 // MARK: - DB payload
 
@@ -10,26 +9,126 @@ private struct MemberEmojiUpsert: Encodable {
     let member_emoji: String
 }
 
+private struct MemberEmojiRow: Decodable {
+    let user_id: UUID
+    let member_emoji: String?
+    let left_at: String?
+}
+
+// MARK: - Hidden emoji keyboard trigger
+
+private struct HiddenEmojiTextField: UIViewRepresentable {
+    @Binding var text: String
+    @Binding var isFirstResponder: Bool
+
+    private final class EmojiFirstTextField: UITextField {
+        override var textInputContextIdentifier: String? { "" }
+        override var textInputMode: UITextInputMode? {
+            UITextInputMode.activeInputModes.first { $0.primaryLanguage == "emoji" }
+                ?? super.textInputMode
+        }
+    }
+
+    func makeUIView(context: Context) -> UITextField {
+        let tf = EmojiFirstTextField(frame: .zero)
+        tf.delegate = context.coordinator
+        tf.autocorrectionType = .no
+        tf.autocapitalizationType = .none
+        tf.tintColor = .clear
+        return tf
+    }
+
+    func updateUIView(_ uiView: UITextField, context: Context) {
+        if isFirstResponder && !uiView.isFirstResponder {
+            _ = uiView.becomeFirstResponder()
+            DispatchQueue.main.async { uiView.reloadInputViews() }
+        } else if !isFirstResponder && uiView.isFirstResponder {
+            uiView.resignFirstResponder()
+        }
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    final class Coordinator: NSObject, UITextFieldDelegate {
+        var parent: HiddenEmojiTextField
+        init(_ parent: HiddenEmojiTextField) { self.parent = parent }
+
+        func textField(_ textField: UITextField, shouldChangeCharactersIn range: NSRange, replacementString string: String) -> Bool {
+            guard !string.isEmpty else { return true }
+            parent.text = string
+            return false
+        }
+    }
+}
+
 // MARK: - ViewModel
 
 @MainActor
 class MemberEmojiSetupViewModel: ObservableObject {
     @Published var selectedEmoji: String = ""
+    @Published var usedEmojis: Set<String> = []
+    @Published var emojiConflictError: Bool = false
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var didConfirmSuccessfully = false
 
-    private let challengeId: UUID
+    private let challengeId: UUID?
     private let isOwner: Bool
     private let client = SupabaseClientManager.shared.client
 
-    init(challengeId: UUID, isOwner: Bool) {
+    init(challengeId: UUID?, isOwner: Bool) {
         self.challengeId = challengeId
         self.isOwner = isOwner
     }
 
+    func load(presetEmojis: [String] = [], emojiRule: EmojiRule = .selectedOnly) async {
+        guard let challengeId, let client else {
+            // Pre-creation: auto-select the first preset emoji for selectedOnly
+            if emojiRule == .selectedOnly, let first = presetEmojis.first {
+                selectedEmoji = first
+            }
+            return
+        }
+        do {
+            let session = try await client.auth.session
+            let userId = session.user.id
+            let rows: [MemberEmojiRow] = try await client
+                .from("challenge_members")
+                .select("user_id, member_emoji, left_at")
+                .eq("challenge_id", value: challengeId.uuidString)
+                .execute()
+                .value
+            usedEmojis = Set(
+                rows
+                    .filter { $0.left_at == nil && $0.user_id != userId }
+                    .compactMap { $0.member_emoji?.trimmingCharacters(in: .whitespacesAndNewlines) }
+                    .filter { !$0.isEmpty }
+            )
+            if emojiRule == .selectedOnly, selectedEmoji.isEmpty,
+               let first = presetEmojis.first(where: { !usedEmojis.contains($0) }) {
+                selectedEmoji = first
+            }
+        } catch {}
+    }
+
     func confirmEmoji() async {
-        guard !selectedEmoji.isEmpty, let client = client else { return }
+        let picked = selectedEmoji.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !picked.isEmpty, !isLoading else { return }
+        if usedEmojis.contains(picked) {
+            emojiConflictError = true
+            return
+        }
+
+        // Pre-creation owner: no DB writes yet — challenge created after emoji is confirmed
+        if isOwner && challengeId == nil {
+            didConfirmSuccessfully = true
+            return
+        }
+
+        guard let challengeId, let client else {
+            errorMessage = "Client unavailable"
+            return
+        }
         isLoading = true
         errorMessage = nil
         do {
@@ -37,26 +136,20 @@ class MemberEmojiSetupViewModel: ObservableObject {
             let userId = session.user.id
 
             if isOwner {
-                // Owner row already exists — just update the emoji.
                 try await client
                     .from("challenge_members")
-                    .update(["member_emoji": selectedEmoji])
+                    .update(["member_emoji": picked])
                     .eq("challenge_id", value: challengeId.uuidString)
                     .eq("user_id", value: userId.uuidString)
                     .execute()
             } else {
-                // Member: upsert into challenge_members then remove the invite row.
                 let memberRow = MemberEmojiUpsert(
                     challenge_id: challengeId,
                     user_id: userId,
                     role: "member",
-                    member_emoji: selectedEmoji
+                    member_emoji: picked
                 )
-                try await client
-                    .from("challenge_members")
-                    .upsert(memberRow)
-                    .execute()
-
+                try await client.from("challenge_members").upsert(memberRow).execute()
                 try await client
                     .from("challenge_invites")
                     .delete()
@@ -64,7 +157,6 @@ class MemberEmojiSetupViewModel: ObservableObject {
                     .eq("invitee_user_id", value: userId.uuidString)
                     .execute()
             }
-
             didConfirmSuccessfully = true
         } catch {
             errorMessage = "Failed to join challenge: \(error.localizedDescription)"
@@ -77,64 +169,92 @@ class MemberEmojiSetupViewModel: ObservableObject {
 
 struct MemberEmojiSetupView: View {
     let emojiRule: EmojiRule
-    let presetEmojis: [String]        // rule 1 — preset pool from challenge creator
-    let representativeEmoji: String   // unused (kept for API compatibility)
+    let presetEmojis: [String]
+    let representativeEmoji: String
     let isOwner: Bool
+    var onConfirmed: ((String) -> Void)?
 
     @StateObject private var viewModel: MemberEmojiSetupViewModel
+
     @Environment(\.dismiss) private var dismiss
 
-    // emoji picker state for any_emoji rule
-    @State private var showPicker = false
-    @State private var pickerEmoji = ""
+    @State private var pickedEmoji: String = ""
+    @State private var isEmojiKeyboardFocused: Bool = false
 
-    init(challengeId: UUID, emojiRule: EmojiRule, presetEmojis: [String], representativeEmoji: String, isOwner: Bool = false) {
+    @State private var randomEmoji: String = SystemEmojiLibrary.randomEmoji()
+    init(
+        challengeId: UUID?,
+        emojiRule: EmojiRule,
+        presetEmojis: [String],
+        representativeEmoji: String,
+        isOwner: Bool = false,
+        onConfirmed: ((String) -> Void)? = nil
+    ) {
         self.emojiRule = emojiRule
         self.presetEmojis = presetEmojis
         self.representativeEmoji = representativeEmoji
         self.isOwner = isOwner
+        self.onConfirmed = onConfirmed
         _viewModel = StateObject(wrappedValue: MemberEmojiSetupViewModel(challengeId: challengeId, isOwner: isOwner))
     }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            AppColors.neutral1000.ignoresSafeArea()
+        GeometryReader { screen in
+            ZStack(alignment: .bottom) {
+                AppColors.neutral1000.ignoresSafeArea()
 
-            // Main content above the bottom panel
-            VStack(spacing: 0) {
-                headerBar
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 8)
+                VStack(spacing: 0) {
+                    headerBar
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 8)
 
-                switch emojiRule {
-                case .selectedOnly:
-                    presetGrid
-                        .padding(.horizontal, 24)
-                        .padding(.top, 24)
-                case .anyEmoji:
-                    anyEmojiBackground
-                        .padding(.top, 40)
+                    switch emojiRule {
+                    case .selectedOnly:
+                        presetGrid
+                            .padding(.horizontal, 24)
+                            .padding(.top, 24)
+                    case .anyEmoji:
+                        anyEmojiBackground
+                            .padding(.top, 40)
+                    }
+
+                    Spacer()
                 }
+                .frame(width: screen.size.width, height: screen.size.height)
 
-                Spacer()
+                bottomPanel(bottomInset: screen.safeAreaInsets.bottom)
+
+                // Pinned to the top so UIKit doesn't scroll when this becomes first responder
+                VStack {
+                    HiddenEmojiTextField(text: $pickedEmoji, isFirstResponder: $isEmojiKeyboardFocused)
+                        .frame(width: 1, height: 1)
+                        .opacity(0.02)
+                        .allowsHitTesting(false)
+                    Spacer()
+                }
             }
-
-            bottomPanel
+            .ignoresSafeArea(.keyboard)
         }
+        .ignoresSafeArea(.keyboard)
         .navBarHidden(true)
         .onAppear {
-            // Pre-select first emoji for selectedOnly rule
-            if emojiRule == .selectedOnly, let first = presetEmojis.first {
-                viewModel.selectedEmoji = first
-            }
+            Task { await viewModel.load(presetEmojis: presetEmojis, emojiRule: emojiRule) }
         }
-        .onChange(of: pickerEmoji) { emoji in
-            guard !emoji.isEmpty else { return }
-            viewModel.selectedEmoji = emoji
-            pickerEmoji = ""
+        .onChange(of: pickedEmoji) { value in
+            guard !value.isEmpty else { return }
+            viewModel.selectedEmoji = value
+            viewModel.emojiConflictError = false
+            pickedEmoji = ""
+            isEmojiKeyboardFocused = false
+        }
+        .onChange(of: viewModel.selectedEmoji) { _ in
+            viewModel.emojiConflictError = false
         }
         .onChange(of: viewModel.didConfirmSuccessfully) { done in
-            if done { dismiss() }
+            if done {
+                onConfirmed?(viewModel.selectedEmoji)
+                dismiss()
+            }
         }
         .alert("Error", isPresented: Binding(
             get: { viewModel.errorMessage != nil },
@@ -173,25 +293,42 @@ struct MemberEmojiSetupView: View {
     // MARK: - Rule 1: tappable preset emoji grid
 
     private var presetGrid: some View {
-        let columns = Array(repeating: GridItem(.flexible(), spacing: 16), count: 4)
-        return LazyVGrid(columns: columns, spacing: 16) {
-            ForEach(presetEmojis, id: \.self) { emoji in
-                let isSelected = viewModel.selectedEmoji == emoji
-                Text(emoji)
-                    .font(.system(size: 75))
-                    .frame(width: 100, height: 100)
-                    .background(
-                        Circle()
-                            .fill(isSelected ? Color("Neutral-700") : Color.clear)
-                    )
-                    .onTapGesture {
-                        viewModel.selectedEmoji = emoji
+        let layout = presetEmojiLayout
+        return VStack(spacing: layout.rowSpacing) {
+            ForEach(Array(layout.rows.enumerated()), id: \.offset) { _, row in
+                HStack(spacing: layout.itemSpacing) {
+                    ForEach(row, id: \.self) { index in
+                        presetEmojiCell(at: index, size: layout.itemSize)
                     }
+                }
+                .frame(maxWidth: .infinity)
             }
         }
     }
 
-    // MARK: - Rule 2: decorative 🔥 with radial glow
+    private func presetEmojiCell(at index: Int, size: CGSize) -> some View {
+        let emoji = presetEmojis[index]
+        let isUsed = viewModel.usedEmojis.contains(emoji)
+
+        return Text(emoji)
+            .font(.system(size: size.width * 0.78))
+            .frame(width: size.width, height: size.height)
+            .opacity(isUsed ? 0.35 : 1)
+            .overlay {
+                if isUsed {
+                    Image("diagonalWhiteLine")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: size.width, height: size.height)
+                }
+            }
+            .onTapGesture {
+                guard !isUsed else { return }
+                viewModel.selectedEmoji = emoji
+            }
+    }
+
+    // MARK: - Rule 2: random cycling emoji with radial glow
 
     private var anyEmojiBackground: some View {
         ZStack {
@@ -203,18 +340,25 @@ struct MemberEmojiSetupView: View {
             )
             .frame(width: 394, height: 394)
 
-            Text("🔥")
+            Text(viewModel.selectedEmoji.isEmpty ? randomEmoji : viewModel.selectedEmoji)
                 .font(.system(size: 120))
+        }
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 200_000_000)
+                if viewModel.selectedEmoji.isEmpty {
+                    randomEmoji = SystemEmojiLibrary.randomEmoji()
+                }
+            }
         }
     }
 
     // MARK: - Bottom panel
 
-    private var bottomPanel: some View {
+    private func bottomPanel(bottomInset: CGFloat) -> some View {
         VStack(spacing: 0) {
-            // Drag indicator
             Capsule()
-                .fill(Color(red: 0x37/255.0, green: 0x36/255.0, blue: 0x36/255.0))
+                .fill(Color.white.opacity(0.38))
                 .frame(width: 44, height: 3)
                 .padding(.top, 9)
                 .padding(.bottom, 16)
@@ -228,41 +372,90 @@ struct MemberEmojiSetupView: View {
                 .fill(Color("Neutral-800"))
                 .frame(height: 1)
                 .padding(.horizontal, 16)
-                .padding(.bottom, 24)
+                .padding(.top, 2)
 
-            // Preview / picker area
-            emojiPreviewArea
-                .frame(height: 92)
-                .padding(.bottom, 24)
+            VStack(spacing: 0) {
+                Spacer(minLength: 0)
+
+                emojiPreviewArea
+                    .frame(height: 92)
+
+                if viewModel.emojiConflictError {
+                    Text("This emoji is already taken by another member.")
+                        .appFont(AppFont.captionS)
+                        .foregroundColor(Color("Red-300"))
+                        .padding(.top, 12)
+                }
+
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity)
 
             joinButton
                 .padding(.horizontal, 16)
-                .padding(.bottom, 16)
+                .padding(.bottom, max(16, 49 - bottomInset))
         }
         .frame(maxWidth: .infinity)
-        .background {
-            ZStack {
-                Color.clear.background(.ultraThinMaterial)
-                Color(red: 32/255, green: 32/255, blue: 32/255, opacity: 0.5)
-            }
-        }
-        .overlay(
-            UnevenRoundedRectangle(
-                topLeadingRadius: 24,
-                bottomLeadingRadius: 0,
-                bottomTrailingRadius: 0,
-                topTrailingRadius: 24
-            )
-            .strokeBorder(Color(white: 161/255, opacity: 0.7), lineWidth: 1)
+        .frame(height: 344, alignment: .top)
+        .liquidGlass(
+            cornerRadius: 24,
+            tint: .white,
+            tintOpacity: 0.06
         )
+        .overlay(alignment: .top) {
+            LinearGradient(
+                colors: [
+                    Color.white.opacity(0.65),
+                    Color.white.opacity(0.18),
+                    Color.clear
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(height: 1.5)
+            .padding(.horizontal, 20)
+        }
+        .overlay {
+            UnevenRoundedRectangle(
+                topLeadingRadius: 24, bottomLeadingRadius: 0,
+                bottomTrailingRadius: 0, topTrailingRadius: 24
+            )
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.28),
+                            Color.white.opacity(0.08),
+                            Color.black.opacity(0.12)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+        }
         .clipShape(
             UnevenRoundedRectangle(
-                topLeadingRadius: 24,
-                bottomLeadingRadius: 0,
-                bottomTrailingRadius: 0,
-                topTrailingRadius: 24
+                topLeadingRadius: 24, bottomLeadingRadius: 0,
+                bottomTrailingRadius: 0, topTrailingRadius: 24
             )
         )
+        .shadow(color: .black.opacity(0.22), radius: 18, x: 0, y: 8)
+        .shadow(color: .white.opacity(0.05), radius: 6, x: 0, y: -1)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.black.opacity(0.18),
+                            Color.clear
+                        ],
+                        startPoint: .bottom,
+                        endPoint: .top
+                    )
+                )
+                .frame(height: 56)
+                .allowsHitTesting(false)
+        }
     }
 
     @ViewBuilder
@@ -273,37 +466,21 @@ struct MemberEmojiSetupView: View {
                 .font(.system(size: 92))
 
         case .anyEmoji:
-            ZStack {
-                Rectangle()
-                    .fill(.clear)
-                    .frame(height: 1)
-                    .emojiPicker(
-                        isPresented: $showPicker,
-                        selectedEmoji: $pickerEmoji,
-                        arrowDirection: .up,
-                        customHeight: 380,
-                        horizontalInset: .zero,
-                        isDismissAfterChoosing: true,
-                        selectedEmojiCategoryTintColor: .white,
-                        feedBackGeneratorStyle: .light
-                    )
-
-                if viewModel.selectedEmoji.isEmpty {
-                    Button {
-                        showPicker = true
-                    } label: {
-                        Image(systemName: "plus")
-                            .font(.system(size: 24, weight: .medium))
-                            .foregroundColor(.white)
-                            .frame(width: 64, height: 64)
-                            .background(Circle().fill(Color("Neutral-800")))
-                    }
-                    .buttonStyle(.plain)
-                } else {
-                    Text(viewModel.selectedEmoji)
-                        .font(.system(size: 92))
-                        .onTapGesture { showPicker = true }
+            if viewModel.selectedEmoji.isEmpty {
+                Button {
+                    isEmojiKeyboardFocused = true
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 24, weight: .medium))
+                        .foregroundColor(.white)
+                        .frame(width: 64, height: 64)
+                        .background(Circle().fill(Color("Neutral-800")))
                 }
+                .buttonStyle(.plain)
+            } else {
+                Text(viewModel.selectedEmoji)
+                    .font(.system(size: 92))
+                    .onTapGesture { isEmojiKeyboardFocused = true }
             }
         }
     }
@@ -321,7 +498,7 @@ struct MemberEmojiSetupView: View {
                     .background(Color("Neutral-800"))
                     .clipShape(RoundedRectangle(cornerRadius: 12))
             } else {
-                Text("Join Challenge")
+                Text(isOwner ? "Confirm Emoji" : "Join Challenge")
                     .appFont(AppFont.title3)
                     .foregroundColor(viewModel.selectedEmoji.isEmpty ? Color("Neutral-500") : Color("Neutral-1000"))
                     .frame(maxWidth: .infinity, minHeight: 56)
@@ -330,5 +507,62 @@ struct MemberEmojiSetupView: View {
             }
         }
         .disabled(viewModel.selectedEmoji.isEmpty || viewModel.isLoading)
+    }
+}
+
+private extension MemberEmojiSetupView {
+    struct PresetEmojiLayout {
+        let itemSize: CGSize
+        let itemSpacing: CGFloat
+        let rowSpacing: CGFloat
+        let rows: [[Int]]
+    }
+
+    var presetEmojiLayout: PresetEmojiLayout {
+        let count = presetEmojis.count
+        let usesLargeCells = count <= 5
+        let itemSize = usesLargeCells ? CGSize(width: 96, height: 144) : CGSize(width: 75, height: 113)
+        let itemSpacing: CGFloat = usesLargeCells ? 8 : 10
+        let rowSpacing: CGFloat = 0
+
+        return PresetEmojiLayout(
+            itemSize: itemSize,
+            itemSpacing: itemSpacing,
+            rowSpacing: rowSpacing,
+            rows: presetEmojiRows(for: count)
+        )
+    }
+
+    func presetEmojiRows(for count: Int) -> [[Int]] {
+        let indices = Array(0..<count)
+        switch count {
+        case 0:
+            return []
+        case 1, 2, 3:
+            return [indices]
+        case 4:
+            return [Array(indices.prefix(3)), Array(indices.suffix(1))]
+        case 5:
+            return [Array(indices.prefix(3)), Array(indices.suffix(2))]
+        case 6:
+            return [Array(indices.prefix(4)), Array(indices.suffix(2))]
+        case 7:
+            return [Array(indices.prefix(4)), Array(indices.suffix(3))]
+        case 8:
+            return [Array(indices.prefix(4)), Array(indices.suffix(4))]
+        case 9:
+            return [Array(indices.prefix(4)), Array(indices.dropFirst(4).prefix(4)), Array(indices.suffix(1))]
+        case 10:
+            return [Array(indices.prefix(4)), Array(indices.dropFirst(4).prefix(4)), Array(indices.suffix(2))]
+        default:
+            var rows: [[Int]] = []
+            var remaining = indices[...]
+            while !remaining.isEmpty {
+                let take = min(4, remaining.count)
+                rows.append(Array(remaining.prefix(take)))
+                remaining = remaining.dropFirst(take)
+            }
+            return rows
+        }
     }
 }

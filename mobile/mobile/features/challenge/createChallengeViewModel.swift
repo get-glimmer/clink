@@ -37,9 +37,8 @@ class CreateChallengeViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var didCreateSuccessfully: Bool = false
 
-    // Set after DB writes for selected_only so EmojiSetupView can show owner emoji picker.
-    @Published var createdChallengeId: UUID? = nil
-    @Published var needsOwnerEmojiSelection: Bool = false
+    // Owner's chosen emoji — set before createChallenge() is called
+    @Published var ownerEmoji: String = ""
 
     private let client = SupabaseClientManager.shared.client
 
@@ -95,6 +94,9 @@ class CreateChallengeViewModel: ObservableObject {
 
     // MARK: - Create challenge
 
+    // Validates the form and triggers navigation to emoji picker — no DB writes yet.
+    // MARK: - Create challenge
+
     func createChallenge() async {
         guard let client = client else {
             errorMessage = "Not connected to server."
@@ -145,7 +147,6 @@ class CreateChallengeViewModel: ObservableObject {
                 .execute()
                 .value
 
-            // Filter blanks first, then enumerate so sortorder is always 0, 1, 2… without gaps.
             let validTasks: [ChallengeTaskInsert] = dailyTasks
                 .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
                 .filter { !$0.isEmpty }
@@ -165,11 +166,11 @@ class CreateChallengeViewModel: ObservableObject {
                     .execute()
             }
 
-            // Add the owner as a member of the challenge
             let memberPayload = ChallengeMemberInsert(
                 challenge_id: inserted.id,
                 user_id: userId,
-                role: "owner"
+                role: "owner",
+                member_emoji: ownerEmoji.isEmpty ? nil : ownerEmoji
             )
             try await client
                 .from("challenge_members")
@@ -191,12 +192,7 @@ class CreateChallengeViewModel: ObservableObject {
                     .execute()
             }
 
-            switch emojiRule {
-            case .selectedOnly, .anyEmoji:
-                // Owner picks their emoji on the next screen — hold off on didCreateSuccessfully.
-                createdChallengeId = inserted.id
-                needsOwnerEmojiSelection = true
-            }
+            completeCreation()
 
         } catch {
             errorMessage = "Failed to create challenge: \(error.localizedDescription)"
@@ -205,7 +201,6 @@ class CreateChallengeViewModel: ObservableObject {
         isLoading = false
     }
 
-    // Called by EmojiSetupView once the owner finishes (or skips) their emoji selection.
     func completeCreation() {
         didCreateSuccessfully = true
     }

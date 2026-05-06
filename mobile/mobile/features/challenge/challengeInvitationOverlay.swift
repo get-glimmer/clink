@@ -163,19 +163,11 @@ private final class ChallengeInvitationOverlayViewModel: ObservableObject {
                 .upsert(row)
                 .execute()
 
-            do {
-                try await client
-                    .from("challenge_invites")
-                    .update(["status": "accepted"])
-                    .eq("id", value: invite.id.uuidString)
-                    .execute()
-            } catch {
-                try await client
-                    .from("challenge_invites")
-                    .delete()
-                    .eq("id", value: invite.id.uuidString)
-                    .execute()
-            }
+            try await client
+                .from("challenge_invites")
+                .update(["status": "accepted"])
+                .eq("id", value: invite.id.uuidString)
+                .execute()
 
             onJoined()
         } catch {

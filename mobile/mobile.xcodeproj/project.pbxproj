@@ -582,6 +582,7 @@
 				INFOPLIST_FILE = mobile/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "clink!";
 				INFOPLIST_KEY_NSMotionUsageDescription = "Used to animate marbles when Shaker mode is on";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Glimmer needs permission to save your challenge result card to your Photos.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = "Launch Screen";
@@ -618,6 +619,7 @@
 				INFOPLIST_FILE = mobile/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "clink!";
 				INFOPLIST_KEY_NSMotionUsageDescription = "Used to animate marbles when Shaker mode is on";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Glimmer needs permission to save your challenge result card to your Photos.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = "Launch Screen";

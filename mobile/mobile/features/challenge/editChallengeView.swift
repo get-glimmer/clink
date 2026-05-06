@@ -1,5 +1,48 @@
 import SwiftUI
-import MCEmojiPicker
+
+private struct HiddenEmojiTextField: UIViewRepresentable {
+    @Binding var text: String
+    @Binding var isFirstResponder: Bool
+
+    private final class EmojiFirstTextField: UITextField {
+        override var textInputContextIdentifier: String? { "" }
+        override var textInputMode: UITextInputMode? {
+            UITextInputMode.activeInputModes.first { $0.primaryLanguage == "emoji" }
+                ?? super.textInputMode
+        }
+    }
+
+    func makeUIView(context: Context) -> UITextField {
+        let tf = EmojiFirstTextField(frame: .zero)
+        tf.delegate = context.coordinator
+        tf.autocorrectionType = .no
+        tf.autocapitalizationType = .none
+        tf.tintColor = .clear
+        return tf
+    }
+
+    func updateUIView(_ uiView: UITextField, context: Context) {
+        if isFirstResponder && !uiView.isFirstResponder {
+            _ = uiView.becomeFirstResponder()
+            DispatchQueue.main.async { uiView.reloadInputViews() }
+        } else if !isFirstResponder && uiView.isFirstResponder {
+            uiView.resignFirstResponder()
+        }
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    final class Coordinator: NSObject, UITextFieldDelegate {
+        var parent: HiddenEmojiTextField
+        init(_ parent: HiddenEmojiTextField) { self.parent = parent }
+
+        func textField(_ textField: UITextField, shouldChangeCharactersIn range: NSRange, replacementString string: String) -> Bool {
+            guard !string.isEmpty else { return true }
+            parent.text = string
+            return false
+        }
+    }
+}
 
 struct EditChallengeView: View {
     @StateObject private var viewModel: EditChallengeViewModel
@@ -11,8 +54,8 @@ struct EditChallengeView: View {
     @State private var monthCursor: Date = Date()           // Tracks which month is visible in the monthly day picker.
     @State private var showDeleteConfirmation: Bool = false // Guards the destructive delete action.
     @State private var showInviteFriends: Bool = false
-    @State private var showEmojiPicker: Bool = false
     @State private var pickerEmoji: String = ""
+    @State private var isEmojiKeyboardFocused: Bool = false
 
     // Custom init required to forward challengeId into the @StateObject at creation time.
     init(challengeId: UUID) {
@@ -23,20 +66,13 @@ struct EditChallengeView: View {
         ZStack {
             AppColors.neutral1000.ignoresSafeArea()
 
-            // Invisible anchor for the emoji picker popup
-            Rectangle()
-                .fill(.clear)
-                .frame(height: 1)
-                .emojiPicker(
-                    isPresented: $showEmojiPicker,
-                    selectedEmoji: $pickerEmoji,
-                    arrowDirection: .up,
-                    customHeight: 380,
-                    horizontalInset: .zero,
-                    isDismissAfterChoosing: true,
-                    selectedEmojiCategoryTintColor: .white,
-                    feedBackGeneratorStyle: .light
-                )
+            VStack {
+                HiddenEmojiTextField(text: $pickerEmoji, isFirstResponder: $isEmojiKeyboardFocused)
+                    .frame(width: 1, height: 1)
+                    .opacity(0.02)
+                    .allowsHitTesting(false)
+                Spacer()
+            }
 
             VStack(spacing: 0) {
                 headerBar
@@ -59,7 +95,9 @@ struct EditChallengeView: View {
                             proofSection
                             invitedSection
                             inviteActions
-                            emojiSetupSection
+                            if viewModel.emojiRule == .selectedOnly {
+                                emojiSetupSection
+                            }
                             saveChangesButton
                         }
                         .padding(.horizontal, 16)
@@ -68,19 +106,21 @@ struct EditChallengeView: View {
                 }
             }
         }
+        .ignoresSafeArea(.keyboard)
         .navBarHidden(true)
         .dismissKeyboardOnTap()
         .onChange(of: pickerEmoji) { emoji in
             guard !emoji.isEmpty else { return }
             switch viewModel.emojiRule {
             case .selectedOnly:
-                if viewModel.presetEmojis.count < 10 {
+                if viewModel.canAddEmoji && !viewModel.presetEmojis.contains(emoji) {
                     viewModel.presetEmojis.append(emoji)
                 }
             case .anyEmoji:
                 viewModel.presetEmojis = [emoji]
             }
             pickerEmoji = ""
+            isEmojiKeyboardFocused = false
         }
         .onChange(of: viewModel.didSaveSuccessfully) { saved in
             if saved { dismiss() }
@@ -168,8 +208,7 @@ struct EditChallengeView: View {
                 Image("trashcan")
                     .renderingMode(.template)
                     .foregroundColor(Color("Red-500"))
-                    .frame(width: 38, height: 38)
-                    .background(Circle().fill(Color("Neutral-900")))
+                    .frame(width: 44, height: 44)
             }
             .buttonStyle(.plain)
         }
@@ -210,7 +249,7 @@ struct EditChallengeView: View {
 
             // Use .font() directly — appFont's .fixedSize(vertical:true) collapses the tappable area.
             TextEditor(text: $viewModel.descriptionText)
-                .font(AppFont.body2.font)
+                .font(AppFont.body1.font)
                 .foregroundColor(Color("White"))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
@@ -219,7 +258,7 @@ struct EditChallengeView: View {
                 .overlay(alignment: .topLeading) {
                     if viewModel.descriptionText.isEmpty {
                         Text("Add a short description...")
-                            .font(AppFont.body2.font)
+                            .font(AppFont.body1.font)
                             .foregroundColor(Color("Neutral-500"))
                             .padding(.horizontal, 16)
                             .padding(.vertical, 14)
@@ -238,34 +277,35 @@ struct EditChallengeView: View {
         VStack(alignment: .leading, spacing: 8) {
             sectionLabel("Daily Tasks")
 
-            VStack(spacing: 8) {
+            List {
                 ForEach(viewModel.dailyTasks.indices, id: \.self) { index in
-                    HStack(spacing: 10) {
-                        TextField("Task", text: $viewModel.dailyTasks[index])
-                            .appFont(AppFont.body1)
-                            .foregroundColor(Color("White"))
-
-                        Button {
-                            viewModel.dailyTasks.remove(at: index)
-                        } label: {
-                            Image("trashcan")
-                                .renderingMode(.template)
-                                .foregroundColor(Color("Red-500"))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    .padding(.horizontal, 14)
-                    .frame(height: 48)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .strokeBorder(Color("Neutral-600"), lineWidth: 0.7)
-                    )
+                    TextField("Task", text: $viewModel.dailyTasks[index].title)
+                        .appFont(AppFont.body1)
+                        .foregroundColor(Color("White"))
+                        .padding(.horizontal, 14)
+                        .frame(height: 49)
+                        .background(AppColors.neutral1000)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .strokeBorder(Color("Neutral-600"), lineWidth: 0.7)
+                        )
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+                        .listRowSeparator(.hidden)
                 }
+                .onDelete { indexSet in
+                    viewModel.dailyTasks.remove(atOffsets: indexSet)
+                }
+            }
+            .scrollDisabled(true)
+            .scrollContentBackground(.hidden)
+            .listStyle(.plain)
+            .frame(height: CGFloat(viewModel.dailyTasks.count) * 57)
 
-                if viewModel.dailyTasks.count < 5 {
-                    outlineButton(title: "Add Task", iconName: "addTask", isSystem: false, isDashed: false, iconSize: CGSize(width: 14, height: 14)) {
-                        viewModel.dailyTasks.append("")
-                    }
+            if viewModel.dailyTasks.count < 5 {
+                outlineButton(title: "Add Task", iconName: "addTask", isSystem: false, isDashed: true, iconSize: CGSize(width: 14, height: 14)) {
+                    viewModel.dailyTasks.append(TaskEntry(id: nil, title: ""))
                 }
             }
         }
@@ -277,7 +317,7 @@ struct EditChallengeView: View {
             sectionLabel("Duration")
 
             VStack(spacing: 0) {
-                Button { showFromDateSheet = true } label: {
+                Button { hideKeyboard(); showFromDateSheet = true } label: {
                     selectionRow(
                         iconName: "duration",
                         title: "From",
@@ -289,7 +329,7 @@ struct EditChallengeView: View {
 
                 divider
 
-                Button { showToDateSheet = true } label: {
+                Button { hideKeyboard(); showToDateSheet = true } label: {
                     selectionRow(
                         iconName: "duration",
                         title: "To",
@@ -317,9 +357,9 @@ struct EditChallengeView: View {
                         Image("repeat")
                             .resizable()
                             .scaledToFit()
-                            .frame(width: 16, height: 16)
+                            .frame(width: 24, height: 24)
                         Text("Repeat")
-                            .appFont(AppFont.labelM)
+                            .appFont(AppFont.labelL)
                             .foregroundColor(Color("Neutral-300"))
                     }
                     Spacer()
@@ -395,108 +435,130 @@ struct EditChallengeView: View {
 
             VStack(spacing: 10) {
                 VStack(spacing: 0) {
-                    Button { if !viewModel.selectedProof.isPhoto { viewModel.selectedProof = .photoRequired } } label: {
-                        HStack(spacing: 8) {
-                            Image("camera")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 20, height: 20)
-                            Text("Photo Upload (Optional)").appFont(AppFont.labelM)
-                        }
-                        .foregroundColor(viewModel.selectedProof.isPhoto ? Color("White") : Color("Neutral-400"))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 14)
-                        .padding(.top, 14)
-                        .padding(.bottom, viewModel.selectedProof.isPhoto ? 10 : 14)
-                    }
-                    .buttonStyle(.plain)
-
-                    if viewModel.selectedProof.isPhoto {
-                        HStack(spacing: 0) {
-                            Button { viewModel.selectedProof = .photoRequired } label: {
-                                HStack(spacing: 6) {
-                                    if viewModel.selectedProof == .photoRequired {
-                                        Image("proofTypeSelected")
-                                            .resizable()
-                                            .scaledToFit()
-                                            .frame(width: 16, height: 16)
-                                    }
-                                    Text("Required").appFont(AppFont.labelM)
-                                }
-                                .foregroundColor(viewModel.selectedProof == .photoRequired ? Color("White") : Color("Neutral-400"))
-                                .frame(maxWidth: .infinity, minHeight: 36)
-                                .background(viewModel.selectedProof == .photoRequired ? Color("Neutral-800") : Color.clear)
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
-                            }
-                            .buttonStyle(.plain)
-
-                            Button { viewModel.selectedProof = .photoOptional } label: {
-                                HStack(spacing: 6) {
-                                    if viewModel.selectedProof == .photoOptional {
-                                        Image("proofTypeSelected")
-                                            .resizable()
-                                            .scaledToFit()
-                                            .frame(width: 16, height: 16)
-                                    }
-                                    Text("Optional").appFont(AppFont.labelM)
-                                }
-                                .foregroundColor(viewModel.selectedProof == .photoOptional ? Color("White") : Color("Neutral-400"))
-                                .frame(maxWidth: .infinity, minHeight: 36)
-                                .background(viewModel.selectedProof == .photoOptional ? Color("Neutral-800") : Color.clear)
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
-                            }
-                            .buttonStyle(.plain)
-                        }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .background(Color("Neutral-900"))
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                        .padding(.horizontal, 10)
-
-                        HStack(spacing: 6) {
-                            Image(systemName: "info.circle")
-                                .font(.system(size: 12))
-                                .foregroundColor(Color("Neutral-500"))
-                            Text("Each check-in MUST have a photo to count towards progress.")
-                                .appFont(AppFont.captionS)
-                                .foregroundColor(Color("Neutral-500"))
-                        }
-                        .padding(.horizontal, 14)
-                        .padding(.top, 8)
-                        .padding(.bottom, 14)
-                    }
-                }
-                .background(Color("Neutral-900"))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .strokeBorder(viewModel.selectedProof.isPhoto ? Color("White") : Color("Neutral-700"), lineWidth: 1)
-                )
-
-                Button { viewModel.selectedProof = .photoRequired } label: {
-                    HStack(spacing: 8) {
+                    HStack(spacing: 6) {
                         Image("camera")
                             .resizable()
                             .scaledToFit()
-                            .frame(width: 20, height: 20)
-                        Text("Photo Upload (Required)").appFont(AppFont.labelM)
-                        Spacer()
-                        if viewModel.selectedProof == .photoRequired {
-                            Image("proofTypeSelected")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 16, height: 16)
-                        }
+                            .frame(width: 24, height: 24)
+                        Text("Photo Upload")
+                            .appFont(AppFont.labelL)
                     }
-                    .foregroundColor(viewModel.selectedProof == .photoRequired ? Color("White") : Color("Neutral-400"))
-                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                    .padding(.horizontal, 14)
+                    .foregroundColor(viewModel.selectedProof.isPhoto ? Color("White") : Color("Neutral-300"))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 11)
+                    .padding(.top, 11)
+                    .padding(.bottom, 10)
+
+                    if viewModel.selectedProof.isPhoto {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack(spacing: 0) {
+                                Button {
+                                    updateProofSelection(.photoRequired)
+                                } label: {
+                                    HStack(spacing: 8) {
+                                        if viewModel.selectedProof == .photoRequired {
+                                            Image("proofTypeSelected")
+                                                .resizable()
+                                                .scaledToFit()
+                                                .frame(width: 16, height: 16)
+                                        }
+                                        Text("Required")
+                                            .appFont(AppFont.labelM)
+                                    }
+                                    .foregroundColor(viewModel.selectedProof == .photoRequired ? Color("White") : Color("Neutral-400"))
+                                    .frame(maxWidth: .infinity, minHeight: 42)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .strokeBorder(viewModel.selectedProof == .photoRequired ? Color("Neutral-300") : Color.clear, lineWidth: 0.7)
+                                    )
+                                }
+                                .buttonStyle(.plain)
+
+                                Button {
+                                    updateProofSelection(.photoOptional)
+                                } label: {
+                                    HStack(spacing: 8) {
+                                        if viewModel.selectedProof == .photoOptional {
+                                            Image("proofTypeSelected")
+                                                .resizable()
+                                                .scaledToFit()
+                                                .frame(width: 16, height: 16)
+                                        }
+                                        Text("Optional")
+                                            .appFont(AppFont.labelM)
+                                    }
+                                    .foregroundColor(viewModel.selectedProof == .photoOptional ? Color("White") : Color("Neutral-400"))
+                                    .frame(maxWidth: .infinity, minHeight: 42)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .strokeBorder(viewModel.selectedProof == .photoOptional ? Color("Neutral-300") : Color.clear, lineWidth: 0.7)
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 6)
+                            .background(Color("Neutral-800"))
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                            HStack(spacing: 9) {
+                                Image("photo_upload_info")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 14, height: 14)
+                                Text(viewModel.selectedProof == .photoRequired
+                                     ? "Each check-in MUST have a photo to count towards progress."
+                                     : "Users can upload a photo or skip it.")
+                                    .appFont(AppFont.captionXS)
+                                    .foregroundColor(Color("Neutral-300"))
+                            }
+                        }
+                        .padding(.leading, 39)
+                        .padding(.trailing, 12)
+                        .padding(.bottom, 14)
+                        .padding(.top, 2)
+                    }
+                }
+                .background(Color("Neutral-900"))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .strokeBorder(viewModel.selectedProof.isPhoto ? Color("White") : Color.clear, lineWidth: 1)
+                )
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    if !viewModel.selectedProof.isPhoto {
+                        updateProofSelection(.photoRequired)
+                    }
+                }
+
+                Button {
+                    updateProofSelection(.checklist)
+                } label: {
+                    HStack(spacing: 6) {
+                        Image("checklist")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 24, height: 24)
+                        Text("Checklist")
+                            .appFont(AppFont.labelL)
+                    }
+                    .foregroundColor(viewModel.selectedProof == .checklist ? Color("White") : Color("Neutral-300"))
+                    .frame(maxWidth: .infinity, minHeight: 50, alignment: .leading)
+                    .padding(.horizontal, 11)
+                    .background(Color("Neutral-900"))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .strokeBorder(viewModel.selectedProof == .checklist ? Color("White") : Color.clear, lineWidth: 1)
+                    )
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .background(Color("Neutral-900"))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .strokeBorder(viewModel.selectedProof == .photoRequired ? Color("White") : Color("Neutral-700"), lineWidth: 1)
-                )
+            }
+            .animation(.none, value: viewModel.selectedProof)
+            .transaction { transaction in
+                transaction.animation = nil
             }
         }
     }
@@ -506,9 +568,9 @@ struct EditChallengeView: View {
     private var invitedSection: some View {
         if !viewModel.members.isEmpty || !viewModel.pendingInvites.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
-                sectionLabel("Members")
+                sectionLabel("Invite Friends")
 
-                let rowHeight: CGFloat = 60  // 50 item + 10 bottom spacing
+                let rowHeight: CGFloat = 58  // 50 item + 4 top + 4 bottom inset
                 let totalCount = viewModel.members.count + viewModel.pendingInvites.count
 
                 List {
@@ -520,14 +582,15 @@ struct EditChallengeView: View {
                                 .foregroundColor(.white)
                             Spacer()
                             Text(member.role == "owner" ? "Owner" : "Joined")
-                                .appFont(AppFont.captionS)
+                                .appFont(AppFont.buttonM)
                                 .foregroundColor(member.role == "owner" ? Color("Neutral-200") : Color("Neutral-500"))
                         }
                         .padding(.horizontal, 14)
                         .frame(height: 50)
-                        .listRowBackground(Color("Neutral-900").clipShape(RoundedRectangle(cornerRadius: 10)))
+                        .background(Color("Neutral-900").clipShape(RoundedRectangle(cornerRadius: 10)))
+                        .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
-                        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 10, trailing: 0))
+                        .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                             if member.role != "owner" {
                                 Button(role: .destructive) {
@@ -547,14 +610,15 @@ struct EditChallengeView: View {
                                 .foregroundColor(.white)
                             Spacer()
                             Text(invite.status.capitalized)
-                                .appFont(AppFont.captionS)
+                                .appFont(AppFont.buttonM)
                                 .foregroundColor(Color("Neutral-500"))
                         }
                         .padding(.horizontal, 14)
                         .frame(height: 50)
-                        .listRowBackground(Color("Neutral-900").clipShape(RoundedRectangle(cornerRadius: 10)))
+                        .background(Color("Neutral-900").clipShape(RoundedRectangle(cornerRadius: 10)))
+                        .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
-                        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 10, trailing: 0))
+                        .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                             Button(role: .destructive) {
                                 Task { await viewModel.deleteInvite(inviteId: invite.id) }
@@ -603,7 +667,6 @@ struct EditChallengeView: View {
             outlineButton(title: "Add Friends", iconName: "addFriends", isSystem: false, isDashed: true, iconSize: CGSize(width: 14, height: 14)) {
                 showInviteFriends = true
             }
-            outlineButton(title: "Invite via Link", iconName: "inviteViaLink", isSystem: false, isDashed: false, iconSize: CGSize(width: 16, height: 8)) {}
         }
     }
 
@@ -623,42 +686,40 @@ struct EditChallengeView: View {
     }
 
     private var selectedOnlyEmojiGrid: some View {
-        let columns = [GridItem(.adaptive(minimum: 60, maximum: 72), spacing: 12)]
-        return LazyVGrid(columns: columns, spacing: 12) {
-            ForEach(viewModel.presetEmojis.indices, id: \.self) { i in
-                ZStack(alignment: .topTrailing) {
-                    Text(viewModel.presetEmojis[i])
-                        .font(.system(size: 48))
-                        .frame(width: 64, height: 64)
-
-                    Button {
-                        viewModel.presetEmojis.remove(at: i)
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 20))
-                            .foregroundColor(Color("Red-500"))
-                            .background(Circle().fill(Color("Neutral-1000")).padding(3))
+        let rows = editEmojiRows
+        return VStack(spacing: 32) {
+            ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                HStack(spacing: 32) {
+                    ForEach(0..<5, id: \.self) { index in
+                        if index < row.count {
+                            let item = row[index]
+                            switch item {
+                            case .emoji(let value):
+                                Text(value)
+                                    .font(.system(size: 36))
+                                    .frame(width: 36, height: 36)
+                        case .add:
+                            Button { isEmojiKeyboardFocused = true } label: {
+                                Image("emojiSetupEdit")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 36, height: 36)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        } else {
+                            Color.clear
+                                .frame(width: 36, height: 36)
+                        }
                     }
-                    .buttonStyle(.plain)
-                    .offset(x: 4, y: -4)
                 }
-            }
-
-            if viewModel.canAddEmoji {
-                Button { showEmojiPicker = true } label: {
-                    Image(systemName: "plus")
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundColor(.white)
-                        .frame(width: 64, height: 64)
-                        .background(Circle().fill(Color("Neutral-800")))
-                }
-                .buttonStyle(.plain)
             }
         }
+        .frame(maxWidth: .infinity)
     }
 
     private var anyEmojiSelector: some View {
-        Button { showEmojiPicker = true } label: {
+        Button { isEmojiKeyboardFocused = true } label: {
             if let emoji = viewModel.presetEmojis.first, !emoji.isEmpty {
                 Text(emoji)
                     .font(.system(size: 56))
@@ -687,7 +748,7 @@ struct EditChallengeView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12))
             } else {
                 Text("Save Changes")
-                    .appFont(AppFont.title3)
+                    .appFont(AppFont.buttonL)
                     .foregroundColor(viewModel.isSaveEnabled ? Color("Neutral-1000") : Color("Neutral-600"))
                     .frame(maxWidth: .infinity, minHeight: 56)
                     .background(viewModel.isSaveEnabled ? Color("Green-300") : Color("Neutral-800"))
@@ -709,7 +770,7 @@ struct EditChallengeView: View {
 
     private func sectionLabel(_ title: String) -> some View {
         Text(title)
-            .appFont(AppFont.labelS)
+            .appFont(AppFont.labelM)
             .foregroundColor(Color("Neutral-300"))
             .padding(.leading, 6)
     }
@@ -726,13 +787,13 @@ struct EditChallengeView: View {
             Image(iconName)
                 .resizable()
                 .scaledToFit()
-                .frame(width: 16, height: 16)
+                .frame(width: 24, height: 24)
             Text(title)
-                .appFont(AppFont.labelM)
+                .appFont(AppFont.labelL)
                 .foregroundColor(Color("Neutral-300"))
             Spacer()
             Text(value)
-                .appFont(AppFont.body2)
+                .appFont(AppFont.body1)
                 .foregroundColor(Color("White"))
             Image(trailingIconName)
                 .foregroundColor(Color("Neutral-400"))
@@ -741,7 +802,7 @@ struct EditChallengeView: View {
         .frame(height: 52)
     }
 
-    private func outlineButton(title: String, iconName: String, isSystem: Bool, isDashed: Bool, iconSize: CGSize? = nil, action: @escaping () -> Void) -> some View {
+    private func outlineButton(title: String, iconName: String, isSystem: Bool, isDashed: Bool, showBorder: Bool = true, iconSize: CGSize? = nil, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 10) {
                 if isSystem {
@@ -761,10 +822,41 @@ struct EditChallengeView: View {
             .background(Color("Neutral-900"))
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color("Neutral-700"), style: StrokeStyle(lineWidth: 1, dash: isDashed ? [6, 6] : []))
+                    .stroke(showBorder ? Color("Neutral-700") : Color.clear, style: StrokeStyle(lineWidth: 1, dash: isDashed ? [6, 6] : []))
             )
         }
         .buttonStyle(.plain)
+    }
+
+    private func updateProofSelection(_ proof: ProofType) {
+        var transaction = Transaction()
+        transaction.animation = nil
+        withTransaction(transaction) {
+            viewModel.selectedProof = proof
+        }
+    }
+
+    private var editEmojiRows: [[EditEmojiItem]] {
+        var items = viewModel.presetEmojis.map(EditEmojiItem.emoji)
+        if viewModel.canAddEmoji {
+            items.append(.add)
+        }
+
+        var rows: [[EditEmojiItem]] = []
+        var remaining = items[...]
+        while !remaining.isEmpty {
+            let take = min(5, remaining.count)
+            rows.append(Array(remaining.prefix(take)))
+            remaining = remaining.dropFirst(take)
+        }
+        return rows
+    }
+}
+
+private extension EditChallengeView {
+    enum EditEmojiItem: Hashable {
+        case emoji(String)
+        case add
     }
 }
 
