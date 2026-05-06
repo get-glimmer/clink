@@ -186,12 +186,12 @@ struct ShakerView: View {
                 scene.setMotionEnabled(!isPreview)
                 if isPreview {
                     // Lower the floor a bit to avoid floating look in tight previews
-                    scene.configureBoundaries(inset: 12, lidHeight: 40, bottomExtraDepth: 10)
+                    scene.configureBoundaries(inset: 12, lidHeight: 55, bottomExtraDepth: 10)
                     // Stronger constant gravity so marbles settle firmly at the bottom
                     scene.useConstantGravity(18)
                 } else {
                     // Reset to default boundaries for full view
-                    scene.configureBoundaries(inset: 12, lidHeight: 40)
+                    scene.configureBoundaries(inset: 12, lidHeight: 55)
                 }
                 
                 // haptic off when isPreview
