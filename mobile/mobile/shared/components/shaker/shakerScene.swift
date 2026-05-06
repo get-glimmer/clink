@@ -21,6 +21,7 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
     private let accScale: CGFloat = 600  // shaking force scale
     private let gravityScale:  CGFloat = 12 // gravity applied to charms
     private var motionEnabled = false
+    private var constantGravityStrength: CGFloat?
     
     // Storage for marbles keyed by Task UUID
     private var marbles: [UUID: SKLabelNode] = [:]
@@ -43,7 +44,7 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
     
     // MARK: - Edge-loop inset
     private let inset: CGFloat = 18
-    private let lidHeight: CGFloat = 44
+    private let lidHeight: CGFloat = 50
     // Cached floor Y (inside edge loop)
     private var computedFloorY: CGFloat = 0
     
@@ -154,18 +155,21 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
         guard enabled != motionEnabled else { return }
         motionEnabled = enabled
         if enabled {
+            constantGravityStrength = nil
             startMotion()
         } else {
             stopMotion()
             // Fallback: ensure a constant downward gravity so marbles fall
-            physicsWorld.gravity = CGVector(dx: 0, dy: -gravityScale)
+            constantGravityStrength = gravityScale
+            applyConstantGravityIfNeeded()
         }
     }
     
     private func startMotion() {
         guard motion.isDeviceMotionAvailable else {
             // Device motion unavailable (e.g., Simulator/preview) → use constant gravity
-            physicsWorld.gravity = CGVector(dx: 0, dy: -gravityScale)
+            constantGravityStrength = gravityScale
+            applyConstantGravityIfNeeded()
             return
         }
         motion.deviceMotionUpdateInterval = 1.0 / 60.0   // 60 Hz
@@ -177,15 +181,15 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
             let gy = dm.gravity.y
             self.filteredGravity.dx = self.gAlpha * self.filteredGravity.dx + (1-self.gAlpha) * gx
             self.filteredGravity.dy = self.gAlpha * self.filteredGravity.dy + (1-self.gAlpha) * gy
-            self.physicsWorld.gravity = CGVector(dx: self.filteredGravity.dx * self.gravityScale,
-                                                 dy: self.filteredGravity.dy * self.gravityScale)
+            self.physicsWorld.gravity = CGVector(dx: self.filteredGravity.dx * self.scaledGravityStrength,
+                                                 dy: self.filteredGravity.dy * self.scaledGravityStrength)
             /* 2. shaking → apply force */
             let ua = dm.userAcceleration
             let ax = ua.x
             let ay = ua.y
             let mag = hypot(ax, ay)
             if mag > 0.02 {
-                let baseForce = CGVector(dx: ax * self.accScale, dy: ay * self.accScale)
+                let baseForce = CGVector(dx: ax * self.scaledAccelerationStrength, dy: ay * self.scaledAccelerationStrength)
                 for (_, label) in self.marbles {
                     if let body = label.physicsBody {
                         let angleJitter = CGFloat.random(in: -(.pi/12)...(.pi/12))
@@ -202,12 +206,13 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
 
     // Explicit constant downward gravity (used for previews)
     func useConstantGravity(_ strength: CGFloat) {
-        physicsWorld.gravity = CGVector(dx: 0, dy: -abs(strength))
+        constantGravityStrength = abs(strength)
+        applyConstantGravityIfNeeded()
     }
 
     // Force-settle all marbles to the bottom (useful for small preview tiles)
     func settleAllToBottom() {
-        let radius: CGFloat = 25.6 * emojiScaleFactor
+        let radius = baseEmojiBodyRadius * effectiveEmojiScale(forCount: marbles.count)
         let floor = computedFloorY + radius + 1
         for (_, node) in marbles {
             if node.position.y > floor {
@@ -375,12 +380,13 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
 
     // MARK: - Helpers
     private func makeBody(scale: CGFloat? = nil) -> SKPhysicsBody {
+        let physicsScale = currentPhysicsScale
         let body = SKPhysicsBody(circleOfRadius: baseEmojiBodyRadius * (scale ?? effectiveEmojiScale(forCount: marbles.count)))
         body.usesPreciseCollisionDetection = true
-        body.restitution = 0.1
-        body.friction = 0.9
-        body.linearDamping = 0.8
-        body.angularDamping = 0.9
+        body.restitution = 0.1 * physicsScale
+        body.friction = 0.9 * physicsScale
+        body.linearDamping = 0.8 + (1 - physicsScale) * 0.4
+        body.angularDamping = 0.9 + (1 - physicsScale) * 0.4
         
         // contact haptic
         body.categoryBitMask = 0x1 << 0      // marble
@@ -396,6 +402,18 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
 
     private func effectiveEmojiScale(forCount count: Int) -> CGFloat {
         emojiScaleFactor * dynamicEmojiScale(for: count)
+    }
+
+    private var currentPhysicsScale: CGFloat {
+        dynamicEmojiScale(for: marbles.count)
+    }
+
+    private var scaledGravityStrength: CGFloat {
+        gravityScale * currentPhysicsScale
+    }
+
+    private var scaledAccelerationStrength: CGFloat {
+        accScale * currentPhysicsScale
     }
 
     private func applyEmojiSizing() {
@@ -414,6 +432,12 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
                 }
             }
         }
+        applyConstantGravityIfNeeded()
+    }
+
+    private func applyConstantGravityIfNeeded() {
+        guard let constantGravityStrength else { return }
+        physicsWorld.gravity = CGVector(dx: 0, dy: -constantGravityStrength * currentPhysicsScale)
     }
     
     // Procedural soft radial glow texture (1.0 center → 0 at edge)
@@ -471,7 +495,7 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
       let now = CACurrentMediaTime()
       guard now - lastHapticTime > hapticCooldown else { return }
 
-      let normalized = min(max(impulse / 6.0, 0.45), 1.0)
+      let normalized = min(max(impulse / 6.0, 0.45), 1.0) * currentPhysicsScale
       let gen = UIImpactFeedbackGenerator(style: .rigid)
       gen.prepare()
       gen.impactOccurred(intensity: normalized)

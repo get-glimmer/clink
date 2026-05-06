@@ -1719,7 +1719,7 @@ struct ChallengeJarView: View {
 
                 scene.setEmojiScale(1.0)
                 scene.setMotionEnabled(true)
-                scene.configureBoundaries(inset: 12, lidHeight: 40)
+                scene.configureBoundaries(inset: 12, lidHeight: 55)
                 scene.setHapticsEnabled(true)
 
                 syncJarItemsToScene()
