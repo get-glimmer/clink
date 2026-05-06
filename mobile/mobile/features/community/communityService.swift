@@ -59,7 +59,6 @@ class CommunityService: ObservableObject {
                 }
             }
         } catch {
-            print("Error initializing community service: \(error)")
         }
     }
     
@@ -142,7 +141,6 @@ class CommunityService: ObservableObject {
             }
             
         } catch {
-            print("Error fetching friends: \(error)")
             throw error
         }
     }
@@ -177,7 +175,6 @@ class CommunityService: ObservableObject {
             return min(max(progress, 0.0), 1.0) // Clamp between 0 and 1
             
         } catch {
-            print("Error fetching task progress for user \(userId): \(error)")
             return 0.0
         }
     }
@@ -214,7 +211,6 @@ class CommunityService: ObservableObject {
             return []
             
         } catch {
-            print("Error fetching category emojis for user \(userId): \(error)")
             return []
         }
     }
@@ -274,7 +270,6 @@ class CommunityService: ObservableObject {
                 .execute()
             
         } catch {
-            print("Error unfollowing friend: \(error)")
             throw error
         }
     }
@@ -318,7 +313,6 @@ class CommunityService: ObservableObject {
                 .execute()
             
         } catch {
-            print("Error adding friend to favorites: \(error)")
             throw error
         }
     }
@@ -362,7 +356,6 @@ class CommunityService: ObservableObject {
                 .execute()
             
         } catch {
-            print("Error removing friend from favorites: \(error)")
             throw error
         }
     }
@@ -401,7 +394,6 @@ class CommunityService: ObservableObject {
                     .execute()
             }
         } catch {
-            print("Error (id) adding friend to favorites: \(error)")
             throw error
         }
     }
@@ -423,7 +415,6 @@ class CommunityService: ObservableObject {
                 .eq("friend_id", value: friendId)
                 .execute()
         } catch {
-            print("Error (id) removing friend from favorites: \(error)")
             throw error
         }
     }
@@ -456,7 +447,6 @@ class CommunityService: ObservableObject {
                 .execute()
             
         } catch {
-            print("Error accepting friend request: \(error)")
             throw error
         }
     }
@@ -514,7 +504,6 @@ class CommunityService: ObservableObject {
             return friendRequests
             
         } catch {
-            print("Error fetching pending friend requests: \(error)")
             throw error
         }
     }
@@ -592,7 +581,6 @@ class CommunityService: ObservableObject {
             return categoriesWithTasks
             
         } catch {
-            print("Error fetching friend's tasks: \(error)")
             throw error
         }
     }
@@ -628,7 +616,6 @@ class CommunityService: ObservableObject {
             throw NSError(domain: "SupabaseError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Supabase client not initialized"])
         }
 
-        print("🔎 isLiked: user=\(userId), category=\(categoryId), shaker=\(shakerId)")
         let rows: [LikeRecord] = try await supabase
             .from("likes")
             .select("like_id")
@@ -638,7 +625,6 @@ class CommunityService: ObservableObject {
             .execute()
             .value
         let liked = !rows.isEmpty
-        print("🔎 isLiked result=\(liked) count=\(rows.count)")
         return liked
     }
 
@@ -659,13 +645,10 @@ class CommunityService: ObservableObject {
                 ])
                 .execute()
 
-            print("💖 likeCategory: inserted like for user=\(userId) category=\(categoryId) shaker=\(shakerId)")
         } catch {
             if let pg = error as? PostgrestError, pg.code == "23505" {
-                print("🟡 likeCategory: duplicate like detected (treated as success) user=\(userId) category=\(categoryId) shaker=\(shakerId)")
                 return
             }
-            print("🔴 likeCategory: insert failed - \(error)")
             throw error
         }
     }
@@ -682,8 +665,6 @@ class CommunityService: ObservableObject {
             .eq("category_id", value: categoryId.uuidString)
             .eq("shaker_id", value: shakerId.uuidString)
             .execute()
-
-        print("💔 unlikeCategory: removed like for user=\(userId) category=\(categoryId) shaker=\(shakerId)")
     }
 
     
@@ -782,9 +763,7 @@ class CommunityService: ObservableObject {
         } catch {
             if let pg = error as? PostgrestError, pg.code == "23505" {
                 // Unique constraint on (userid, date) hit; another caller created it first.
-                print("🟡 ensureShakerForUser: shaker already exists for user=\(userId) date=\(dateString)")
-            } else {
-                print("🔴 ensureShakerForUser: insert failed - \(error)")
+                } else {
                 throw error
             }
         }
@@ -946,13 +925,6 @@ class CommunityService: ObservableObject {
         }
         
         let notes = try decoder.decode([NoteRecord].self, from: data)
-        // Debug logs to verify visibility and RLS behavior
-        let distinctUsers = Set(notes.map { $0.userId })
-        print("📝 getNotesForShaker: shakerId=\(shakerId), fetched=\(notes.count), distinctUsers=\(distinctUsers.count)")
-        if !notes.isEmpty {
-            let firstFew = notes.prefix(5).map { "(user:\($0.userId), text:\($0.noteContent.prefix(24)))" }
-            print("📝 getNotesForShaker sample -> \(firstFew)")
-        }
         return notes
     }
 
@@ -974,11 +946,9 @@ class CommunityService: ObservableObject {
         guard let jsonArray = try? JSONSerialization.jsonObject(with: response.data) as? [[String: Any]],
               let first = jsonArray.first,
               let content = first["note_content"] as? String else {
-            print("🔴 userHasTextNote: no note found for user \(userId)")
             return false
         }
         let hasText = !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        print("📝 userHasTextNote: hasText=\(hasText)")
         return hasText
     }
     
@@ -1000,7 +970,6 @@ class CommunityService: ObservableObject {
         } else {
             found = false
         }
-        print("📝 userHasAnyNote: \(found)")
         return found
     }
     

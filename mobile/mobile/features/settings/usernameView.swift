@@ -76,7 +76,6 @@ struct UsernameView: View {
                                     } catch {
                                         usernameStatus = "Failed to update username."
                                         usernameStatusColor = .red
-                                        print("❌ Error updating username:", error.localizedDescription)
                                     }
                                 } else {
                                     usernameStatus = "The username is already in use."

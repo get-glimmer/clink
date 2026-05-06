@@ -23,7 +23,6 @@ class ChallengeService: ObservableObject {
                 self.currentUserId = user.id.uuidString
             }
         } catch {
-            print("ChallengeService: Error getting current user: \(error)")
         }
     }
 
@@ -66,7 +65,6 @@ class ChallengeService: ObservableObject {
             items.append(item)
         }
 
-        print("[Challenges] fetchChallenges: \(items.count) challenge(s) for userId: \(currentUserId)")
         return items
     }
 
@@ -86,8 +84,6 @@ class ChallengeService: ObservableObject {
             .execute()
             .value
         
-        print("My id: \(currentUserId)")
-
         var items: [ChallengeItem] = []
         for challenge in challenges {
             let item = try await assembleItem(challenge: challenge, supabase: supabase)
@@ -275,7 +271,6 @@ class ChallengeService: ObservableObject {
             ))
         }
 
-        print("[Challenges] fetchPendingInvites: \(items.count) pending invite(s)")
         return items
     }
 
@@ -454,8 +449,6 @@ class ChallengeService: ObservableObject {
             lidStart = nil
             lidEnd = nil
         }
-
-        print("[ChallengeJar] challenge=\(challenge.id) title=\(challenge.title) cumulativeJarEmojis=\(cumulativeEmojis) sealedToday=\(isSealedToday) (\(completedToday)/\(requiredToday)) lidStart=\(lidStart ?? "nil") lidEnd=\(lidEnd ?? "nil")")
 
         return ChallengeItem(
             id: challenge.id,

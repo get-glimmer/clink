@@ -23,12 +23,10 @@ final class FriendRequestRealtimeService: ObservableObject {
     func start() async {
         guard !isSubscribed else { return }
         guard let userId = getUserId() else {
-            print("[FriendRequestRT] No authenticated user – skipping")
             return
         }
         currentUserId = userId
         guard let client = SupabaseClientManager.shared.client else {
-            print("[FriendRequestRT] No Supabase client")
             return
         }
 
@@ -47,28 +45,24 @@ final class FriendRequestRealtimeService: ObservableObject {
         await ch.subscribe()
         channel = ch
         isSubscribed = true
-        print("[FriendRequestRT] ✅ Subscribed to friends table changes")
 
         // 3) Consume events — any change on friends table triggers a re-count
         listenTask = Task { [weak self] in
             await withTaskGroup(of: Void.self) { group in
                 group.addTask {
                     for await action in inserts {
-                        print("[FriendRequestRT] INSERT received: \(action)")
                         guard let self else { return }
                         await self.onChangeReceived()
                     }
                 }
                 group.addTask {
                     for await action in updates {
-                        print("[FriendRequestRT] UPDATE received: \(action)")
                         guard let self else { return }
                         await self.onChangeReceived()
                     }
                 }
                 group.addTask {
                     for await action in deletes {
-                        print("[FriendRequestRT] DELETE received: \(action)")
                         guard let self else { return }
                         await self.onChangeReceived()
                     }
@@ -94,13 +88,11 @@ final class FriendRequestRealtimeService: ObservableObject {
         }
         channel = nil
         isSubscribed = false
-        print("[FriendRequestRT] Unsubscribed")
     }
 
     // MARK: - Helpers
 
     private func onChangeReceived() async {
-        print("[FriendRequestRT] Change event → refreshing count")
         await fetchPendingCount()
         NotificationCenter.default.post(name: .friendRequestsChanged, object: nil)
     }
@@ -119,11 +111,9 @@ final class FriendRequestRealtimeService: ObservableObject {
 
             let newCount = response.count ?? 0
             if pendingRequestCount != newCount {
-                print("[FriendRequestRT] Badge count \(pendingRequestCount) → \(newCount)")
                 pendingRequestCount = newCount
             }
         } catch {
-            print("[FriendRequestRT] fetchPendingCount error: \(error)")
         }
     }
 }

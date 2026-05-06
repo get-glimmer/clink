@@ -173,8 +173,6 @@ final class ChallengeResultViewModel: ObservableObject {
                let emoji = mine.member_emoji, !emoji.isEmpty {
                 myEmoji = emoji
             }
-            print("[ChallengeResult] challenge=\(challengeId) myCompleted=\(myCompleted) perUserTarget=\(perUserTarget) myPercent=\(myPercent) overallPercent=\(overallPercent) range=\(startStr ?? "nil")..\(endStr ?? "nil") scheduledDays=\(scheduledDates.count)")
-
             // Jar = LAST DAY's state — every member's completion on
             // end_date contributes one of their emojis to the jar.
             jarItems = buildLastDayJarItems(
@@ -192,7 +190,6 @@ final class ChallengeResultViewModel: ObservableObject {
                 let lastDayCompleted = normalized.filter { $0.isCompleted && $0.date == endStr && validTaskIds.contains($0.taskId) }.count
                 let lastDayRequired = activeMembers.count * tasks.count
                 isSealed = lastDayRequired > 0 && lastDayCompleted >= lastDayRequired
-                print("[ChallengeResult] lastDay=\(endStr) completed=\(lastDayCompleted)/\(lastDayRequired) sealed=\(isSealed) jarItems=\(jarItems.count)")
             } else {
                 isSealed = false
             }
@@ -610,6 +607,8 @@ struct ChallengeResultView: View {
     @StateObject private var viewModel: ChallengeResultViewModel
     @State private var showShareCard = false
     @State private var showAllParticipants = false
+    @State private var didFireConfetti = false
+    @State private var confettiTrigger = UUID()
 
     init(challengeId: UUID) {
         _viewModel = StateObject(wrappedValue: ChallengeResultViewModel(challengeId: challengeId))
@@ -670,10 +669,22 @@ struct ChallengeResultView: View {
                 }
                 .ignoresSafeArea(.all, edges: .bottom)
             }
+
+            EmojiConfettiOverlay(
+                emojis: confettiEmojis,
+                trigger: confettiTrigger
+            )
+            .ignoresSafeArea()
+            .allowsHitTesting(false)
         }
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
         .task { await viewModel.load() }
+        .onChange(of: viewModel.jarItems.count) { count in
+            guard !didFireConfetti, count > 0 else { return }
+            didFireConfetti = true
+            confettiTrigger = UUID()
+        }
         .fullScreenCover(isPresented: $showShareCard) {
             ChallengeShareCardView(
                 title: viewModel.title,
@@ -687,6 +698,11 @@ struct ChallengeResultView: View {
                 isSealed: viewModel.isSealed
             )
         }
+    }
+
+    private var confettiEmojis: [String] {
+        let unique = Array(NSOrderedSet(array: viewModel.jarItems.map { $0.emoji })) as? [String] ?? []
+        return unique.isEmpty ? ["✨"] : unique
     }
 
     private var headerSection: some View {
@@ -866,6 +882,75 @@ struct ChallengeResultView: View {
     }
 }
 
+// MARK: - Emoji Confetti
+
+private struct ConfettiPiece: Identifiable {
+    let id = UUID()
+    let emoji: String
+    let xRatio: CGFloat
+    let delay: Double
+    let duration: Double
+    let rotationStart: Double
+    let rotationEnd: Double
+    let size: CGFloat
+}
+
+private struct EmojiConfettiOverlay: View {
+    let emojis: [String]
+    let trigger: UUID
+
+    @State private var pieces: [ConfettiPiece] = []
+    @State private var fall = false
+    @State private var lastTrigger: UUID?
+
+    var body: some View {
+        GeometryReader { geo in
+            ZStack {
+                ForEach(pieces) { piece in
+                    Text(piece.emoji)
+                        .font(.system(size: piece.size))
+                        .rotationEffect(.degrees(fall ? piece.rotationEnd : piece.rotationStart))
+                        .position(
+                            x: piece.xRatio * geo.size.width,
+                            y: fall ? geo.size.height + 80 : -80
+                        )
+                        .animation(
+                            .easeIn(duration: piece.duration).delay(piece.delay),
+                            value: fall
+                        )
+                }
+            }
+            .onChange(of: trigger) { newValue in
+                guard newValue != lastTrigger else { return }
+                lastTrigger = newValue
+                fire()
+            }
+        }
+    }
+
+    private func fire() {
+        fall = false
+        pieces = (0..<60).map { _ in
+            ConfettiPiece(
+                emoji: emojis.randomElement() ?? "✨",
+                xRatio: CGFloat.random(in: 0...1),
+                delay: Double.random(in: 0...0.6),
+                duration: Double.random(in: 1.6...2.6),
+                rotationStart: Double.random(in: -45...45),
+                rotationEnd: Double.random(in: -360...360),
+                size: CGFloat.random(in: 26...44)
+            )
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            fall = true
+        }
+        // Clear after the longest possible piece finishes (duration + delay + buffer)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
+            pieces = []
+        }
+    }
+}
+
 // MARK: - Share Card
 
 struct ChallengeShareCardView: View {
@@ -912,6 +997,7 @@ struct ChallengeShareCardView: View {
                     .foregroundColor(AppColors.textWhite)
                     .appText(AppFont.title3)
                     .multilineTextAlignment(.center)
+                    .padding(.top, 25)
 
                 cardContent
                     .padding(.horizontal, 16)
@@ -939,21 +1025,22 @@ struct ChallengeShareCardView: View {
     }
 
     private var cardContent: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 0) {
             Image("clink")
                 .renderingMode(.template)
                 .resizable()
                 .scaledToFit()
                 .frame(height: 22)
                 .foregroundColor(AppColors.textWhite)
-                .padding(.top, 18)
-                .padding(.bottom, 15)
+                .padding(.top, 27)
+                .padding(.bottom, 36)
 
             ChallengeResultStaticJarView(
                 jarItems: jarItems,
                 isSealed: isSealed
             )
             .frame(height: 240)
+            .padding(.bottom, 28.6)
 
             Text(title)
                 .foregroundColor(AppColors.textWhite)
@@ -980,9 +1067,11 @@ struct ChallengeShareCardView: View {
                 }
                 .frame(maxWidth: .infinity)
             }
-            .padding(.vertical, 8)
+            .padding(.top, 24)
+            .padding(.bottom, 46)
             .padding(.horizontal, 12)
         }
+        .frame(height: 500)
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(

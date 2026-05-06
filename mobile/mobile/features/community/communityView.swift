@@ -1072,7 +1072,6 @@ struct LeaveNoteSheet: View {
                 await MainActor.run {
                     self.isSending = false
                     // Show error to user
-                    print("Error sending note: \(error)")
                 }
             }
         }
@@ -1179,10 +1178,8 @@ struct HeartButton: View {
         Task {
             do {
                 let targetLike = !isLiked
-                print("[HeartButton] toggleLike tapped. targetLike=\(targetLike) cat=\(categoryId) friend=\(friendUserId)")
                 guard let shakerId = try await communityService.getCurrentShakerForUser(userId: friendUserId) else {
                     await MainActor.run {
-                        print("🔴 [HeartButton] no shaker for friend today, aborting like toggle")
                         self.isLoading = false
                     }
                     return
@@ -1196,7 +1193,6 @@ struct HeartButton: View {
                 // Verify persisted state from DB using shaker-based uniqueness
                 let verified = try await communityService.isLiked(categoryId: categoryId, userId: userId, shakerId: shakerId)
                 await MainActor.run {
-                    print("[HeartButton] post-op verification -> isLiked=\(verified)")
                     withAnimation(.easeInOut(duration: 0.2)) {
                         self.isLiked = verified
                     }
@@ -1224,7 +1220,6 @@ struct HeartButton: View {
             } catch {
                 await MainActor.run {
                     self.isLoading = false
-                    print("🔴 [HeartButton] toggleLike failed: \(error)")
                 }
             }
         }
@@ -1263,13 +1258,11 @@ private struct HiddenEmojiTextField: UIViewRepresentable {
 
     func updateUIView(_ uiView: UITextField, context: Context) {
         if isFirstResponder && !uiView.isFirstResponder {
-            let ok = uiView.becomeFirstResponder()
-            print("[EmojiPicker] becomeFirstResponder -> \(ok)")
+            uiView.becomeFirstResponder()
             // Nudge input view to adopt preferred emoji mode immediately
             DispatchQueue.main.async { uiView.reloadInputViews() }
         } else if !isFirstResponder && uiView.isFirstResponder {
             uiView.resignFirstResponder()
-            print("[EmojiPicker] resignFirstResponder")
         }
     }
 

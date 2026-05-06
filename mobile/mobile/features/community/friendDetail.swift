@@ -308,25 +308,18 @@ struct FriendDetailView: View {
     private func checkIfUserLeftTextNote() async {
         guard let currentUserId = getUserId(),
               let userId = UUID(uuidString: currentUserId) else {
-            print("🔴 checkIfUserLeftTextNote: no current user")
             return
         }
-        print("🟢 checkIfUserLeftTextNote: currentUser=\(userId), friend=\(friend.userId)")
         do {
             if let shakerId = try await CommunityService().getCurrentShakerForUser(userId: friend.userId) {
-                print("🟢 checkIfUserLeftTextNote: shakerId=\(shakerId)")
                 // Treat ANY note (text OR emoji OR both) as having left a note
                 let has = try await CommunityService().userHasAnyNote(shakerId: shakerId, userId: userId)
-                print("🟢 checkIfUserLeftTextNote: userHasAnyNote=\(has)")
                 await MainActor.run {
                     self.hasLeftTextNote = has
-                    print("🟢 checkIfUserLeftTextNote: updated hasLeftTextNote to \(has)")
                 }
             } else {
-                print("🔴 checkIfUserLeftTextNote: no shaker found")
             }
         } catch {
-            print("🔴 checkIfUserLeftTextNote: error - \(error)")
         }
     }
 

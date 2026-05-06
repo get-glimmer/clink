@@ -406,15 +406,12 @@ struct ShakerView: View {
     // MARK: - Notes sync (drop one note emoji per text note)
     private func syncNoteEmoji() async {
         guard let owner = viewModel.ownerUserId else {
-            print("🔴 syncNoteEmoji: no owner")
             return
         }
         guard let client = SupabaseClientManager.shared.client else {
-            print("🔴 syncNoteEmoji: no client")
             return
         }
         let dateStr = formattedDate(viewModel.taskSelectedDate)
-        print("📝 syncNoteEmoji: owner=\(owner), date=\(dateStr)")
         // Query shaker id for (owner, date)
         do {
             struct Row: Decodable { let id: String }
@@ -425,11 +422,9 @@ struct ShakerView: View {
                 .limit(1)
                 .execute().value
             guard let shakerId = rows.first?.id else {
-                print("📝 syncNoteEmoji: no shaker found")
                 await MainActor.run { removeAllNoteEmojis() }
                 return
             }
-            print("📝 syncNoteEmoji: shakerId=\(shakerId)")
             // Fetch all notes for this shaker, then split into:
             // - emoji-only reactions
             // - text notes that also carry an emoji
@@ -456,9 +451,7 @@ struct ShakerView: View {
                             }
                         }
                     }
-                    print("📝 syncNoteEmoji: loaded \(loaded.count) notes, \(emojiWithTextSymbols.count) text+emoji, \(emojiOnlySymbols.count) emoji-only")
                 } catch {
-                    print("🔴 syncNoteEmoji: error loading notes - \(error)")
                     emojiOnlySymbols = []
                     emojiWithTextSymbols = []
                 }
@@ -480,20 +473,17 @@ struct ShakerView: View {
             }
             // We no longer drop note emojis for text notes; sticky notes overlay handles display.
         } catch {
-            print("🔴 syncNoteEmoji: error - \(error)")
         }
     }
 
     private func syncNoteEmojis(count: Int) {
         let current = noteEmojiIds.count
-        print("📝 syncNoteEmojis: current=\(current), target=\(count)")
         if count > current {
             // Add more note emojis
             for _ in 0..<(count - current) {
                 let id = UUID()
                 noteEmojiIds.insert(id)
                 scene.addEmoji("🗒️", for: id)
-                print("📝 Added note emoji with id=\(id)")
             }
         } else if count < current {
             // Remove excess note emojis
@@ -501,7 +491,6 @@ struct ShakerView: View {
             for id in noteEmojiIds.prefix(toRemove) {
                 scene.removeEmoji(for: id)
                 noteEmojiIds.remove(id)
-                print("📝 Removed note emoji with id=\(id)")
             }
         }
     }

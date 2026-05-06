@@ -33,7 +33,6 @@ class ProfileViewModel: ObservableObject {
             profile.friendsCount = friendsResponse.count ?? 0
             self.profile = profile
         } catch {
-            print("Failed to fetch profile:", error.localizedDescription)
         }
     }
 
@@ -52,7 +51,6 @@ class ProfileViewModel: ObservableObject {
             
             self.profile?.name = newName
         } catch {
-            print("Error updating name:", error)
         }
     }
     
@@ -70,7 +68,6 @@ class ProfileViewModel: ObservableObject {
             
             self.profile?.bio = newBio
         } catch {
-            print("Error updating bio:", error)
         }
     }
     
@@ -87,7 +84,6 @@ class ProfileViewModel: ObservableObject {
             
             self.profile?.avatar_url = url
         } catch {
-            print("Error updating avatar:", error)
         }
     }
 }

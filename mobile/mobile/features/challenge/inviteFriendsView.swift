@@ -63,7 +63,6 @@ class InviteFriendsViewModel: ObservableObject {
                     excludedIds = Set(memberIds + inviteIds)
                 }
             } catch {
-                print("[Challenges] ❌ InviteFriendsViewModel failed to load: \(error)")
             }
             isLoading = false
         }

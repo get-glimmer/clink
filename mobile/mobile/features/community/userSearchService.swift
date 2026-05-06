@@ -88,7 +88,6 @@ class UserSearchService: ObservableObject {
                     }
                 }
             } catch {
-                print("Error getting current user: \(error)")
             }
         }
     }

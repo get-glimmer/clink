@@ -36,7 +36,6 @@ struct TopNavBar_Previews: PreviewProvider {
         Group {
             // With back button
             TopNavBar(title: "Finish Signing Up") {
-                print("Back tapped")
             }
             .preferredColorScheme(.dark)
             .previewDisplayName("With Back Button")

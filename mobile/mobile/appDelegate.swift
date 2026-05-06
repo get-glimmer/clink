@@ -12,13 +12,14 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     }
 
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        print("[APNs] Got device token: \(deviceToken.map { String(format: "%02.2hhx", $0) }.joined())")
         Task {
             await PushNotificationService.shared.saveDeviceToken(deviceToken)
         }
     }
 
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
-        print("Failed to register for remote notifications: \(error)")
+        print("[APNs] Failed to register: \(error)")
     }
 
     // Show notifications even when the app is in the foreground

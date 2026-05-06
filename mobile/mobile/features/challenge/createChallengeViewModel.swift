@@ -176,8 +176,6 @@ class CreateChallengeViewModel: ObservableObject {
                 .insert(memberPayload)
                 .execute()
 
-            print("[Challenges] ✅ Challenge created: '\(challengeTitle.trimmingCharacters(in: .whitespacesAndNewlines))' (id: \(inserted.id))")
-
             // Insert a pending invite row in challenge_invites for each selected friend.
             for (friendIdString, message) in invitedFriends {
                 guard let friendUUID = UUID(uuidString: friendIdString) else { continue }
@@ -191,7 +189,6 @@ class CreateChallengeViewModel: ObservableObject {
                     .from("challenge_invites")
                     .insert(invite)
                     .execute()
-                print("[Challenges] 📨 Invite sent to userId: \(friendIdString) for challenge id: \(inserted.id)")
             }
 
             switch emojiRule {
@@ -203,7 +200,6 @@ class CreateChallengeViewModel: ObservableObject {
 
         } catch {
             errorMessage = "Failed to create challenge: \(error.localizedDescription)"
-            print("❌ createChallenge error: \(error)")
         }
 
         isLoading = false

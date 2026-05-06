@@ -180,8 +180,6 @@ class AuthViewModel: ObservableObject {
                 .upsert(input)
                 .execute()
 
-            print("✅ Profile saved successfully before verification")
-            
             // Reload the profile
 //            await loadProfile()
             
@@ -191,7 +189,6 @@ class AuthViewModel: ObservableObject {
             }
 
         } catch {
-            print("❌ Error saving profile:", error.localizedDescription)
         }
 
         isAppReady = true
@@ -214,7 +211,6 @@ class AuthViewModel: ObservableObject {
 
             return response.value.isEmpty
         } catch {
-            print("Error checking username:", error.localizedDescription)
             return false
         }
     }
@@ -236,7 +232,6 @@ class AuthViewModel: ObservableObject {
 
             return !response.value.isEmpty
         } catch {
-            print("Error checking email:", error.localizedDescription)
             return true
         }
     }
@@ -313,7 +308,6 @@ class AuthViewModel: ObservableObject {
         } catch {
             isAuthenticated = false
             errorMessage = "Invalid email or password"
-            print("Login failed:", error.localizedDescription)
         }
     }
 
@@ -327,10 +321,8 @@ class AuthViewModel: ObservableObject {
         
         do {
             try await client.auth.resetPasswordForEmail(email)
-            print("✅ Password reset email sent to \(email)")
             return true
         } catch {
-            print("❌ Failed to send reset email:", error.localizedDescription)
             return false
         }
     }
@@ -347,9 +339,7 @@ class AuthViewModel: ObservableObject {
             try await client.auth.signOut()
             isAuthenticated = false
             profile = nil
-            print("✅ Logged out")
         } catch {
-            print("Logout failed:", error.localizedDescription)
         }
     }
 
@@ -362,35 +352,11 @@ class AuthViewModel: ObservableObject {
         guard let client = self.client else { return }
         
         do {
-            print("Attempting to call Edge Function...")
             _ = try await client.functions.invoke("delete-user-rpc")
-            
+
             isAuthenticated = false
             profile = nil
-            
-            print("✅ Account deletion successfully triggered via Edge Function.")
         } catch {
-            // ✅ THIS NEW CATCH BLOCK WILL DECODE THE DETAILED ERROR
-            print("❌ Delete account error occurred. Decoding details...")
-
-            // Check if the error is a specific FunctionsError
-            if let functionsError = error as? FunctionsError {
-                switch functionsError {
-                case .httpError(let code, let data):
-                    print("   > HTTP Status Code: \(code)")
-                    // Try to decode the raw data into a readable string (JSON)
-                    if let jsonString = String(data: data, encoding: .utf8) {
-                        print("   > Raw Error Payload: \(jsonString)")
-                    } else {
-                        print("   > Could not decode error data.")
-                    }
-                case .relayError:
-                    print("   > Relay Error: \(error)")
-                }
-            } else {
-                // Print any other type of error
-                print("   > An unexpected error type occurred: \(error.localizedDescription)")
-            }
         }
     }
 
@@ -410,9 +376,8 @@ class AuthViewModel: ObservableObject {
             .execute()
 
         self.profile = response.value
-        print("✅ Name updated in AuthViewModel: \(self.profile?.name ?? "nil")")
     }
-    
+
     func updateAvatar(userId: String, profileImage: UIImage) async {
         guard let client = client else { return }
         
@@ -442,9 +407,7 @@ class AuthViewModel: ObservableObject {
                 self.profile?.avatar_url = avatarUrl
             }
             
-            print("✅ Avatar updated successfully")
         } catch {
-            print("❌ Error updating avatar:", error.localizedDescription)
         }
     }
     
@@ -460,7 +423,6 @@ class AuthViewModel: ObservableObject {
             .execute()
 
         self.profile = response.value
-        print("✅ Username updated in AuthViewModel: \(self.profile?.username ?? "nil")")
     }
 
     /**
@@ -481,7 +443,6 @@ class AuthViewModel: ObservableObject {
 
             self.profile = response.value
         } catch {
-            print("Failed to load profile:", error.localizedDescription)
         }
     }
 }
