@@ -43,7 +43,7 @@ struct ChallengeDetailView: View {
                     .progressViewStyle(CircularProgressViewStyle(tint: AppColors.textWhite))
             } else {
                 ScrollView(showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 18) {
+                    VStack(alignment: .leading, spacing: 26) {
                         headerSection
                             .padding(.top, 8)
 
@@ -284,11 +284,11 @@ private extension ChallengeDetailView {
                     Task { await viewModel.submitTodayChallenge() }
                 } label: {
                     Text("Complete Day’s Challenge")
-                        .foregroundColor(viewModel.isCompleteDayButtonEnabled ? AppColors.neutral1000 : AppColors.textWhite)
-                        .appText(AppFont.labelL)
+                        .foregroundColor(viewModel.isCompleteDayButtonEnabled ? AppColors.neutral1000 : AppColors.neutral500)
+                        .appText(AppFont.buttonL)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
-                        .background(viewModel.isCompleteDayButtonEnabled ? AppColors.green300 : AppColors.neutral600)
+                        .background(viewModel.isCompleteDayButtonEnabled ? AppColors.green300 : AppColors.neutral800)
                         .cornerRadius(8)
                 }
                 .disabled(!viewModel.isCompleteDayButtonEnabled)
@@ -426,7 +426,7 @@ private extension ChallengeDetailView {
             HStack {
                 Text("Community Support")
                     .foregroundColor(AppColors.textWhite)
-                    .appText(AppFont.buttonM)
+                    .appText(AppFont.labelM)
 
                 Spacer()
 
@@ -511,6 +511,7 @@ private struct ExpandableDescriptionText: View {
     private let moreSuffix = "more"
     private let lessSuffix = "less"
     private let actionURL = URL(string: "clink-description-toggle://description")!
+    private let descriptionFont = AppFont.body1
 
     var body: some View {
         Group {
@@ -541,7 +542,7 @@ private struct ExpandableDescriptionText: View {
 
     private var collapsedText: some View {
         inlineText
-            .lineSpacing(AppFont.body2.lineSpacing)
+            .lineSpacing(descriptionFont.lineSpacing)
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
             .tint(AppColors.green300)
@@ -557,7 +558,7 @@ private struct ExpandableDescriptionText: View {
     private var expandedText: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(attributedText(prefix: text, ellipsis: nil, separator: nil, actionSuffix: nil))
-                .lineSpacing(AppFont.body2.lineSpacing)
+                .lineSpacing(descriptionFont.lineSpacing)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -599,19 +600,19 @@ private struct ExpandableDescriptionText: View {
         actionSuffix: String?
     ) -> AttributedString {
         var result = AttributedString(prefix)
-        result.font = AppFont.body2.font
+        result.font = descriptionFont.font
         result.foregroundColor = AppColors.neutral300
 
         if let ellipsis {
             var dots = AttributedString(ellipsis)
-            dots.font = AppFont.body2.font
+            dots.font = descriptionFont.font
             dots.foregroundColor = AppColors.neutral300
             result.append(dots)
         }
 
         if let separator {
             var space = AttributedString(separator)
-            space.font = AppFont.body2.font
+            space.font = descriptionFont.font
             space.foregroundColor = AppColors.neutral300
             result.append(space)
         }
@@ -694,20 +695,20 @@ private struct ExpandableDescriptionText: View {
     ) -> NSAttributedString {
         let result = NSMutableAttributedString(
             string: prefix,
-            attributes: measuredAttributes(for: AppFont.body2)
+            attributes: measuredAttributes(for: descriptionFont)
         )
 
         if let ellipsis {
             result.append(NSAttributedString(
                 string: ellipsis,
-                attributes: measuredAttributes(for: AppFont.body2)
+                attributes: measuredAttributes(for: descriptionFont)
             ))
         }
 
         if let separator {
             result.append(NSAttributedString(
                 string: separator,
-                attributes: measuredAttributes(for: AppFont.body2)
+                attributes: measuredAttributes(for: descriptionFont)
             ))
         }
 
@@ -723,7 +724,7 @@ private struct ExpandableDescriptionText: View {
 
     private func measuredAttributes(for style: AppFont.Style) -> [NSAttributedString.Key: Any] {
         let paragraph = NSMutableParagraphStyle()
-        paragraph.lineSpacing = AppFont.body2.lineSpacing
+        paragraph.lineSpacing = descriptionFont.lineSpacing
 
         return [
             .font: UIFont(name: style.fontName, size: style.size) ?? UIFont.systemFont(ofSize: style.size),
@@ -787,7 +788,7 @@ private struct WeeklyShakerStatusIcon: View {
     var body: some View {
         Group {
             if !isChallengeDay {
-                Image("challengeNoTask")
+                Image("ChallengeNoTask")
                     .resizable()
                     .scaledToFit()
             } else if isCompleted {
@@ -811,12 +812,12 @@ private struct WeeklyShakerStatusIcon: View {
         if let c0 = Color(hex: lidColorStart), let c1 = Color(hex: lidColorEnd) {
             LinearGradient(colors: [c0, c1], startPoint: .leading, endPoint: .trailing)
                 .mask(
-                    Image("challengeCompletedLid")
+                    Image("ChallengeCompletedLid")
                         .resizable()
                         .scaledToFit()
                 )
         } else {
-            Image("challengeCompletedLid")
+            Image("ChallengeCompletedLid")
                 .resizable()
                 .scaledToFit()
         }
@@ -929,7 +930,7 @@ private struct ProofUploadOverlay: View {
 
                 Button(action: onLogProof) {
                     Text("Log Proof")
-                        .foregroundColor(selectedImage == nil ? AppColors.neutral600 : AppColors.neutral1000)
+                        .foregroundColor(selectedImage == nil ? AppColors.neutral500 : AppColors.neutral1000)
                         .appText(AppFont.buttonL)
                         .frame(width: buttonWidth, height: buttonHeight)
                         .background(selectedImage == nil ? AppColors.neutral800 : AppColors.green300)
@@ -1719,11 +1720,14 @@ struct ChallengeJarView: View {
                 scene.setEmojiScale(1.0)
                 scene.setMotionEnabled(true)
                 scene.configureBoundaries(inset: 12, lidHeight: 40)
-                scene.setHapticsEnabled(false)
+                scene.setHapticsEnabled(true)
 
                 syncJarItemsToScene()
                 previousCompletionIsSealed = completionIsSealed
                 didConfigure = true
+            }
+            .onDisappear {
+                scene.setHapticsEnabled(false)
             }
             .onChange(of: jarItems.map { "\($0.id.uuidString):\($0.emoji)" }.joined(separator: ",")) { _ in
                 guard didConfigure else { return }

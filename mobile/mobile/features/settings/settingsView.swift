@@ -9,6 +9,7 @@ struct SettingsView: View {
     @State private var notif1 = false
     @State private var notif2 = true
     @State private var notif3 = true
+    @AppStorage(ShakerScene.hapticsEnabledDefaultsKey) private var shakerHapticsEnabled = true
     
     var body: some View {
         ZStack {
@@ -98,6 +99,31 @@ struct SettingsView: View {
                             .appFont(AppFont.captionM)
                             .foregroundStyle(Color(.white))
 
+
+                        Divider()
+                    }
+
+                    // MARK: - Experience Block
+                    VStack {
+                        HStack {
+                            Text("Experience")
+                                .appFont(AppFont.labelL)
+                                .foregroundColor(.white)
+                            Spacer()
+                        }
+                        .padding(.top, 24)
+                        .padding(.bottom, 6)
+                        .padding(.leading, 10)
+
+                        Divider()
+
+                        Toggle("Shaker Haptics", isOn: $shakerHapticsEnabled)
+                            .padding(.vertical, 5)
+                            .padding(.leading, 18)
+                            .padding(.trailing, 12)
+                            .tint(Color("Green-300"))
+                            .appFont(AppFont.captionM)
+                            .foregroundStyle(Color(.white))
 
                         Divider()
                     }
