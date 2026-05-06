@@ -1720,11 +1720,14 @@ struct ChallengeJarView: View {
                 scene.setEmojiScale(1.0)
                 scene.setMotionEnabled(true)
                 scene.configureBoundaries(inset: 12, lidHeight: 40)
-                scene.setHapticsEnabled(false)
+                scene.setHapticsEnabled(true)
 
                 syncJarItemsToScene()
                 previousCompletionIsSealed = completionIsSealed
                 didConfigure = true
+            }
+            .onDisappear {
+                scene.setHapticsEnabled(false)
             }
             .onChange(of: jarItems.map { "\($0.id.uuidString):\($0.emoji)" }.joined(separator: ",")) { _ in
                 guard didConfigure else { return }

@@ -51,10 +51,15 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
     private let glowAlpha: CGFloat = 0.85
     
     // MARK: - Haptic settings
+    static let hapticsEnabledDefaultsKey = "shakerHapticsEnabled"
+    static var userHapticsEnabled: Bool {
+        UserDefaults.standard.object(forKey: hapticsEnabledDefaultsKey) as? Bool ?? true
+    }
+
     var isHapticsEnabled: Bool = true
     private var lastHapticTime: TimeInterval = 0
-    private let hapticCooldown: TimeInterval = 0.25
-    private let hapticImpulseThreshold: CGFloat = 1.0
+    private let hapticCooldown: TimeInterval = 0.08
+    private let hapticImpulseThreshold: CGFloat = 0.45
     
     // control haptics visibility-wise
     func setHapticsEnabled(_ enabled: Bool) {
@@ -420,7 +425,7 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
     
     // MARK: - Contact delegate
     func didBegin(_ contact: SKPhysicsContact) {
-      guard isHapticsEnabled else { return }
+      guard isHapticsEnabled && Self.userHapticsEnabled else { return }
 
       // Ignore very small, invisible jitters
       let impulse = contact.collisionImpulse
@@ -429,8 +434,9 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
       let now = CACurrentMediaTime()
       guard now - lastHapticTime > hapticCooldown else { return }
 
-      let normalized = min(max(impulse / 10.0, 0.0), 1.0)
-      let gen = UIImpactFeedbackGenerator(style: .medium)
+      let normalized = min(max(impulse / 6.0, 0.45), 1.0)
+      let gen = UIImpactFeedbackGenerator(style: .rigid)
+      gen.prepare()
       gen.impactOccurred(intensity: normalized)
 
       lastHapticTime = now
