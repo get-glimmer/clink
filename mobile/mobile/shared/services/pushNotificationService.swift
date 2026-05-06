@@ -23,13 +23,16 @@ class PushNotificationService {
 
     func saveDeviceToken(_ deviceToken: Data) async {
         let token = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
-        print("APNs device token: \(token)")
 
-        guard let supabase = supabase else { return }
+        guard let supabase = supabase else {
+            print("[APNs] No supabase client")
+            return
+        }
 
         do {
             let session = try await supabase.auth.session
-            let userId = session.user.id.uuidString
+            let userId = session.user.id.uuidString.lowercased()
+            print("[APNs] Saving token for user: \(userId)")
 
             let row = DeviceTokenRow(
                 user_id: userId,
@@ -42,9 +45,9 @@ class PushNotificationService {
                 .upsert(row, onConflict: "user_id, token")
                 .execute()
 
-            print("Device token saved to Supabase")
+            print("[APNs] Token saved successfully")
         } catch {
-            print("Failed to save device token: \(error)")
+            print("[APNs] Failed to save token: \(error)")
         }
     }
 
@@ -76,7 +79,6 @@ class PushNotificationService {
                 ] as [String: String])
             )
         } catch {
-            print("Failed to send nudge: \(error)")
         }
     }
 
@@ -104,7 +106,7 @@ class PushNotificationService {
 
         do {
             let session = try await supabase.auth.session
-            let userId = session.user.id.uuidString
+            let userId = session.user.id.uuidString.lowercased()
 
             try await supabase
                 .from("device_tokens")
@@ -112,9 +114,7 @@ class PushNotificationService {
                 .eq("user_id", value: userId)
                 .execute()
 
-            print("Device tokens removed for user")
         } catch {
-            print("Failed to remove device token: \(error)")
         }
     }
 }

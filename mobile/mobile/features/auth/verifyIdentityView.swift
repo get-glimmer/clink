@@ -143,14 +143,12 @@ struct VerifyIdentityView: View {
                             SSOButton(title: "Continue with Google",
                                       color: Color("White"),
                                       icon: "google") {
-                                print("Google pressed")
                             }
-                            
+
                             // Apple → still SF Symbol
                             SSOButton(title: "Continue with Apple",
                                       color: Color("White"),
                                       icon: "apple.logo") {
-                                print("Apple pressed")
                             }
                             
                             // Email → SF Symbol with black color
@@ -207,7 +205,6 @@ struct VerifyIdentityView: View {
 
         do {
             try await client.auth.signInWithOTP(phone: fullPhone)
-            print("OTP sent to \(fullPhone)")
 
             let users: [Profile] = try await client
                 .from("profiles")
@@ -223,7 +220,6 @@ struct VerifyIdentityView: View {
             }
 
         } catch {
-            print("Error sending OTP:", error.localizedDescription)
         }
         isLoading = false
     }

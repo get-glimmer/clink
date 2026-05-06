@@ -58,10 +58,8 @@ struct LoginFlowView: View {
                     }
                 }
                 .onChange(of: authViewModel.shouldResetLoginFlow) { shouldReset in
-                    print("[LoginFlowView] shouldResetLoginFlow changed:", shouldReset)
                     if shouldReset {
                         path = NavigationPath()
-                        print("[LoginFlowView] path reset")
                         authViewModel.shouldResetLoginFlow = false
                     }
                 }

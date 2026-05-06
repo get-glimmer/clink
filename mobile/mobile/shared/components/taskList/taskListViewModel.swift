@@ -88,7 +88,6 @@ class TaskListViewModel: ObservableObject {
             do {
                 self.username = try await getUsername()
             } catch {
-                print("Error fetching username:", error)
             }
         }
 
@@ -161,7 +160,6 @@ class TaskListViewModel: ObservableObject {
                     map[c.id] = r.emoji
                 }
             } catch {
-                print("[EmojiPrefetch] failed for category \(c.id):", error)
             }
         }
         await MainActor.run { self.emojiForDate = map }
@@ -189,7 +187,6 @@ class TaskListViewModel: ObservableObject {
                     map[c.id] = c.emoji
                 }
             } catch {
-                print("[LatestEmojiPrefetch] failed:", error)
             }
         }
         await MainActor.run { self.latestEmojiForCategory = map }
@@ -226,7 +223,6 @@ class TaskListViewModel: ObservableObject {
             }
             await MainActor.run { self.routinesByCategory = grouped }
         } catch {
-            print("[Routine] fetch failed:", error)
         }
     }
 
@@ -290,7 +286,6 @@ class TaskListViewModel: ObservableObject {
                             .value
                     }
                 } catch {
-                    print("[Routine] ensure_routine_tasks failed:", error)
                 }
                 // 3) task fetch
                 var result: [CategoryWithTasks] = []
@@ -449,7 +444,16 @@ class TaskListViewModel: ObservableObject {
 
     func syncWidgetData() { syncTasksToWidget() }
 
+    // Widget should only reflect the logged-in user's tasks for today.
+    // Other instances (friend profiles, past/future dates in tracker) must not
+    // overwrite the shared widget store.
+    private var shouldSyncWidget: Bool {
+        guard let userId, let viewerId, userId == viewerId else { return false }
+        return Calendar.current.isDateInToday(taskSelectedDate)
+    }
+
     private func syncTasksToWidget() {
+        guard shouldSyncWidget else { return }
         let dailyCategories = categoriesWithTasks.filter { $0.category.type == .daily }
 
         let widgetCategories = dailyCategories.map { cat in
@@ -522,7 +526,6 @@ class TaskListViewModel: ObservableObject {
                 .upsert(row, onConflict: "userid,date")
                 .execute()
         } catch {
-            print("[ShakerSync] upsert failed: \(error)")
         }
     }
     
@@ -541,7 +544,7 @@ class TaskListViewModel: ObservableObject {
                 lidColorEnd   = end
                 syncTasksToWidget()
             }
-        } catch { print("[ShakerSync] colour update failed:", error) }
+        } catch { }
     }
 
     // MARK: - create task
@@ -600,7 +603,6 @@ class TaskListViewModel: ObservableObject {
             isAllCompleted = false
             
         } catch {
-            print("Failed to save task: \(error)")
             // Keep the temporary task if save failed
         }
         
@@ -639,7 +641,6 @@ class TaskListViewModel: ObservableObject {
                 }
             }
         } catch {
-            print("[Task] title update failed:", error)
         }
     }
     
@@ -684,7 +685,6 @@ class TaskListViewModel: ObservableObject {
                 self.trackerViewModel?.requestShakerRefresh()
             }
         } catch {
-            print("[Task] duedate update failed:", error)
         }
     }
 
@@ -766,7 +766,6 @@ class TaskListViewModel: ObservableObject {
                 try await client.from("category_emoji_history").insert(payload).execute()
             }
         } catch {
-            print("[CategoryEmojiHistory] upsert failed:", error)
         }
     }
     
@@ -807,7 +806,6 @@ class TaskListViewModel: ObservableObject {
             // 3) refresh both maps & lists
             await MainActor.run { self.fetchCategoriesAndTasks() }
         } catch {
-            print("[Category] insert failed:", error)
             throw error
         }
     }
@@ -891,7 +889,6 @@ class TaskListViewModel: ObservableObject {
 
             try? await trackerViewModel?.fetchShakers()  // if shaker list needs refresh
         } catch {
-            print("[Category] update failed:", error)
         }
     }
     
@@ -910,7 +907,6 @@ class TaskListViewModel: ObservableObject {
                 categoriesWithTasks.removeAll { $0.category.id == categoryId }
             }
         } catch {
-            print("[Category] delete failed:", error)
         }
     }
 
@@ -958,7 +954,6 @@ class TaskListViewModel: ObservableObject {
                 .eq("userid", value: userId)
                 .execute()
         } catch {
-            print("[Task] move failed:", error)
             return
         }
 
@@ -1037,7 +1032,6 @@ class TaskListViewModel: ObservableObject {
                 .execute()
             return true
         } catch {
-            print("[Routine] insert failed:", error)
             return false
         }
     }
@@ -1079,7 +1073,6 @@ class TaskListViewModel: ObservableObject {
                 .execute()
             return true
         } catch {
-            print("[Routine] update failed:", error)
             return false
         }
     }
@@ -1096,7 +1089,6 @@ class TaskListViewModel: ObservableObject {
                 .execute()
             return true
         } catch {
-            print("[Routine] delete failed:", error)
             return false
         }
     }

@@ -59,15 +59,12 @@ enum ShakerWidgetDataProvider {
 
     static func write(_ payload: ShakerWidgetPayload) {
         guard let defaults = sharedDefaults else {
-            print("🔴 [WidgetData] App Group UserDefaults unavailable – is '\(appGroupIdentifier)' added in Signing & Capabilities for the main app target?")
             return
         }
         do {
             let data = try JSONEncoder().encode(payload)
             defaults.set(data, forKey: key)
-            print("🟢 [WidgetData] Wrote: emojis=\(payload.emojis), total=\(payload.totalTasks), completed=\(payload.completedTasks), lid=\(payload.lidColorStartHex ?? "nil")")
         } catch {
-            print("🔴 [WidgetData] encode failed:", error)
         }
     }
 
@@ -81,7 +78,6 @@ enum ShakerWidgetDataProvider {
         do {
             return try JSONDecoder().decode(ShakerWidgetPayload.self, from: data)
         } catch {
-            print("[WidgetData] decode failed:", error)
             return .empty
         }
     }

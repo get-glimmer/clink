@@ -372,7 +372,6 @@ struct InvitedChallengeCard: View {
 
 struct ChallengeCard: View {
     let challenge: ChallengeItem
-    var onTapShaker: (() -> Void)? = nil
 
     var body: some View {
         HStack(spacing: 0) {
@@ -441,7 +440,7 @@ struct ChallengeCard: View {
             // Right: Shaker Preview
             ChallengeShakerPreview(challenge: challenge)
                 .frame(width: 134.73, height: 134)
-                .onTapGesture { onTapShaker?() }
+                .allowsHitTesting(false)
         }
         .padding(.leading, 16)
         .padding(.trailing, 20)
@@ -449,6 +448,7 @@ struct ChallengeCard: View {
         .frame(height: 180)
         .background(AppColors.neutral900)
         .cornerRadius(16)
+        .contentShape(Rectangle())
     }
 }
 
@@ -536,7 +536,6 @@ struct ChallengeShakerPreview: View {
 
     private func configureSceneIfNeeded(jarSize: CGSize) {
         guard jarSize.width > 0, jarSize.height > 0 else {
-            print("[ShakerPreview] skip configure — jarSize is zero for challenge=\(challenge.id) title=\(challenge.title)")
             return
         }
         if scene.size == .zero {
@@ -551,7 +550,6 @@ struct ChallengeShakerPreview: View {
     }
 
     private func syncEmojis() {
-        print("[ShakerPreview] syncEmojis challenge=\(challenge.id) title=\(challenge.title) sceneSize=\(scene.size) emojis=\(challenge.shakerUserEmojis) sealed=\(challenge.shakerIsCompleted) lidStart=\(challenge.shakerLidColorStart ?? "nil") lidEnd=\(challenge.shakerLidColorEnd ?? "nil")")
         scene.resetScene()
         for emoji in challenge.shakerUserEmojis {
             scene.addEmoji(emoji, for: UUID())
@@ -578,7 +576,6 @@ struct SwipeableChallengeCard: View {
     let challenge: ChallengeItem
     let onTap: () -> Void
     let onDelete: () -> Void
-    var onTapShaker: (() -> Void)? = nil
 
     @State private var offset: CGFloat = 0
     @State private var showingTrash: Bool = false
@@ -604,7 +601,7 @@ struct SwipeableChallengeCard: View {
             }
 
             // Card content
-            ChallengeCard(challenge: challenge, onTapShaker: onTapShaker)
+            ChallengeCard(challenge: challenge)
                 .offset(x: offset)
                 .contentShape(Rectangle())
                 .onTapGesture {

@@ -17,7 +17,6 @@ class SupabaseClientManager {
             : AppConfig.supabaseAnonKey
 
         guard !url.isEmpty, !anonKey.isEmpty, let supabaseURL = URL(string: url) else {
-            print("Supabase keys not found or invalid. Ensure Build Settings have SUPABASE_URL_KEY and SUPABASE_PUBLIC_KEY.")
             return
         }
         client = SupabaseClient(supabaseURL: supabaseURL, supabaseKey: anonKey)

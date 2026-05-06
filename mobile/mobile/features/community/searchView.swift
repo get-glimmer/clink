@@ -417,7 +417,6 @@ struct UserRowView: View {
             }
             
         } catch {
-            print("Error handling user action: \(error)")
         }
         
         await MainActor.run {

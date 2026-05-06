@@ -241,7 +241,6 @@ class EditChallengeViewModel: ObservableObject {
 
         } catch {
             errorMessage = "Failed to load challenge: \(error.localizedDescription)"
-            print("❌ loadChallenge error: \(error)")
         }
 
         isLoading = false
@@ -358,7 +357,6 @@ class EditChallengeViewModel: ObservableObject {
 
         } catch {
             errorMessage = "Failed to save changes: \(error.localizedDescription)"
-            print("❌ updateChallenge error: \(error)")
         }
 
         isSaving = false
@@ -379,7 +377,6 @@ class EditChallengeViewModel: ObservableObject {
             didDeleteSuccessfully = true
         } catch {
             errorMessage = "Failed to delete challenge: \(error.localizedDescription)"
-            print("❌ deleteChallenge error: \(error)")
         }
     }
 

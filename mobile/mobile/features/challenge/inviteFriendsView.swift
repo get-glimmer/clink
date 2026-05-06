@@ -66,7 +66,6 @@ class InviteFriendsViewModel: ObservableObject {
                     })
                 }
             } catch {
-                print("[Challenges] ❌ InviteFriendsViewModel failed to load: \(error)")
             }
             isLoading = false
         }

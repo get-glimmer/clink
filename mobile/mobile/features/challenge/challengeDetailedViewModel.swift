@@ -401,7 +401,6 @@ final class ChallengeDetailViewModel: ObservableObject {
                 }
             }
         } catch {
-            print("[ChallengeShakerSync] ensure row after submit failed: \(error)")
         }
     }
 
@@ -586,7 +585,6 @@ final class ChallengeDetailViewModel: ObservableObject {
                 todayShakerIsCompleted = isCompleted
             }
         } catch {
-            print("[ChallengeShakerSync] state transition save failed: \(error)")
         }
     }
 

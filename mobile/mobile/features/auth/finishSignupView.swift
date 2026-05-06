@@ -270,22 +270,17 @@ struct FinishSignupView: View {
                 // Continue button
                 Button {
                     Task {
-                        print("👉 [Continue] Button tapped")
                         isLoading = true
                         guard let client = SupabaseClientManager.shared.client else { return }
 
                         // 1) Create the auth user but DO NOT log them in
                         guard let email, let password else { return }
                         
-                        print("📨 [Continue] Attempting signUp with email: \(email)")
-                        
                         do {
                             let result = try await client.auth.signUp(email: email, password: password)
-                            print("✅ [Continue] signUp() succeeded")
-                            
+
                             let userId = result.user.id.uuidString
-                            
-                            print("📤 [Continue] Saving profile now...")
+
                             authViewModel.tempFullName = fullName
                             authViewModel.tempUsername = username
                             authViewModel.tempDOB = dateOfBirth
@@ -295,14 +290,11 @@ struct FinishSignupView: View {
 
                             
                             // 3) Tell user to verify email
-                            print("📩 [Continue] Setting showVerificationAlert = true")
                             showVerificationAlert = true
 
                         } catch {
-                            print("❌ Signup failed:", error.localizedDescription)
                         }
 
-                        print("🔚 [Continue] Done executing Continue button logic")
                         isLoading = false
                     }
                 } label: {
@@ -334,8 +326,7 @@ struct FinishSignupView: View {
                 navigateBackToLogin = true
             }
         } message: {
-            print("🛎️ [Alert] Attempting to display alert now…")
-            return Text("A verification link has been sent to \(email ?? "your email"). Please verify your account before logging in.")
+            Text("A verification link has been sent to \(email ?? "your email"). Please verify your account before logging in.")
 
         }
         .onChange(of: navigateBackToLogin) { yes in

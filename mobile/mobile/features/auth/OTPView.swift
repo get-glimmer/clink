@@ -149,7 +149,6 @@ struct OTPView: View {
         
         do {
             try await client.auth.verifyOTP(phone: phoneNumber, token: code, type: .sms)
-            print("OTP verified for \(phoneNumber)")
             
             let session = try await client.auth.session
             let userId = session.user.id.uuidString
@@ -197,10 +196,8 @@ struct OTPView: View {
         Task {
             do {
                 try await client.auth.signInWithOTP(phone: phoneNumber)
-                print("OTP resent to \(phoneNumber)")
                 startTimer()
             } catch {
-                print("Failed to resend OTP:", error.localizedDescription)
             }
         }
     }
