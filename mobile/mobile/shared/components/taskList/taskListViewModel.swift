@@ -6,6 +6,7 @@ import WidgetKit
 class TaskListViewModel: ObservableObject {
     // MARK: - Variables
     @Published var isSupabaseConnected: Bool = false
+    @Published var isInitialLoadingCategoriesAndTasks: Bool = true
     @Published var categoriesWithTasks: [CategoryWithTasks] = [] {
         didSet {
             updateAllCompleted()
@@ -30,6 +31,7 @@ class TaskListViewModel: ObservableObject {
     
     // Prevent automatic DB‐sync on initial load
     private var suppressSync: Bool = false
+    private var hasLoadedCategoriesAndTasks: Bool = false
 
     private var cancellables = Set<AnyCancellable>()
     private let client = SupabaseClientManager.shared.client
@@ -236,13 +238,18 @@ class TaskListViewModel: ObservableObject {
     func fetchCategoriesAndTasks() {
         guard let client = self.client else {
             self.isSupabaseConnected = false
+            self.finishInitialCategoryTaskLoadIfNeeded()
             return
         }
         guard let userId = self.userId else {
             self.isSupabaseConnected = false
+            self.finishInitialCategoryTaskLoadIfNeeded()
             return
         }
         self.isSupabaseConnected = true
+        if !hasLoadedCategoriesAndTasks {
+            isInitialLoadingCategoriesAndTasks = true
+        }
 
         Task {
             do {
@@ -353,11 +360,19 @@ class TaskListViewModel: ObservableObject {
 
                 // Also brings shaker data that will be applied to tracker
                 try? await trackerViewModel?.fetchShakers()
+                finishInitialCategoryTaskLoadIfNeeded()
 
             } catch {
                 isSupabaseConnected = false
+                finishInitialCategoryTaskLoadIfNeeded()
             }
         }
+    }
+
+    private func finishInitialCategoryTaskLoadIfNeeded() {
+        guard !hasLoadedCategoriesAndTasks else { return }
+        hasLoadedCategoriesAndTasks = true
+        isInitialLoadingCategoriesAndTasks = false
     }
 
     // MARK: - Privacy helper

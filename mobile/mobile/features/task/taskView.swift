@@ -188,12 +188,17 @@ struct TaskView: View {
                     progress: $sheetProgress
                 ) {
                     // --Task List Content--
-                    ScrollView {
-                        TaskListView(taskSelectedDate: $selectedDate, viewModel: viewModel, activeTask: $activeTaskMenu)
-                            .padding(.bottom, 120)
-                            //.padding(.top, -6) // for grabber hit area
+                    if viewModel.isInitialLoadingCategoriesAndTasks {
+                        Color.clear
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        ScrollView {
+                            TaskListView(taskSelectedDate: $selectedDate, viewModel: viewModel, activeTask: $activeTaskMenu)
+                                .padding(.bottom, 120)
+                                //.padding(.top, -6) // for grabber hit area
+                        }
+                        .coordinateSpace(name: "BottomSheetScroll")
                     }
-                    .coordinateSpace(name: "BottomSheetScroll")
                 }
             }
             .animation(.easeInOut, value: scale)
