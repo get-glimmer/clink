@@ -12,179 +12,59 @@ struct VerifyIdentityView: View {
     /// The navigation path for programmatic navigation.
     @Binding var path: NavigationPath
 
-    /// The user's phone number.
-    @State private var phoneNumber: String = ""
-
-    /// The flag of the selected country.
-    @State private var selectedCountryFlag: String = "America_Flag"
-
-    /// The code of the selected country.
-    @State private var selectedCountryCode: String = "+1"
-
-    /// A boolean to indicate if a network request is in progress.
-    @State private var isLoading = false
-
-    /// A boolean to control the visibility of the country picker.
-    @State private var showCountryPicker = false
-
     /// The authentication view model from the environment.
     @EnvironmentObject var authViewModel: AuthViewModel
 
     // MARK: - Body
 
+    var attributed: AttributedString {
+        var terms = AttributedString("Terms of service")
+        terms.underlineStyle = .single
+
+        var privacy = AttributedString("Privacy Policy")
+        privacy.underlineStyle = .single
+
+        return terms + AttributedString(" and ") + privacy
+    }
+
     var body: some View {
         ZStack {
             Color("Neutral-1000").ignoresSafeArea()
-            
-            VStack{
-                VStack {
-                    VStack {
-                        TopNavBar(title: "Log in or Sign up")
-                        
-                        Text("Phone number")
-                            .appFont(AppFont.labelL)
-                            .foregroundColor(Color("White"))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.top, 34)
-                            .padding(.leading, 7)
-                            .padding(.bottom, 12)
-                        
-                        // Country picker and phone number input
-                        HStack() {
-                            Button {
-                                showCountryPicker = true
-                            } label: {
-                                HStack {
-                                    Spacer()
-                                    Image(selectedCountryFlag)
-                                        .appFont(AppFont.title1)
 
-                                    Image("down_arrow")
-                                        .resizable()
-                                        .frame(width: 24, height: 24)
-                                    Spacer()
-                                }
-                                .frame(width: 75, height: 49)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .inset(by: 0.35)
-                                        .stroke(Color("Neutral-600"), lineWidth: 0.7)
-                                )
-                            }
-                            
-                            TextField(
-                                text: $phoneNumber,
-                                prompt: Text("Phone number")
-                                    .foregroundColor(Color("Neutral-600"))
-                            ) {
-                                EmptyView()
-                            }
-                            .padding(.leading, 11)
-                            .appFont(AppFont.body1)
-                            .keyboardType(.phonePad)
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 50)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .inset(by: 0.35)
-                                    .stroke(Color("Neutral-600"), lineWidth: 0.7)
-                            )
-                            .onChange(of: phoneNumber) { _, newValue in
-                                let sanitized = newValue.filter { "0123456789".contains($0) }
-                                if sanitized != newValue { phoneNumber = sanitized }
-                            }
-                        }
-                        .padding(.bottom, 12)
-                        
-                        Text("We’ll call or text to confirm your number. Standard message and data rates apply.")
-                            .foregroundColor(Color("Neutral-400"))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-//                            .frame(maxWidth: .infinity)
-                            .appFont(AppFont.captionXS)
-                            .padding(.bottom, 24)
-                            .padding(.leading, 8)   // 이렇게 되면 완벽히 center 아님
-                        
-                        // Continue button
-                        Button {
-                            Task { await sendOTP() }
-                        } label: {
-                            Text("Continue")
-                                .appFont(AppFont.buttonL)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 50)
-                                .background(phoneNumber.isEmpty ? Color("Neutral-800") : Color("Green-300"))
-                                .foregroundColor(phoneNumber.isEmpty ? Color("Neutral-600") : Color("Neutral-900"))
-                                .cornerRadius(8)
-                        }
-                        .disabled(phoneNumber.isEmpty || isLoading)
-                        .cornerRadius(8)
-                        .padding(.bottom, 48)
-                        
-                        HStack(alignment: .center, spacing: 24) {
-                            // Divider
-                            Rectangle()
-                                .foregroundColor(.clear)
-                                .frame(width: 146, height: 0.5)
-                                .background(Color("Neutral-600"))
-                            Text("Or")
-                                .appFont(AppFont.captionM)
-                                .foregroundColor(Color("Neutral-400"))
-                            Rectangle()
-                                .foregroundColor(.clear)
-                                .frame(width: 146, height: 0.5)
-                                .background(Color("Neutral-600"))
-                        }
-                        .padding(0)
-                        .frame(width: 361, alignment: .center)
-                        .padding(.bottom, 48)
-                        
-                        // Social sign-on buttons
-                        VStack(spacing: 12) {
-                            // Google → custom logo image in Assets
-                            SSOButton(title: "Continue with Google",
-                                      color: Color("White"),
-                                      icon: "google") {
-                                Task { await startSignInWithGoogle() }
-                            }
+            VStack(spacing: 0) {
+                Spacer()
 
-                            // Apple → still SF Symbol
-                            SSOButton(title: "Continue with Apple",
-                                      color: Color("White"),
-                                      icon: "apple.logo") {
-                                startSignInWithApple()
-                            }
-                            
-                            // Email → SF Symbol with black color
-                            SSOButton(title: "Continue with Email",
-                                      color: Color("White"),
-                                      icon: "email") {
-                                path.append(Screen.emailLogin)
-                            }
-                        }
-                        Spacer()
+                Image("clink")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 100)
+                    .padding(.bottom, 293)
+
+                // Social sign-on buttons
+                VStack(spacing: 8) {
+                    // Google → custom logo image in Assets
+                    SSOButton(title: "Continue with Google",
+                              color: Color("White"),
+                              icon: "google") {
+                        Task { await startSignInWithGoogle() }
                     }
-                    .padding(.horizontal, 16)
-                    .sheet(isPresented: $showCountryPicker) {
-                        CountryPickerView(selectedCode: $selectedCountryCode, selectedFlag: $selectedCountryFlag)
+
+                    // Apple → SF Symbol
+                    SSOButton(title: "Continue with Apple",
+                              color: Color("White"),
+                              icon: "apple.logo") {
+                        startSignInWithApple()
                     }
                 }
-                var attributed: AttributedString {
-                    var terms = AttributedString("Terms of service")
-                    terms.underlineStyle = .single
-                    
-                    var privacy = AttributedString("Privacy Policy")
-                    privacy.underlineStyle = .single
-                    
-                    return terms + AttributedString(" and ") + privacy
-                }
-                
+                .padding(.horizontal, 16)
+                .padding(.bottom, 43)
+
                 VStack(spacing: 5) {
                     Text("By signing up, you agree to our")
                         .appFont(AppFont.captionXS)
                         .foregroundColor(Color("Neutral-400"))
                         .multilineTextAlignment(.center)
-                    
+
                     Text(attributed)
                         .appFont(AppFont.captionXS)
                         .foregroundColor(Color("Neutral-400"))
@@ -192,41 +72,10 @@ struct VerifyIdentityView: View {
                 }
                 .padding(.bottom, 15.85)
             }
-            .ignoresSafeArea(.keyboard, edges: .bottom)
         }
-        .dismissKeyboardOnTap()
     }
 
     // MARK: - Private Methods
-
-    /**
-     * Sends an OTP to the user's phone number.
-     */
-    private func sendOTP() async {
-        guard let client = SupabaseClientManager.shared.client else { return }
-        isLoading = true
-        let fullPhone = selectedCountryCode + phoneNumber
-
-        do {
-            try await client.auth.signInWithOTP(phone: fullPhone)
-
-            let users: [Profile] = try await client
-                .from("profiles")
-                .select()
-                .eq("phoneNumber", value: fullPhone)
-                .execute()
-                .value
-
-            if users.isEmpty {
-                path.append(Screen.otp(phoneNumber: fullPhone, isSignup: true))
-            } else {
-                path.append(Screen.otp(phoneNumber: fullPhone, isSignup: false))
-            }
-
-        } catch {
-        }
-        isLoading = false
-    }
 
     /**
      * Starts the native Sign in with Apple flow.
