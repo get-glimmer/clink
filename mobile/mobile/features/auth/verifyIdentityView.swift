@@ -1,5 +1,6 @@
 import SwiftUI
 import Supabase
+import AuthenticationServices
 
 /**
  * The initial view for logging in or signing up.
@@ -149,6 +150,7 @@ struct VerifyIdentityView: View {
                             SSOButton(title: "Continue with Apple",
                                       color: Color("White"),
                                       icon: "apple.logo") {
+                                startSignInWithApple()
                             }
                             
                             // Email → SF Symbol with black color
@@ -222,6 +224,69 @@ struct VerifyIdentityView: View {
         } catch {
         }
         isLoading = false
+    }
+
+    /**
+     * Starts the native Sign in with Apple flow.
+     */
+    private func startSignInWithApple() {
+        let raw = AppleNonce.random()
+        authViewModel.appleRawNonce = raw
+
+        let request = ASAuthorizationAppleIDProvider().createRequest()
+        request.requestedScopes = [.fullName, .email]
+        request.nonce = AppleNonce.sha256(raw)
+
+        let delegate = AppleSignInDelegate(authViewModel: authViewModel, rawNonce: raw)
+        let controller = ASAuthorizationController(authorizationRequests: [request])
+        controller.delegate = delegate
+        controller.presentationContextProvider = delegate
+        AppleSignInDelegate.current = delegate   // retain until completion
+        controller.performRequests()
+    }
+}
+
+// MARK: - AppleSignInDelegate
+
+/**
+ * Handles the `ASAuthorizationController` callbacks for Sign in with Apple and
+ * forwards the identity token to the auth view model.
+ */
+final class AppleSignInDelegate: NSObject, ASAuthorizationControllerDelegate,
+                                 ASAuthorizationControllerPresentationContextProviding {
+    /// Strong reference kept alive for the duration of the request.
+    static var current: AppleSignInDelegate?
+
+    private let authViewModel: AuthViewModel
+    private let rawNonce: String
+
+    init(authViewModel: AuthViewModel, rawNonce: String) {
+        self.authViewModel = authViewModel
+        self.rawNonce = rawNonce
+    }
+
+    func authorizationController(controller: ASAuthorizationController,
+                                 didCompleteWithAuthorization authorization: ASAuthorization) {
+        defer { AppleSignInDelegate.current = nil }
+        guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
+              let tokenData = credential.identityToken,
+              let token = String(data: tokenData, encoding: .utf8) else { return }
+
+        let fullName = credential.fullName
+        Task { @MainActor in
+            await authViewModel.signInWithApple(idToken: token, nonce: rawNonce, fullName: fullName)
+        }
+    }
+
+    func authorizationController(controller: ASAuthorizationController,
+                                 didCompleteWithError error: Error) {
+        AppleSignInDelegate.current = nil
+    }
+
+    func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
+        UIApplication.shared.connectedScenes
+            .compactMap { ($0 as? UIWindowScene)?.keyWindow }
+            .first ?? ASPresentationAnchor()
     }
 }
 

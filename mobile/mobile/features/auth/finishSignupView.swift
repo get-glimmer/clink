@@ -39,6 +39,7 @@ struct FinishSignupView: View {
     
     @State private var showVerificationAlert = false
     @State private var navigateBackToLogin = false
+    @State private var signupErrorMessage: String? = nil
 
 
 
@@ -271,15 +272,23 @@ struct FinishSignupView: View {
                 Button {
                     Task {
                         isLoading = true
-                        guard let client = SupabaseClientManager.shared.client else { return }
+                        guard let client = SupabaseClientManager.shared.client else {
+                            signupErrorMessage = "Connection not configured. Please try again later."
+                            isLoading = false
+                            return
+                        }
 
                         // 1) Create the auth user but DO NOT log them in
-                        guard let email, let password else { return }
-                        
+                        guard let email, let password else {
+                            signupErrorMessage = "Missing email or password."
+                            isLoading = false
+                            return
+                        }
+
                         do {
                             let result = try await client.auth.signUp(email: email, password: password)
 
-                            let userId = result.user.id.uuidString
+                            _ = result.user.id.uuidString
 
                             authViewModel.tempFullName = fullName
                             authViewModel.tempUsername = username
@@ -288,11 +297,20 @@ struct FinishSignupView: View {
                             authViewModel.tempPhoneNumber = phoneNumber
                             authViewModel.tempEmail = email
 
-                            
+
                             // 3) Tell user to verify email
                             showVerificationAlert = true
 
                         } catch {
+                            print("❌ Signup failed: \(error)")
+                            let text = "\(error)".lowercased()
+                            if text.contains("over_email_send_rate_limit") || text.contains("rate limit") {
+                                signupErrorMessage = "Too many sign-up attempts. Please wait a little while and try again."
+                            } else if text.contains("already registered") || text.contains("user_already_exists") {
+                                signupErrorMessage = "An account with this email already exists. Try logging in instead."
+                            } else {
+                                signupErrorMessage = error.localizedDescription
+                            }
                         }
 
                         isLoading = false
@@ -320,6 +338,14 @@ struct FinishSignupView: View {
             .padding(.horizontal, 16)
             .navigationTitle("")
             .navigationBarBackButtonHidden(true)
+        }
+        .alert("Couldn’t sign up", isPresented: Binding(
+            get: { signupErrorMessage != nil },
+            set: { if !$0 { signupErrorMessage = nil } }
+        )) {
+            Button("OK") { signupErrorMessage = nil }
+        } message: {
+            Text(signupErrorMessage ?? "Something went wrong. Please try again.")
         }
         .alert("Check your email", isPresented: $showVerificationAlert) {
             Button("OK") {

@@ -1,0 +1,89 @@
+{
+  "" : {
+    "diagnostics" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerWidgetExtension-primary.dia",
+    "emit-module-dependencies" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerWidgetExtension-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerWidgetExtension-primary-emit-module.dia",
+    "pch" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerWidgetExtension-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerWidgetExtension-primary.swiftdeps"
+  },
+  "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/GlimmerWidget/AppIntent.swift" : {
+    "const-values" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/AppIntent.swiftconstvalues",
+    "dependencies" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/AppIntent.d",
+    "diagnostics" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/AppIntent.dia",
+    "index-unit-output-path" : "/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/AppIntent.o",
+    "llvm-bc" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/AppIntent.bc",
+    "object" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/AppIntent.o",
+    "swift-dependencies" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/AppIntent.swiftdeps",
+    "swiftmodule" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/AppIntent~partial.swiftmodule"
+  },
+  "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/GlimmerWidget/GlimmerShakerWidget.swift" : {
+    "const-values" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerShakerWidget.swiftconstvalues",
+    "dependencies" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerShakerWidget.d",
+    "diagnostics" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerShakerWidget.dia",
+    "index-unit-output-path" : "/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerShakerWidget.o",
+    "llvm-bc" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerShakerWidget.bc",
+    "object" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerShakerWidget.o",
+    "swift-dependencies" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerShakerWidget.swiftdeps",
+    "swiftmodule" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerShakerWidget~partial.swiftmodule"
+  },
+  "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/GlimmerWidget/GlimmerWidget.swift" : {
+    "const-values" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerWidget.swiftconstvalues",
+    "dependencies" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerWidget.d",
+    "diagnostics" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerWidget.dia",
+    "index-unit-output-path" : "/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerWidget.o",
+    "llvm-bc" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerWidget.bc",
+    "object" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerWidget.o",
+    "swift-dependencies" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerWidget.swiftdeps",
+    "swiftmodule" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerWidget~partial.swiftmodule"
+  },
+  "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/GlimmerWidget/GlimmerWidgetBundle.swift" : {
+    "const-values" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerWidgetBundle.swiftconstvalues",
+    "dependencies" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerWidgetBundle.d",
+    "diagnostics" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerWidgetBundle.dia",
+    "index-unit-output-path" : "/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerWidgetBundle.o",
+    "llvm-bc" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerWidgetBundle.bc",
+    "object" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerWidgetBundle.o",
+    "swift-dependencies" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerWidgetBundle.swiftdeps",
+    "swiftmodule" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerWidgetBundle~partial.swiftmodule"
+  },
+  "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/GlimmerWidget/GlimmerWidgetControl.swift" : {
+    "const-values" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerWidgetControl.swiftconstvalues",
+    "dependencies" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerWidgetControl.d",
+    "diagnostics" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerWidgetControl.dia",
+    "index-unit-output-path" : "/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerWidgetControl.o",
+    "llvm-bc" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerWidgetControl.bc",
+    "object" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerWidgetControl.o",
+    "swift-dependencies" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerWidgetControl.swiftdeps",
+    "swiftmodule" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerWidgetControl~partial.swiftmodule"
+  },
+  "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/GlimmerWidget/GlimmerWidgetLiveActivity.swift" : {
+    "const-values" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerWidgetLiveActivity.swiftconstvalues",
+    "dependencies" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerWidgetLiveActivity.d",
+    "diagnostics" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerWidgetLiveActivity.dia",
+    "index-unit-output-path" : "/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerWidgetLiveActivity.o",
+    "llvm-bc" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerWidgetLiveActivity.bc",
+    "object" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerWidgetLiveActivity.o",
+    "swift-dependencies" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerWidgetLiveActivity.swiftdeps",
+    "swiftmodule" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GlimmerWidgetLiveActivity~partial.swiftmodule"
+  },
+  "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/Shared/WidgetDataStore.swift" : {
+    "const-values" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/WidgetDataStore.swiftconstvalues",
+    "dependencies" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/WidgetDataStore.d",
+    "diagnostics" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/WidgetDataStore.dia",
+    "index-unit-output-path" : "/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/WidgetDataStore.o",
+    "llvm-bc" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/WidgetDataStore.bc",
+    "object" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/WidgetDataStore.o",
+    "swift-dependencies" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/WidgetDataStore.swiftdeps",
+    "swiftmodule" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/WidgetDataStore~partial.swiftmodule"
+  },
+  "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/DerivedSources/GeneratedAssetSymbols.swift" : {
+    "const-values" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GeneratedAssetSymbols.swiftconstvalues",
+    "dependencies" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GeneratedAssetSymbols.d",
+    "diagnostics" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GeneratedAssetSymbols.dia",
+    "index-unit-output-path" : "/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GeneratedAssetSymbols.o",
+    "llvm-bc" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GeneratedAssetSymbols.bc",
+    "object" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GeneratedAssetSymbols.o",
+    "swift-dependencies" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GeneratedAssetSymbols.swiftdeps",
+    "swiftmodule" : "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/build/mobile.build/Debug-iphonesimulator/GlimmerWidgetExtension.build/Objects-normal/x86_64/GeneratedAssetSymbols~partial.swiftmodule"
+  }
+}

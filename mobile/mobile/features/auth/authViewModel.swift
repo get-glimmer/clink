@@ -2,6 +2,7 @@ import Foundation
 import UIKit
 import SwiftUI
 import Supabase
+import AuthenticationServices
 
 /**
  * Manages authentication state and user profile data.
@@ -42,6 +43,9 @@ class AuthViewModel: ObservableObject {
     @Published var emailStatusColor: Color = .white
     
     @Published var shouldResetLoginFlow = false
+
+    /// The raw (unhashed) nonce held between the Apple auth request and its completion.
+    @Published var appleRawNonce: String?
     
     
     @Published var tempFullName: String?
@@ -311,6 +315,47 @@ class AuthViewModel: ObservableObject {
         }
     }
 
+    // MARK: - Sign in with Apple
+
+    /**
+     * Signs in (or signs up) the user with an Apple identity token via Supabase.
+     * - Parameters:
+     *   - idToken: The JWT identity token returned by Apple.
+     *   - nonce: The raw (unhashed) nonce that was hashed for the Apple request.
+     *   - fullName: The user's name — only provided by Apple on the first sign-in.
+     */
+    func signInWithApple(idToken: String, nonce: String, fullName: PersonNameComponents?) async {
+        guard let client = client else { return }
+        do {
+            try await client.auth.signInWithIdToken(
+                credentials: .init(provider: .apple, idToken: idToken, nonce: nonce)
+            )
+            let session = try await client.auth.session
+            let uid = session.user.id.uuidString
+
+            // Apple only sends the name on the very first sign-in — persist it if present.
+            if let fullName {
+                let name = [fullName.givenName, fullName.familyName]
+                    .compactMap { $0 }
+                    .joined(separator: " ")
+                if !name.isEmpty {
+                    try? await client
+                        .from("profiles")
+                        .update(["name": name])
+                        .eq("id", value: uid)
+                        .execute()
+                }
+            }
+
+            await loadProfile()
+            isAuthenticated = true
+            PushNotificationService.shared.requestPermissionAndRegister()
+        } catch {
+            isAuthenticated = false
+            errorMessage = "Apple sign-in failed"
+        }
+    }
+
     /**
      * Resets the password for a given email.
      * - Parameter email: The email for which to reset the password.
@@ -323,6 +368,7 @@ class AuthViewModel: ObservableObject {
             try await client.auth.resetPasswordForEmail(email)
             return true
         } catch {
+            print("⚠️ resetPasswordForEmail failed for \(email): \(error)")
             return false
         }
     }

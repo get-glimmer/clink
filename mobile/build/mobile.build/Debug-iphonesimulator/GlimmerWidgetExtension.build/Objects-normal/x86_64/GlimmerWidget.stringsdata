@@ -1,0 +1,120 @@
+{
+  "source": "/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/GlimmerWidget/GlimmerWidget.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "clink",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 181
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld/%lld",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 187
+        }
+      },
+      {
+        "comment": "",
+        "key": "Last %@",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 207
+        }
+      },
+      {
+        "comment": "",
+        "key": "Last updated %@",
+        "location": {
+          "startingColumn": 50,
+          "startingLine": 207
+        }
+      },
+      {
+        "comment": "",
+        "key": "No tasks today",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 231
+        }
+      },
+      {
+        "comment": "",
+        "key": "+%lld more",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 267
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clink Tasks",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 311
+        }
+      },
+      {
+        "comment": "",
+        "key": "See your daily tasks.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 312
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clink Shaker",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 345
+        }
+      },
+      {
+        "comment": "",
+        "key": "Your shaker jar.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 346
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clink Combo",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 384
+        }
+      },
+      {
+        "comment": "",
+        "key": "Shaker and tasks together.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 385
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clink Full",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 422
+        }
+      },
+      {
+        "comment": "",
+        "key": "Shaker with your daily tasks.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 423
+        }
+      }
+    ]
+  },
+  "version": 1
+}
