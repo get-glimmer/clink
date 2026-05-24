@@ -5,11 +5,13 @@ struct SettingsView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @Environment(\.dismiss) var dismiss
     
-    // Example notification toggles
-    @State private var notif1 = false
-    @State private var notif2 = true
-    @State private var notif3 = true
-    
+    @State private var notifChallenge: Bool = true
+    @State private var notifTasks: Bool = true
+    @State private var notifCommunity: Bool = true
+    @State private var notifGeneral: Bool = true
+    @State private var prefsLoaded: Bool = false
+
+
     var body: some View {
         ZStack {
             Color("Neutral-1000").ignoresSafeArea()
@@ -56,10 +58,10 @@ struct SettingsView: View {
                         Divider()
                     }
                     
-                    // MARK: - Notifications Block
+                    // MARK: - Notification Types Block
                     VStack {
                         HStack {
-                            Text("Notifications")
+                            Text("Notification Types")
                                 .appFont(AppFont.labelL)
                                 .foregroundColor(.white)
                             Spacer()
@@ -67,41 +69,26 @@ struct SettingsView: View {
                         .padding(.top, 24)
                         .padding(.bottom, 6)
                         .padding(.leading, 10)
-                        
-                        Divider()
-                        
-                        Toggle("Notification 01", isOn: $notif1)
-                            .padding(.vertical, 5)
-                            .padding(.leading, 18)
-                            .padding(.trailing, 12)
-                            .tint(Color("Green-300"))
-                            .appFont(AppFont.captionM)
-                            .foregroundStyle(Color(.white))
-                        
-                        Divider()
-                        
-                        Toggle("Notification 02", isOn: $notif2)
-                            .padding(.vertical, 5)
-                            .padding(.leading, 18)
-                            .padding(.trailing, 12)
-                            .tint(Color("Green-300"))
-                            .appFont(AppFont.captionM)
-                            .foregroundStyle(Color(.white))
-                        
-                        Divider()
-                        
-                        Toggle("Notification 03", isOn: $notif3)
-                            .padding(.vertical, 5)
-                            .padding(.leading, 18)
-                            .padding(.trailing, 12)
-                            .tint(Color("Green-300"))
-                            .appFont(AppFont.captionM)
-                            .foregroundStyle(Color(.white))
 
+                        Divider()
+
+                        notifToggleRow("Challenge", isOn: $notifChallenge)
+
+                        Divider()
+
+                        notifToggleRow("Tasks", isOn: $notifTasks)
+
+                        Divider()
+
+                        notifToggleRow("Community", isOn: $notifCommunity)
+
+                        Divider()
+
+                        notifToggleRow("General", isOn: $notifGeneral)
 
                         Divider()
                     }
-                    
+
                     // MARK: - Privacy & Security Block
                     VStack {
                         HStack {
@@ -262,8 +249,82 @@ struct SettingsView: View {
             .navigationBarBackButtonHidden(true)
         }
         .navBarHidden(true)
+        .task { await loadPrefs() }
+        .onChange(of: notifChallenge) { _, _ in saveIfLoaded() }
+        .onChange(of: notifTasks)     { _, _ in saveIfLoaded() }
+        .onChange(of: notifCommunity) { _, _ in saveIfLoaded() }
+        .onChange(of: notifGeneral)   { _, _ in saveIfLoaded() }
     }
 
+    private struct NotifPrefsRow: Codable {
+        let user_id: String
+        let challenge: Bool
+        let tasks: Bool
+        let community: Bool
+        let general: Bool
+    }
+
+    private func loadPrefs() async {
+        guard let supabase = SupabaseClientManager.shared.client else { return }
+        do {
+            let session = try await supabase.auth.session
+            let userId = session.user.id.uuidString.lowercased()
+            let row: NotifPrefsRow? = try? await supabase
+                .from("notification_preferences")
+                .select("user_id, challenge, tasks, community, general")
+                .eq("user_id", value: userId)
+                .single()
+                .execute()
+                .value
+            if let row {
+                notifChallenge = row.challenge
+                notifTasks = row.tasks
+                notifCommunity = row.community
+                notifGeneral = row.general
+            }
+        } catch {
+            print("notif prefs load error:", error.localizedDescription)
+        }
+        prefsLoaded = true
+    }
+
+    private func saveIfLoaded() {
+        guard prefsLoaded else { return }
+        Task { await savePrefs() }
+    }
+
+    private func savePrefs() async {
+        guard let supabase = SupabaseClientManager.shared.client else { return }
+        do {
+            let session = try await supabase.auth.session
+            let userId = session.user.id.uuidString.lowercased()
+            let row = NotifPrefsRow(
+                user_id: userId,
+                challenge: notifChallenge,
+                tasks: notifTasks,
+                community: notifCommunity,
+                general: notifGeneral
+            )
+            try await supabase
+                .from("notification_preferences")
+                .upsert(row, onConflict: "user_id")
+                .execute()
+        } catch {
+            print("notif prefs save error:", error.localizedDescription)
+        }
+    }
+
+    private func notifToggleRow(_ label: String, isOn: Binding<Bool>) -> some View {
+        Toggle(isOn: isOn) {
+            Text(label)
+                .appFont(AppFont.captionM)
+                .foregroundStyle(.white)
+        }
+        .tint(Color("Green-300"))
+        .padding(.vertical, 6)
+        .padding(.leading, 18)
+        .padding(.trailing, 16)
+    }
 }
 
 extension View {
