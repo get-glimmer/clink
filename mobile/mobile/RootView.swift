@@ -8,8 +8,22 @@ struct RootView: View {
             if !authViewModel.isAppReady {
                 ProgressView()
             } else if authViewModel.isAuthenticated {
-                AppRouter()
-                    .environmentObject(authViewModel)
+                if authViewModel.needsProfileSetup {
+                    NavigationStack {
+                        FinishSignupView(
+                            phoneNumber: nil,
+                            email: nil,
+                            password: nil,
+                            userId: nil,
+                            isProfileCompletion: true,
+                            path: .constant(NavigationPath())
+                        )
+                        .environmentObject(authViewModel)
+                    }
+                } else {
+                    AppRouter()
+                        .environmentObject(authViewModel)
+                }
             } else {
                 LoginFlowView()
                     .environmentObject(authViewModel)

@@ -12,7 +12,11 @@ struct FinishSignupView: View {
     let email: String?
     let password: String?
     let userId: String?
-    
+
+    /// When true, the user is already authenticated (e.g. via Sign in with Apple) and
+    /// this screen only collects profile details instead of creating an auth account.
+    var isProfileCompletion: Bool = false
+
     // MARK: - Environment and State
 
     @Binding var path: NavigationPath
@@ -52,7 +56,12 @@ struct FinishSignupView: View {
             VStack {
                 // Custom top navigation bar
                 TopNavBar(title: "Finish signing up") {
-                    dismiss()
+                    if isProfileCompletion {
+                        // Already authenticated — backing out means signing out.
+                        Task { await authViewModel.logout() }
+                    } else {
+                        dismiss()
+                    }
                 }
                 
                 ScrollView {
@@ -278,6 +287,29 @@ struct FinishSignupView: View {
                             return
                         }
 
+                        // OAuth users (e.g. Apple) are already authenticated — just create
+                        // their profile row, then RootView swaps them into the app.
+                        if isProfileCompletion {
+                            guard let session = try? await client.auth.session else {
+                                signupErrorMessage = "Your session expired. Please sign in again."
+                                isLoading = false
+                                return
+                            }
+                            await authViewModel.saveProfile(
+                                userId: session.user.id.uuidString,
+                                phoneNumber: nil,
+                                name: fullName,
+                                username: username,
+                                dob: hasSelectedDate ? dateOfBirth : nil,
+                                profileImage: selectedImage,
+                                email: session.user.email,
+                                affectAuthState: false
+                            )
+                            await authViewModel.loadProfile()
+                            isLoading = false
+                            return
+                        }
+
                         // 1) Create the auth user but DO NOT log them in
                         guard let email, let password else {
                             signupErrorMessage = "Missing email or password."
@@ -358,6 +390,12 @@ struct FinishSignupView: View {
         .onChange(of: navigateBackToLogin) { yes in
             if yes {
                 authViewModel.shouldResetLoginFlow = true
+            }
+        }
+        .onAppear {
+            // Prefill the name Apple provided on first sign-in.
+            if isProfileCompletion, fullName.isEmpty, let n = authViewModel.tempFullName {
+                fullName = n
             }
         }
 

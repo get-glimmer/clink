@@ -9,6 +9,8 @@
 		<string>Figtree-Regular.ttf</string>
 		<string>Figtree-Medium.ttf</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Clink needs camera access so you can take proof photos for challenges.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>

@@ -330,23 +330,19 @@ class AuthViewModel: ObservableObject {
             try await client.auth.signInWithIdToken(
                 credentials: .init(provider: .apple, idToken: idToken, nonce: nonce)
             )
-            let session = try await client.auth.session
-            let uid = session.user.id.uuidString
 
-            // Apple only sends the name on the very first sign-in — persist it if present.
+            // Apple only sends the name on the very first sign-in — stash it so the
+            // profile-completion screen can prefill it for brand-new users.
             if let fullName {
                 let name = [fullName.givenName, fullName.familyName]
                     .compactMap { $0 }
                     .joined(separator: " ")
-                if !name.isEmpty {
-                    try? await client
-                        .from("profiles")
-                        .update(["name": name])
-                        .eq("id", value: uid)
-                        .execute()
-                }
+                if !name.isEmpty { tempFullName = name }
             }
 
+            // Load the profile if one already exists (e.g. an account linked by email).
+            // Brand-new Apple users have no row yet; RootView routes them to
+            // FinishSignupView to pick a username, which creates the profile.
             await loadProfile()
             isAuthenticated = true
             PushNotificationService.shared.requestPermissionAndRegister()
@@ -356,20 +352,29 @@ class AuthViewModel: ObservableObject {
         }
     }
 
+    /// True when an authenticated user has no username yet (e.g. a brand-new Apple
+    /// sign-in) and must complete profile setup before entering the app.
+    var needsProfileSetup: Bool {
+        guard isAuthenticated else { return false }
+        return profile?.username?.isEmpty ?? true
+    }
+
     /**
      * Resets the password for a given email.
      * - Parameter email: The email for which to reset the password.
-     * - Returns: `true` if the reset email was sent successfully, `false` otherwise.
+     * - Returns: `nil` if the reset email was sent successfully, otherwise an error message to display.
      */
-    func resetPassword(for email: String) async -> Bool {
-        guard let client = client else { return false }
-        
+    func resetPassword(for email: String) async -> String? {
+        let trimmed = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard validateEmail(trimmed) else { return "Please enter a valid email address." }
+        guard let client = client else { return "Service unavailable. Please try again later." }
+
         do {
-            try await client.auth.resetPasswordForEmail(email)
-            return true
+            try await client.auth.resetPasswordForEmail(trimmed)
+            return nil
         } catch {
-            print("⚠️ resetPasswordForEmail failed for \(email): \(error)")
-            return false
+            print("⚠️ resetPasswordForEmail failed for \(trimmed): \(error)")
+            return error.localizedDescription
         }
     }
 
