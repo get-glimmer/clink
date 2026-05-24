@@ -80,10 +80,8 @@ struct EmailLoginView: View {
                     HStack {
                         Button {
                             Task {
-                                let success = await authViewModel.resetPassword(for: email)
-                                alertMessage = success
-                                    ? "Password reset email sent to \(email)"
-                                    : "Please enter a valid email address."
+                                let errorText = await authViewModel.resetPassword(for: email)
+                                alertMessage = errorText ?? "Password reset email sent to \(email)"
                                 showAlert = true
                             }
                         } label: {

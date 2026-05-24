@@ -2,6 +2,7 @@ import Foundation
 import UIKit
 import SwiftUI
 import Supabase
+import AuthenticationServices
 
 /**
  * Manages authentication state and user profile data.
@@ -42,6 +43,9 @@ class AuthViewModel: ObservableObject {
     @Published var emailStatusColor: Color = .white
     
     @Published var shouldResetLoginFlow = false
+
+    /// The raw (unhashed) nonce held between the Apple auth request and its completion.
+    @Published var appleRawNonce: String?
     
     
     @Published var tempFullName: String?
@@ -311,19 +315,101 @@ class AuthViewModel: ObservableObject {
         }
     }
 
+    // MARK: - Sign in with Apple
+
+    /**
+     * Signs in (or signs up) the user with an Apple identity token via Supabase.
+     * - Parameters:
+     *   - idToken: The JWT identity token returned by Apple.
+     *   - nonce: The raw (unhashed) nonce that was hashed for the Apple request.
+     *   - fullName: The user's name — only provided by Apple on the first sign-in.
+     */
+    func signInWithApple(idToken: String, nonce: String, fullName: PersonNameComponents?) async {
+        guard let client = client else { return }
+        do {
+            try await client.auth.signInWithIdToken(
+                credentials: .init(provider: .apple, idToken: idToken, nonce: nonce)
+            )
+
+            // Apple only sends the name on the very first sign-in — stash it so the
+            // profile-completion screen can prefill it for brand-new users.
+            if let fullName {
+                let name = [fullName.givenName, fullName.familyName]
+                    .compactMap { $0 }
+                    .joined(separator: " ")
+                if !name.isEmpty { tempFullName = name }
+            }
+
+            // Load the profile if one already exists (e.g. an account linked by email).
+            // Brand-new Apple users have no row yet; RootView routes them to
+            // FinishSignupView to pick a username, which creates the profile.
+            await loadProfile()
+            isAuthenticated = true
+            PushNotificationService.shared.requestPermissionAndRegister()
+        } catch {
+            isAuthenticated = false
+            errorMessage = "Apple sign-in failed"
+        }
+    }
+
+    // MARK: - Sign in with Google
+
+    /**
+     * Signs in (or signs up) the user with a Google identity token via Supabase.
+     * Mirrors the Apple flow: Google's SDK manages the nonce internally, so we rely
+     * on the dashboard's "Skip nonce checks" being enabled and pass no nonce. The
+     * name is stashed into `tempFullName` so FinishSignupView can prefill it; the
+     * profile row itself is created there for brand-new users (see `needsProfileSetup`).
+     * - Parameters:
+     *   - idToken: The OpenID Connect identity token from GoogleSignIn.
+     *   - accessToken: The OAuth access token from GoogleSignIn.
+     *   - fullName: The user's name from their Google profile, if available.
+     */
+    func signInWithGoogle(idToken: String, accessToken: String, fullName: String?) async {
+        guard let client = client else { return }
+        do {
+            try await client.auth.signInWithIdToken(
+                credentials: .init(provider: .google, idToken: idToken, accessToken: accessToken)
+            )
+
+            // Stash the name so the profile-completion screen can prefill it for new users.
+            if let fullName, !fullName.isEmpty { tempFullName = fullName }
+
+            // Load the profile if one already exists. Brand-new Google users have no
+            // row yet; RootView routes them to FinishSignupView, which creates it.
+            await loadProfile()
+            isAuthenticated = true
+            PushNotificationService.shared.requestPermissionAndRegister()
+        } catch {
+            print("⚠️ Google sign-in failed: \(error)")
+            isAuthenticated = false
+            errorMessage = "Google sign-in failed"
+        }
+    }
+
+    /// True when an authenticated user has no username yet (e.g. a brand-new Apple
+    /// sign-in) and must complete profile setup before entering the app.
+    var needsProfileSetup: Bool {
+        guard isAuthenticated else { return false }
+        return profile?.username?.isEmpty ?? true
+    }
+
     /**
      * Resets the password for a given email.
      * - Parameter email: The email for which to reset the password.
-     * - Returns: `true` if the reset email was sent successfully, `false` otherwise.
+     * - Returns: `nil` if the reset email was sent successfully, otherwise an error message to display.
      */
-    func resetPassword(for email: String) async -> Bool {
-        guard let client = client else { return false }
-        
+    func resetPassword(for email: String) async -> String? {
+        let trimmed = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard validateEmail(trimmed) else { return "Please enter a valid email address." }
+        guard let client = client else { return "Service unavailable. Please try again later." }
+
         do {
-            try await client.auth.resetPasswordForEmail(email)
-            return true
+            try await client.auth.resetPasswordForEmail(trimmed)
+            return nil
         } catch {
-            return false
+            print("⚠️ resetPasswordForEmail failed for \(trimmed): \(error)")
+            return error.localizedDescription
         }
     }
 

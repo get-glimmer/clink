@@ -12,7 +12,11 @@ struct FinishSignupView: View {
     let email: String?
     let password: String?
     let userId: String?
-    
+
+    /// When true, the user is already authenticated (e.g. via Sign in with Apple) and
+    /// this screen only collects profile details instead of creating an auth account.
+    var isProfileCompletion: Bool = false
+
     // MARK: - Environment and State
 
     @Binding var path: NavigationPath
@@ -39,6 +43,7 @@ struct FinishSignupView: View {
     
     @State private var showVerificationAlert = false
     @State private var navigateBackToLogin = false
+    @State private var signupErrorMessage: String? = nil
 
 
 
@@ -51,7 +56,12 @@ struct FinishSignupView: View {
             VStack {
                 // Custom top navigation bar
                 TopNavBar(title: "Finish signing up") {
-                    dismiss()
+                    if isProfileCompletion {
+                        // Already authenticated — backing out means signing out.
+                        Task { await authViewModel.logout() }
+                    } else {
+                        dismiss()
+                    }
                 }
                 
                 ScrollView {
@@ -271,15 +281,46 @@ struct FinishSignupView: View {
                 Button {
                     Task {
                         isLoading = true
-                        guard let client = SupabaseClientManager.shared.client else { return }
+                        guard let client = SupabaseClientManager.shared.client else {
+                            signupErrorMessage = "Connection not configured. Please try again later."
+                            isLoading = false
+                            return
+                        }
+
+                        // OAuth users (e.g. Apple) are already authenticated — just create
+                        // their profile row, then RootView swaps them into the app.
+                        if isProfileCompletion {
+                            guard let session = try? await client.auth.session else {
+                                signupErrorMessage = "Your session expired. Please sign in again."
+                                isLoading = false
+                                return
+                            }
+                            await authViewModel.saveProfile(
+                                userId: session.user.id.uuidString,
+                                phoneNumber: nil,
+                                name: fullName,
+                                username: username,
+                                dob: hasSelectedDate ? dateOfBirth : nil,
+                                profileImage: selectedImage,
+                                email: session.user.email,
+                                affectAuthState: false
+                            )
+                            await authViewModel.loadProfile()
+                            isLoading = false
+                            return
+                        }
 
                         // 1) Create the auth user but DO NOT log them in
-                        guard let email, let password else { return }
-                        
+                        guard let email, let password else {
+                            signupErrorMessage = "Missing email or password."
+                            isLoading = false
+                            return
+                        }
+
                         do {
                             let result = try await client.auth.signUp(email: email, password: password)
 
-                            let userId = result.user.id.uuidString
+                            _ = result.user.id.uuidString
 
                             authViewModel.tempFullName = fullName
                             authViewModel.tempUsername = username
@@ -288,11 +329,20 @@ struct FinishSignupView: View {
                             authViewModel.tempPhoneNumber = phoneNumber
                             authViewModel.tempEmail = email
 
-                            
+
                             // 3) Tell user to verify email
                             showVerificationAlert = true
 
                         } catch {
+                            print("❌ Signup failed: \(error)")
+                            let text = "\(error)".lowercased()
+                            if text.contains("over_email_send_rate_limit") || text.contains("rate limit") {
+                                signupErrorMessage = "Too many sign-up attempts. Please wait a little while and try again."
+                            } else if text.contains("already registered") || text.contains("user_already_exists") {
+                                signupErrorMessage = "An account with this email already exists. Try logging in instead."
+                            } else {
+                                signupErrorMessage = error.localizedDescription
+                            }
                         }
 
                         isLoading = false
@@ -321,6 +371,14 @@ struct FinishSignupView: View {
             .navigationTitle("")
             .navigationBarBackButtonHidden(true)
         }
+        .alert("Couldn’t sign up", isPresented: Binding(
+            get: { signupErrorMessage != nil },
+            set: { if !$0 { signupErrorMessage = nil } }
+        )) {
+            Button("OK") { signupErrorMessage = nil }
+        } message: {
+            Text(signupErrorMessage ?? "Something went wrong. Please try again.")
+        }
         .alert("Check your email", isPresented: $showVerificationAlert) {
             Button("OK") {
                 navigateBackToLogin = true
@@ -332,6 +390,12 @@ struct FinishSignupView: View {
         .onChange(of: navigateBackToLogin) { yes in
             if yes {
                 authViewModel.shouldResetLoginFlow = true
+            }
+        }
+        .onAppear {
+            // Prefill the name Apple provided on first sign-in.
+            if isProfileCompletion, fullName.isEmpty, let n = authViewModel.tempFullName {
+                fullName = n
             }
         }
 

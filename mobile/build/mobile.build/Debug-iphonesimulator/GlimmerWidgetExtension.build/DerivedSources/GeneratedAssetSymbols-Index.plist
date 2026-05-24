@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>colors</key>
+	<array/>
+	<key>images</key>
+	<array>
+		<dict>
+			<key>catalogPath</key>
+			<string>/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/GlimmerWidget/Assets.xcassets</string>
+			<key>objcSymbol</key>
+			<string>ACImageNameGlitchLid</string>
+			<key>relativePath</key>
+			<string>./glitchLid.imageset</string>
+			<key>swiftSymbol</key>
+			<string>glitchLid</string>
+		</dict>
+		<dict>
+			<key>catalogPath</key>
+			<string>/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/GlimmerWidget/Assets.xcassets</string>
+			<key>objcSymbol</key>
+			<string>ACImageNameGlitchLid1</string>
+			<key>relativePath</key>
+			<string>./glitchLid 1.imageset</string>
+			<key>swiftSymbol</key>
+			<string>glitchLid1</string>
+		</dict>
+		<dict>
+			<key>catalogPath</key>
+			<string>/Users/soohyeuk/Documents/Documents - Mac/glimmer/mobile/GlimmerWidget/Assets.xcassets</string>
+			<key>objcSymbol</key>
+			<string>ACImageNameJarBase</string>
+			<key>relativePath</key>
+			<string>./jarBase.imageset</string>
+			<key>swiftSymbol</key>
+			<string>jarBase</string>
+		</dict>
+	</array>
+	<key>symbols</key>
+	<array/>
+</dict>
+</plist>

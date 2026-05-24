@@ -1,0 +1,29 @@
+{
+  "" : {
+    "diagnostics" : "/Users/soohyeuk/Library/Developer/Xcode/DerivedData/mobile-ceqhgbgvussvdqgucfgndjbsaznx/SourcePackages/checkouts/MCEmojiPicker/build/MCEmojiPicker.build/Debug-iphonesimulator/MCEmojiPickerJSON.build/Objects-normal/x86_64/MCEmojiPickerJSON-primary.dia",
+    "emit-module-dependencies" : "/Users/soohyeuk/Library/Developer/Xcode/DerivedData/mobile-ceqhgbgvussvdqgucfgndjbsaznx/SourcePackages/checkouts/MCEmojiPicker/build/MCEmojiPicker.build/Debug-iphonesimulator/MCEmojiPickerJSON.build/Objects-normal/x86_64/MCEmojiPickerJSON-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/soohyeuk/Library/Developer/Xcode/DerivedData/mobile-ceqhgbgvussvdqgucfgndjbsaznx/SourcePackages/checkouts/MCEmojiPicker/build/MCEmojiPicker.build/Debug-iphonesimulator/MCEmojiPickerJSON.build/Objects-normal/x86_64/MCEmojiPickerJSON-primary-emit-module.dia",
+    "pch" : "/Users/soohyeuk/Library/Developer/Xcode/DerivedData/mobile-ceqhgbgvussvdqgucfgndjbsaznx/SourcePackages/checkouts/MCEmojiPicker/build/MCEmojiPicker.build/Debug-iphonesimulator/MCEmojiPickerJSON.build/Objects-normal/x86_64/MCEmojiPickerJSON-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/soohyeuk/Library/Developer/Xcode/DerivedData/mobile-ceqhgbgvussvdqgucfgndjbsaznx/SourcePackages/checkouts/MCEmojiPicker/build/MCEmojiPicker.build/Debug-iphonesimulator/MCEmojiPickerJSON.build/Objects-normal/x86_64/MCEmojiPickerJSON-primary.swiftdeps"
+  },
+  "/Users/soohyeuk/Library/Developer/Xcode/DerivedData/mobile-ceqhgbgvussvdqgucfgndjbsaznx/SourcePackages/checkouts/MCEmojiPicker/Sources/MCEmojiPickerJSON/MCEmojiDefinitions.swift" : {
+    "const-values" : "/Users/soohyeuk/Library/Developer/Xcode/DerivedData/mobile-ceqhgbgvussvdqgucfgndjbsaznx/SourcePackages/checkouts/MCEmojiPicker/build/MCEmojiPicker.build/Debug-iphonesimulator/MCEmojiPickerJSON.build/Objects-normal/x86_64/MCEmojiDefinitions.swiftconstvalues",
+    "dependencies" : "/Users/soohyeuk/Library/Developer/Xcode/DerivedData/mobile-ceqhgbgvussvdqgucfgndjbsaznx/SourcePackages/checkouts/MCEmojiPicker/build/MCEmojiPicker.build/Debug-iphonesimulator/MCEmojiPickerJSON.build/Objects-normal/x86_64/MCEmojiDefinitions.d",
+    "diagnostics" : "/Users/soohyeuk/Library/Developer/Xcode/DerivedData/mobile-ceqhgbgvussvdqgucfgndjbsaznx/SourcePackages/checkouts/MCEmojiPicker/build/MCEmojiPicker.build/Debug-iphonesimulator/MCEmojiPickerJSON.build/Objects-normal/x86_64/MCEmojiDefinitions.dia",
+    "index-unit-output-path" : "/MCEmojiPicker.build/Debug-iphonesimulator/MCEmojiPickerJSON.build/Objects-normal/x86_64/MCEmojiDefinitions.o",
+    "llvm-bc" : "/Users/soohyeuk/Library/Developer/Xcode/DerivedData/mobile-ceqhgbgvussvdqgucfgndjbsaznx/SourcePackages/checkouts/MCEmojiPicker/build/MCEmojiPicker.build/Debug-iphonesimulator/MCEmojiPickerJSON.build/Objects-normal/x86_64/MCEmojiDefinitions.bc",
+    "object" : "/Users/soohyeuk/Library/Developer/Xcode/DerivedData/mobile-ceqhgbgvussvdqgucfgndjbsaznx/SourcePackages/checkouts/MCEmojiPicker/build/MCEmojiPicker.build/Debug-iphonesimulator/MCEmojiPickerJSON.build/Objects-normal/x86_64/MCEmojiDefinitions.o",
+    "swift-dependencies" : "/Users/soohyeuk/Library/Developer/Xcode/DerivedData/mobile-ceqhgbgvussvdqgucfgndjbsaznx/SourcePackages/checkouts/MCEmojiPicker/build/MCEmojiPicker.build/Debug-iphonesimulator/MCEmojiPickerJSON.build/Objects-normal/x86_64/MCEmojiDefinitions.swiftdeps",
+    "swiftmodule" : "/Users/soohyeuk/Library/Developer/Xcode/DerivedData/mobile-ceqhgbgvussvdqgucfgndjbsaznx/SourcePackages/checkouts/MCEmojiPicker/build/MCEmojiPicker.build/Debug-iphonesimulator/MCEmojiPickerJSON.build/Objects-normal/x86_64/MCEmojiDefinitions~partial.swiftmodule"
+  },
+  "/Users/soohyeuk/Library/Developer/Xcode/DerivedData/mobile-ceqhgbgvussvdqgucfgndjbsaznx/SourcePackages/checkouts/MCEmojiPicker/Sources/MCEmojiPickerJSON/MCEmojiPickerJSON.swift" : {
+    "const-values" : "/Users/soohyeuk/Library/Developer/Xcode/DerivedData/mobile-ceqhgbgvussvdqgucfgndjbsaznx/SourcePackages/checkouts/MCEmojiPicker/build/MCEmojiPicker.build/Debug-iphonesimulator/MCEmojiPickerJSON.build/Objects-normal/x86_64/MCEmojiPickerJSON.swiftconstvalues",
+    "dependencies" : "/Users/soohyeuk/Library/Developer/Xcode/DerivedData/mobile-ceqhgbgvussvdqgucfgndjbsaznx/SourcePackages/checkouts/MCEmojiPicker/build/MCEmojiPicker.build/Debug-iphonesimulator/MCEmojiPickerJSON.build/Objects-normal/x86_64/MCEmojiPickerJSON.d",
+    "diagnostics" : "/Users/soohyeuk/Library/Developer/Xcode/DerivedData/mobile-ceqhgbgvussvdqgucfgndjbsaznx/SourcePackages/checkouts/MCEmojiPicker/build/MCEmojiPicker.build/Debug-iphonesimulator/MCEmojiPickerJSON.build/Objects-normal/x86_64/MCEmojiPickerJSON.dia",
+    "index-unit-output-path" : "/MCEmojiPicker.build/Debug-iphonesimulator/MCEmojiPickerJSON.build/Objects-normal/x86_64/MCEmojiPickerJSON.o",
+    "llvm-bc" : "/Users/soohyeuk/Library/Developer/Xcode/DerivedData/mobile-ceqhgbgvussvdqgucfgndjbsaznx/SourcePackages/checkouts/MCEmojiPicker/build/MCEmojiPicker.build/Debug-iphonesimulator/MCEmojiPickerJSON.build/Objects-normal/x86_64/MCEmojiPickerJSON.bc",
+    "object" : "/Users/soohyeuk/Library/Developer/Xcode/DerivedData/mobile-ceqhgbgvussvdqgucfgndjbsaznx/SourcePackages/checkouts/MCEmojiPicker/build/MCEmojiPicker.build/Debug-iphonesimulator/MCEmojiPickerJSON.build/Objects-normal/x86_64/MCEmojiPickerJSON.o",
+    "swift-dependencies" : "/Users/soohyeuk/Library/Developer/Xcode/DerivedData/mobile-ceqhgbgvussvdqgucfgndjbsaznx/SourcePackages/checkouts/MCEmojiPicker/build/MCEmojiPicker.build/Debug-iphonesimulator/MCEmojiPickerJSON.build/Objects-normal/x86_64/MCEmojiPickerJSON.swiftdeps",
+    "swiftmodule" : "/Users/soohyeuk/Library/Developer/Xcode/DerivedData/mobile-ceqhgbgvussvdqgucfgndjbsaznx/SourcePackages/checkouts/MCEmojiPicker/build/MCEmojiPicker.build/Debug-iphonesimulator/MCEmojiPickerJSON.build/Objects-normal/x86_64/MCEmojiPickerJSON~partial.swiftmodule"
+  }
+}
