@@ -21,6 +21,7 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
     private let accScale: CGFloat = 600  // shaking force scale
     private let gravityScale:  CGFloat = 12 // gravity applied to charms
     private var motionEnabled = false
+    private var constantGravityStrength: CGFloat?
     
     // Storage for marbles keyed by Task UUID
     private var marbles: [UUID: SKLabelNode] = [:]
@@ -38,10 +39,12 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
     private var customBottomExtra: CGFloat?
     // Emoji size scaling (1.0 = default)
     private var emojiScaleFactor: CGFloat = 1.0
+    private let baseEmojiFontSize: CGFloat = 54
+    private let baseEmojiBodyRadius: CGFloat = 25.6
     
     // MARK: - Edge-loop inset
     private let inset: CGFloat = 18
-    private let lidHeight: CGFloat = 44
+    private let lidHeight: CGFloat = 50
     // Cached floor Y (inside edge loop)
     private var computedFloorY: CGFloat = 0
     
@@ -51,10 +54,15 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
     private let glowAlpha: CGFloat = 0.85
     
     // MARK: - Haptic settings
+    static let hapticsEnabledDefaultsKey = "shakerHapticsEnabled"
+    static var userHapticsEnabled: Bool {
+        UserDefaults.standard.object(forKey: hapticsEnabledDefaultsKey) as? Bool ?? true
+    }
+
     var isHapticsEnabled: Bool = true
     private var lastHapticTime: TimeInterval = 0
-    private let hapticCooldown: TimeInterval = 0.25
-    private let hapticImpulseThreshold: CGFloat = 1.0
+    private let hapticCooldown: TimeInterval = 0.08
+    private let hapticImpulseThreshold: CGFloat = 0.45
     
     // control haptics visibility-wise
     func setHapticsEnabled(_ enabled: Bool) {
@@ -117,6 +125,7 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
     // Adjust emoji scale for preview tiles vs detail
     func setEmojiScale(_ factor: CGFloat) {
         emojiScaleFactor = max(0.5, min(factor, 1.5))
+        applyEmojiSizing()
     }
     
     private func setupPhysicsBoundaries() {
@@ -146,18 +155,21 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
         guard enabled != motionEnabled else { return }
         motionEnabled = enabled
         if enabled {
+            constantGravityStrength = nil
             startMotion()
         } else {
             stopMotion()
             // Fallback: ensure a constant downward gravity so marbles fall
-            physicsWorld.gravity = CGVector(dx: 0, dy: -gravityScale)
+            constantGravityStrength = gravityScale
+            applyConstantGravityIfNeeded()
         }
     }
     
     private func startMotion() {
         guard motion.isDeviceMotionAvailable else {
             // Device motion unavailable (e.g., Simulator/preview) → use constant gravity
-            physicsWorld.gravity = CGVector(dx: 0, dy: -gravityScale)
+            constantGravityStrength = gravityScale
+            applyConstantGravityIfNeeded()
             return
         }
         motion.deviceMotionUpdateInterval = 1.0 / 60.0   // 60 Hz
@@ -169,15 +181,15 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
             let gy = dm.gravity.y
             self.filteredGravity.dx = self.gAlpha * self.filteredGravity.dx + (1-self.gAlpha) * gx
             self.filteredGravity.dy = self.gAlpha * self.filteredGravity.dy + (1-self.gAlpha) * gy
-            self.physicsWorld.gravity = CGVector(dx: self.filteredGravity.dx * self.gravityScale,
-                                                 dy: self.filteredGravity.dy * self.gravityScale)
+            self.physicsWorld.gravity = CGVector(dx: self.filteredGravity.dx * self.scaledGravityStrength,
+                                                 dy: self.filteredGravity.dy * self.scaledGravityStrength)
             /* 2. shaking → apply force */
             let ua = dm.userAcceleration
             let ax = ua.x
             let ay = ua.y
             let mag = hypot(ax, ay)
             if mag > 0.02 {
-                let baseForce = CGVector(dx: ax * self.accScale, dy: ay * self.accScale)
+                let baseForce = CGVector(dx: ax * self.scaledAccelerationStrength, dy: ay * self.scaledAccelerationStrength)
                 for (_, label) in self.marbles {
                     if let body = label.physicsBody {
                         let angleJitter = CGFloat.random(in: -(.pi/12)...(.pi/12))
@@ -194,12 +206,13 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
 
     // Explicit constant downward gravity (used for previews)
     func useConstantGravity(_ strength: CGFloat) {
-        physicsWorld.gravity = CGVector(dx: 0, dy: -abs(strength))
+        constantGravityStrength = abs(strength)
+        applyConstantGravityIfNeeded()
     }
 
     // Force-settle all marbles to the bottom (useful for small preview tiles)
     func settleAllToBottom() {
-        let radius: CGFloat = 25.6 * emojiScaleFactor
+        let radius = baseEmojiBodyRadius * effectiveEmojiScale(forCount: marbles.count)
         let floor = computedFloorY + radius + 1
         for (_, node) in marbles {
             if node.position.y > floor {
@@ -222,7 +235,8 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
     // Drops an emoji into the scene identified by taskId. If already exists it will be ignored.
     func addEmoji(_ symbol: String, for taskId: UUID) {
         guard marbles[taskId] == nil else { return }
-        let margin: CGFloat = 14 * emojiScaleFactor
+        let targetScale = effectiveEmojiScale(forCount: marbles.count + 1)
+        let margin: CGFloat = 14 * targetScale
         let minX = -size.width/2 + margin*2
         let maxX =  size.width/2 - margin*2
         // Guard against invalid ranges when scene size is not yet laid out
@@ -233,19 +247,21 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
         
         let node = SKLabelNode(fontNamed: "AppleColorEmoji")
         node.text = symbol
-        node.fontSize = 54 * emojiScaleFactor // base 54pt; preview scales down
+        node.fontSize = baseEmojiFontSize * targetScale
         node.verticalAlignmentMode = .center
         node.position = CGPoint(x: spawnX, y: spawnY)
         node.zPosition = 50
-        node.physicsBody = makeBody()
+        node.physicsBody = makeBody(scale: targetScale)
         addChild(node)
         marbles[taskId] = node
+        applyEmojiSizing()
     }
 
     // Drops a glowing emoji reaction into the scene with special effects
     func addGlowingEmoji(_ symbol: String, for taskId: UUID) {
         guard marbles[taskId] == nil else { return }
-        let margin: CGFloat = 14 * emojiScaleFactor
+        let targetScale = effectiveEmojiScale(forCount: marbles.count + 1)
+        let margin: CGFloat = 14 * targetScale
         let minX = -size.width/2 + margin*2
         let maxX =  size.width/2 - margin*2
 
@@ -257,11 +273,11 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
         
         let node = SKLabelNode(fontNamed: "AppleColorEmoji")
         node.text = symbol
-        node.fontSize = 54 * emojiScaleFactor // match regular size; preview uses smaller scale
+        node.fontSize = baseEmojiFontSize * targetScale
         node.verticalAlignmentMode = .center
         node.position = CGPoint(x: spawnX, y: spawnY)
         node.zPosition = 55 // Higher than regular emojis
-        node.physicsBody = makeBody()
+        node.physicsBody = makeBody(scale: targetScale)
         // Mark as reaction so we can identify later
         node.name = "reaction"
         
@@ -291,6 +307,7 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
         node.setScale(1.0)
 
         marbles[taskId] = node
+        applyEmojiSizing()
     }
 
     // Updates the emoji text for an existing marble without resetting physics.
@@ -310,6 +327,7 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
         guard let node = marbles[taskId] else { return }
         node.removeFromParent()
         marbles.removeValue(forKey: taskId)
+        applyEmojiSizing()
     }
     
     // Removes one occurrence of an emoji by its symbol (first match)
@@ -317,6 +335,7 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
         if let match = marbles.first(where: { $0.value.text == symbol }) {
             match.value.removeFromParent()
             marbles.removeValue(forKey: match.key)
+            applyEmojiSizing()
         }
     }
 
@@ -330,6 +349,7 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
         if let match = marbles.first(where: { $0.value.name == "reaction" && $0.value.text == symbol }) {
             match.value.removeFromParent()
             marbles.removeValue(forKey: match.key)
+            applyEmojiSizing()
         }
     }
     
@@ -359,19 +379,65 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
 
 
     // MARK: - Helpers
-    private func makeBody() -> SKPhysicsBody {
-        let body = SKPhysicsBody(circleOfRadius: 25.6 * emojiScaleFactor)
+    private func makeBody(scale: CGFloat? = nil) -> SKPhysicsBody {
+        let physicsScale = currentPhysicsScale
+        let body = SKPhysicsBody(circleOfRadius: baseEmojiBodyRadius * (scale ?? effectiveEmojiScale(forCount: marbles.count)))
         body.usesPreciseCollisionDetection = true
-        body.restitution = 0.1
-        body.friction = 0.9
-        body.linearDamping = 0.8
-        body.angularDamping = 0.9
+        body.restitution = 0.1 * physicsScale
+        body.friction = 0.9 * physicsScale
+        body.linearDamping = 0.8 + (1 - physicsScale) * 0.4
+        body.angularDamping = 0.9 + (1 - physicsScale) * 0.4
         
         // contact haptic
         body.categoryBitMask = 0x1 << 0      // marble
         body.contactTestBitMask = 0x1 << 0   // 다른 marble과 충돌
         body.collisionBitMask = 0xFFFFFFFF   // 기본 충돌
         return body
+    }
+
+    private func dynamicEmojiScale(for count: Int) -> CGFloat {
+        if count > 16 { return 0.6 }
+        return 1.0
+    }
+
+    private func effectiveEmojiScale(forCount count: Int) -> CGFloat {
+        emojiScaleFactor * dynamicEmojiScale(for: count)
+    }
+
+    private var currentPhysicsScale: CGFloat {
+        dynamicEmojiScale(for: marbles.count)
+    }
+
+    private var scaledGravityStrength: CGFloat {
+        gravityScale * currentPhysicsScale
+    }
+
+    private var scaledAccelerationStrength: CGFloat {
+        accScale * currentPhysicsScale
+    }
+
+    private func applyEmojiSizing() {
+        let scale = effectiveEmojiScale(forCount: marbles.count)
+        for node in marbles.values {
+            let velocity = node.physicsBody?.velocity ?? .zero
+            let angularVelocity = node.physicsBody?.angularVelocity ?? 0
+            node.fontSize = baseEmojiFontSize * scale
+            node.physicsBody = makeBody(scale: scale)
+            node.physicsBody?.velocity = velocity
+            node.physicsBody?.angularVelocity = angularVelocity
+
+            for effect in node.children.compactMap({ $0 as? SKEffectNode }) {
+                for glowLabel in effect.children.compactMap({ $0 as? SKLabelNode }) {
+                    glowLabel.fontSize = node.fontSize
+                }
+            }
+        }
+        applyConstantGravityIfNeeded()
+    }
+
+    private func applyConstantGravityIfNeeded() {
+        guard let constantGravityStrength else { return }
+        physicsWorld.gravity = CGVector(dx: 0, dy: -constantGravityStrength * currentPhysicsScale)
     }
     
     // Procedural soft radial glow texture (1.0 center → 0 at edge)
@@ -420,7 +486,7 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
     
     // MARK: - Contact delegate
     func didBegin(_ contact: SKPhysicsContact) {
-      guard isHapticsEnabled else { return }
+      guard isHapticsEnabled && Self.userHapticsEnabled else { return }
 
       // Ignore very small, invisible jitters
       let impulse = contact.collisionImpulse
@@ -429,8 +495,9 @@ final class ShakerScene: SKScene, SKPhysicsContactDelegate {
       let now = CACurrentMediaTime()
       guard now - lastHapticTime > hapticCooldown else { return }
 
-      let normalized = min(max(impulse / 10.0, 0.0), 1.0)
-      let gen = UIImpactFeedbackGenerator(style: .medium)
+      let normalized = min(max(impulse / 6.0, 0.45), 1.0) * currentPhysicsScale
+      let gen = UIImpactFeedbackGenerator(style: .rigid)
+      gen.prepare()
       gen.impactOccurred(intensity: normalized)
 
       lastHapticTime = now

@@ -522,16 +522,17 @@ private extension ChallengeInvitationOverlay {
                     if shouldScroll {
                         ScrollView(showsIndicators: false) {
                             invitationLetterBody
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .frame(width: contentWidth, alignment: .leading)
+                                .frame(maxWidth: .infinity, alignment: .center)
                         }
                     } else {
                         invitationLetterBody
+                            .frame(width: contentWidth, alignment: .leading)
                     }
                 }
-                .frame(width: contentWidth, height: contentHeight, alignment: .topLeading)
+                .frame(width: geo.size.width, height: contentHeight, alignment: .top)
                 .clipped()
                 .padding(.top, 29)
-                .padding(.horizontal, 20)
             }
 
             if viewModel.emojiInUseError {
@@ -539,7 +540,7 @@ private extension ChallengeInvitationOverlay {
                     .foregroundColor(Color("Red-300"))
                     .appText(AppFont.captionS)
                     .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.bottom, 12)
+                    .padding(.bottom, 36)
                     .frame(maxHeight: .infinity, alignment: .bottom)
             }
         }
@@ -679,6 +680,7 @@ private extension ChallengeInvitationOverlay {
             Text("Pick your emoji")
                 .foregroundColor(AppColors.textWhite)
                 .appText(AppFont.labelM)
+                .padding(.bottom, 8)
 
             if invite.emojiRule == .selectedOnly {
                 selectedOnlyEmojiGrid
@@ -745,14 +747,14 @@ private extension ChallengeInvitationOverlay {
                     Group {
                         if isSelected {
                             ZStack {
-                                Color.white.opacity(0.23)
+                                Color.white.opacity(0.32)
                                     .frame(width: 33, height: 33)
                                     .mask(
                                         Text(emoji)
                                             .font(.system(size: 32))
                                     )
                                     .blur(radius: 6)
-                                Color.white.opacity(0.13)
+                                Color.white.opacity(0.18)
                                     .frame(width: 33, height: 33)
                                     .mask(
                                         Text(emoji)
@@ -773,6 +775,7 @@ private extension ChallengeInvitationOverlay {
                 }
         }
         .buttonStyle(.plain)
+        .zIndex(isSelected ? 10 : 0)
     }
 
     @ViewBuilder
@@ -818,6 +821,7 @@ private extension ChallengeInvitationOverlay {
                 }
         }
         .buttonStyle(.plain)
+        .zIndex(isSelected ? 10 : 0)
     }
 
     var joinChallengeButton: some View {
