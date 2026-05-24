@@ -20,9 +20,13 @@ struct VerifyIdentityView: View {
     var attributed: AttributedString {
         var terms = AttributedString("Terms of service")
         terms.underlineStyle = .single
+        terms.foregroundColor = Color("Neutral-400")
+        terms.link = URL(string: "https://clink.framer.website/legal-terms/terms-and-conditions")
 
         var privacy = AttributedString("Privacy Policy")
         privacy.underlineStyle = .single
+        privacy.foregroundColor = Color("Neutral-400")
+        privacy.link = URL(string: "https://clink.framer.website/legal-terms/privacy-policy")
 
         return terms + AttributedString(" and ") + privacy
     }

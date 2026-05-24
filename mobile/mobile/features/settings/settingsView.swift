@@ -129,7 +129,7 @@ struct SettingsView: View {
                         Divider()
                         
                         Button {
-                            if let url = URL(string: "https://drive.google.com/file/d/1XnvkL7RAV3MCYENBbi_zybKy-hW8VHio/view") {
+                            if let url = URL(string: "https://clink.framer.website/legal-terms/privacy-policy") {
                                 UIApplication.shared.open(url)
                             }
                         } label: {
@@ -165,7 +165,7 @@ struct SettingsView: View {
                         Divider()
                         
                         Button {
-                            if let url = URL(string: "https://drive.google.com/file/d/1_uQArj0EZwjtRdZWeu2Nk8c2ChsZnPXT/view") {
+                            if let url = URL(string: "https://clink.framer.website/legal-terms/terms-and-conditions") {
                                 UIApplication.shared.open(url)
                             }
                         } label: {
