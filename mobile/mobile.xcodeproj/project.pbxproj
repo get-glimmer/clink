@@ -18,6 +18,8 @@
 		B46B46822F9012D800A809EC /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B46B46812F9012D800A809EC /* WidgetKit.framework */; };
 		B46B46842F9012D800A809EC /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B46B46832F9012D800A809EC /* SwiftUI.framework */; };
 		B46B46952F9012D900A809EC /* GlimmerWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = B46B46802F9012D800A809EC /* GlimmerWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		B4AA9CEF2FC37C8100344F40 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = B4AA9CEE2FC37C8100344F40 /* GoogleSignIn */; };
+		B4AA9CF12FC37C8100344F40 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = B4AA9CF02FC37C8100344F40 /* GoogleSignInSwift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -145,9 +147,11 @@
 				B45C9A3C2E14D95C00E01F99 /* Supabase in Frameworks */,
 				B45C9A322E14D95C00E01F99 /* Auth in Frameworks */,
 				347452402E558BC800589856 /* MCEmojiPicker in Frameworks */,
+				B4AA9CF12FC37C8100344F40 /* GoogleSignInSwift in Frameworks */,
 				347452422E558BC800589856 /* MCEmojiPickerJSON in Frameworks */,
 				B45C9A3A2E14D95C00E01F99 /* Storage in Frameworks */,
 				B45C9A382E14D95C00E01F99 /* Realtime in Frameworks */,
+				B4AA9CEF2FC37C8100344F40 /* GoogleSignIn in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -242,6 +246,8 @@
 				B45C9A3B2E14D95C00E01F99 /* Supabase */,
 				3474523F2E558BC800589856 /* MCEmojiPicker */,
 				347452412E558BC800589856 /* MCEmojiPickerJSON */,
+				B4AA9CEE2FC37C8100344F40 /* GoogleSignIn */,
+				B4AA9CF02FC37C8100344F40 /* GoogleSignInSwift */,
 			);
 			productName = mobile;
 			productReference = B443470C2DFD212E00644724 /* mobile.app */;
@@ -354,6 +360,7 @@
 			packageReferences = (
 				B45C9A302E14D95C00E01F99 /* XCRemoteSwiftPackageReference "supabase-swift" */,
 				3474523E2E558BC800589856 /* XCRemoteSwiftPackageReference "MCEmojiPicker" */,
+				B4AA9CED2FC37C8100344F40 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = B443470D2DFD212E00644724 /* Products */;
@@ -581,8 +588,9 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = mobile/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "clink!";
+				INFOPLIST_KEY_NSCameraUsageDescription = "clink! needs camera access so you can take proof photos for challenges.";
 				INFOPLIST_KEY_NSMotionUsageDescription = "Used to animate marbles when Shaker mode is on";
-				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Glimmer needs permission to save your challenge result card to your Photos.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "clink! needs permission to save your challenge result card to your Photos.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = "Launch Screen";
@@ -618,8 +626,9 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = mobile/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "clink!";
+				INFOPLIST_KEY_NSCameraUsageDescription = "clink! needs camera access so you can take proof photos for challenges.";
 				INFOPLIST_KEY_NSMotionUsageDescription = "Used to animate marbles when Shaker mode is on";
-				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Glimmer needs permission to save your challenge result card to your Photos.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "clink! needs permission to save your challenge result card to your Photos.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = "Launch Screen";
@@ -843,6 +852,14 @@
 				minimumVersion = 2.5.1;
 			};
 		};
+		B4AA9CED2FC37C8100344F40 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/google/GoogleSignIn-iOS";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 9.1.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -885,6 +902,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = B45C9A302E14D95C00E01F99 /* XCRemoteSwiftPackageReference "supabase-swift" */;
 			productName = Supabase;
+		};
+		B4AA9CEE2FC37C8100344F40 /* GoogleSignIn */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B4AA9CED2FC37C8100344F40 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignIn;
+		};
+		B4AA9CF02FC37C8100344F40 /* GoogleSignInSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B4AA9CED2FC37C8100344F40 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignInSwift;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

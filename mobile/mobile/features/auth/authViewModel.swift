@@ -352,6 +352,41 @@ class AuthViewModel: ObservableObject {
         }
     }
 
+    // MARK: - Sign in with Google
+
+    /**
+     * Signs in (or signs up) the user with a Google identity token via Supabase.
+     * Mirrors the Apple flow: Google's SDK manages the nonce internally, so we rely
+     * on the dashboard's "Skip nonce checks" being enabled and pass no nonce. The
+     * name is stashed into `tempFullName` so FinishSignupView can prefill it; the
+     * profile row itself is created there for brand-new users (see `needsProfileSetup`).
+     * - Parameters:
+     *   - idToken: The OpenID Connect identity token from GoogleSignIn.
+     *   - accessToken: The OAuth access token from GoogleSignIn.
+     *   - fullName: The user's name from their Google profile, if available.
+     */
+    func signInWithGoogle(idToken: String, accessToken: String, fullName: String?) async {
+        guard let client = client else { return }
+        do {
+            try await client.auth.signInWithIdToken(
+                credentials: .init(provider: .google, idToken: idToken, accessToken: accessToken)
+            )
+
+            // Stash the name so the profile-completion screen can prefill it for new users.
+            if let fullName, !fullName.isEmpty { tempFullName = fullName }
+
+            // Load the profile if one already exists. Brand-new Google users have no
+            // row yet; RootView routes them to FinishSignupView, which creates it.
+            await loadProfile()
+            isAuthenticated = true
+            PushNotificationService.shared.requestPermissionAndRegister()
+        } catch {
+            print("⚠️ Google sign-in failed: \(error)")
+            isAuthenticated = false
+            errorMessage = "Google sign-in failed"
+        }
+    }
+
     /// True when an authenticated user has no username yet (e.g. a brand-new Apple
     /// sign-in) and must complete profile setup before entering the app.
     var needsProfileSetup: Bool {

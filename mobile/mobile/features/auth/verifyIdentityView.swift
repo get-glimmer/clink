@@ -1,6 +1,7 @@
 import SwiftUI
 import Supabase
 import AuthenticationServices
+import GoogleSignIn
 
 /**
  * The initial view for logging in or signing up.
@@ -144,6 +145,7 @@ struct VerifyIdentityView: View {
                             SSOButton(title: "Continue with Google",
                                       color: Color("White"),
                                       icon: "google") {
+                                Task { await startSignInWithGoogle() }
                             }
 
                             // Apple → still SF Symbol
@@ -243,6 +245,30 @@ struct VerifyIdentityView: View {
         controller.presentationContextProvider = delegate
         AppleSignInDelegate.current = delegate   // retain until completion
         controller.performRequests()
+    }
+
+    /**
+     * Starts the native Sign in with Google flow via the GoogleSignIn SDK and
+     * forwards the resulting tokens to the auth view model.
+     */
+    @MainActor
+    private func startSignInWithGoogle() async {
+        guard let presenter = UIApplication.shared.connectedScenes
+            .compactMap({ ($0 as? UIWindowScene)?.keyWindow?.rootViewController })
+            .first else { return }
+
+        do {
+            let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: presenter)
+            guard let idToken = result.user.idToken?.tokenString else { return }
+            await authViewModel.signInWithGoogle(
+                idToken: idToken,
+                accessToken: result.user.accessToken.tokenString,
+                fullName: result.user.profile?.name
+            )
+        } catch {
+            // User cancelled or the flow failed.
+            print("⚠️ GoogleSignIn SDK error: \(error)")
+        }
     }
 }
 

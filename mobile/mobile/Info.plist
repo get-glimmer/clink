@@ -2,6 +2,19 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.460468020093-v4i9m4ek67d3ji1pf4eo6p0ob4uf1q71</string>
+			</array>
+		</dict>
+	</array>
+	<key>GIDClientID</key>
+	<string>460468020093-v4i9m4ek67d3ji1pf4eo6p0ob4uf1q71.apps.googleusercontent.com</string>
+	<key>GIDServerClientID</key>
+	<string>460468020093-6f7ojidon0fhg38avud3b8j45uu5ap1r.apps.googleusercontent.com</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>Figtree-SemiBold.ttf</string>
@@ -9,8 +22,6 @@
 		<string>Figtree-Regular.ttf</string>
 		<string>Figtree-Medium.ttf</string>
 	</array>
-	<key>NSCameraUsageDescription</key>
-	<string>Clink needs camera access so you can take proof photos for challenges.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>
