@@ -195,6 +195,17 @@ class CreateChallengeViewModel: ObservableObject {
             completeCreation()
 
         } catch {
+            // Surface the full PostgREST error (message/detail/hint/code) so we can
+            // see exactly which column rejected the value, not just the generic text.
+            if let pgError = error as? PostgrestError {
+                print("⛔️ createChallenge PostgrestError:")
+                print("   message: \(pgError.message)")
+                print("   detail:  \(pgError.detail ?? "nil")")
+                print("   hint:    \(pgError.hint ?? "nil")")
+                print("   code:    \(pgError.code ?? "nil")")
+            } else {
+                print("⛔️ createChallenge error: \(error)")
+            }
             errorMessage = "Failed to create challenge: \(error.localizedDescription)"
         }
 

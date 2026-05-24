@@ -18,6 +18,30 @@ class PushNotificationService {
             DispatchQueue.main.async {
                 UIApplication.shared.registerForRemoteNotifications()
             }
+            Task { await PushNotificationService.shared.seedNotificationPreferences() }
+        }
+    }
+
+    /// Insert a default notification_preferences row (all categories true) for the
+    /// current user if one doesn't already exist. Existing rows are left alone.
+    func seedNotificationPreferences() async {
+        guard let supabase = supabase else { return }
+        do {
+            let session = try await supabase.auth.session
+            let userId = session.user.id.uuidString.lowercased()
+            let row = NotifPrefsSeedRow(
+                user_id: userId,
+                challenge: true,
+                tasks: true,
+                community: true,
+                general: true
+            )
+            try await supabase
+                .from("notification_preferences")
+                .upsert(row, onConflict: "user_id", ignoreDuplicates: true)
+                .execute()
+        } catch {
+            print("[Notif Prefs] Seed failed: \(error)")
         }
     }
 
@@ -64,10 +88,13 @@ class PushNotificationService {
             let senderName = try await getSenderName(userId: session.user.id.uuidString)
 
             let body: String
+            let category: String
             if type == "challenge", let title = challengeTitle {
                 body = "\(senderName) is reminding you to finish your tasks in \(title)"
+                category = "challenge"
             } else {
                 body = "\(senderName) is reminding you to finish your tasks today"
+                category = "tasks"
             }
 
             try await supabase.functions.invoke(
@@ -75,7 +102,8 @@ class PushNotificationService {
                 options: .init(body: [
                     "user_id": targetUserId,
                     "title": "Task Reminder",
-                    "body": body
+                    "body": body,
+                    "category": category
                 ] as [String: String])
             )
         } catch {
@@ -123,4 +151,12 @@ private struct DeviceTokenRow: Encodable {
     let user_id: String
     let token: String
     let platform: String
+}
+
+private struct NotifPrefsSeedRow: Encodable {
+    let user_id: String
+    let challenge: Bool
+    let tasks: Bool
+    let community: Bool
+    let general: Bool
 }
