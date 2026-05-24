@@ -10,7 +10,7 @@ struct SettingsView: View {
     @State private var notifCommunity: Bool = true
     @State private var notifGeneral: Bool = true
     @State private var prefsLoaded: Bool = false
-
+    @AppStorage(ShakerScene.hapticsEnabledDefaultsKey) private var shakerHapticsEnabled = true
 
     var body: some View {
         ZStack {
