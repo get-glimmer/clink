@@ -144,6 +144,19 @@ class CommunityViewModel: ObservableObject {
         }
     }
     
+    func unfollowFriend(friendId: String) {
+        Task {
+            do {
+                try await communityService.unfollowFriend(friendId: friendId)
+                await MainActor.run { self.loadFriendsData(refresh: false) }
+            } catch {
+                await MainActor.run {
+                    self.errorMessage = "Failed to unfollow friend: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+
     func addFriendToFavorites(named friendName: String) {
         Task {
             do {

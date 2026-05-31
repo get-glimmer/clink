@@ -242,11 +242,14 @@ struct SearchView: View {
                 isLoading = true
                 errorMessage = nil
                 
-                let (suggestedUsers, hasMore) = try await searchService.getSuggestedUsers(offset: 0, limit: pageSize)
-                
+                let (suggestedUsers, hasMore, nextOffset) = try await searchService.getSuggestedUsers(offset: 0, limit: pageSize)
+
                 await MainActor.run {
-                    self.suggestions = suggestedUsers.map { $0.toSearchUser() }
-                    self.suggestionOffset = suggestedUsers.count
+                    var seen = Set<String>()
+                    self.suggestions = suggestedUsers
+                        .map { $0.toSearchUser() }
+                        .filter { seen.insert($0.actualUserId).inserted }
+                    self.suggestionOffset = nextOffset
                     self.hasMoreSuggestions = hasMore
                     self.isLoading = false
                 }
@@ -265,12 +268,15 @@ struct SearchView: View {
         
         Task {
             do {
-                let (moreUsers, hasMore) = try await searchService.getSuggestedUsers(offset: suggestionOffset, limit: pageSize)
-                
+                let (moreUsers, hasMore, nextOffset) = try await searchService.getSuggestedUsers(offset: suggestionOffset, limit: pageSize)
+
                 await MainActor.run {
-                    let newItems = moreUsers.map { $0.toSearchUser() }
+                    var seen = Set(self.suggestions.map { $0.actualUserId })
+                    let newItems = moreUsers
+                        .map { $0.toSearchUser() }
+                        .filter { seen.insert($0.actualUserId).inserted }
                     self.suggestions.append(contentsOf: newItems)
-                    self.suggestionOffset += moreUsers.count
+                    self.suggestionOffset = nextOffset
                     self.hasMoreSuggestions = hasMore && !moreUsers.isEmpty
                     self.isLoadingMore = false
                 }

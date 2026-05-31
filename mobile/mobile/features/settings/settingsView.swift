@@ -186,7 +186,7 @@ struct SettingsView: View {
                         Divider()
                         
                         Button {
-                            if let url = URL(string: "https://www.notion.so/Clink-Support-3574cf9788df801d9d40f900b123a230") {
+                            if let url = URL(string: "https://clink.framer.website/support") {
                                 UIApplication.shared.open(url)
                             }
                         } label: {
