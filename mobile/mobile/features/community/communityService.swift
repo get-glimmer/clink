@@ -122,7 +122,7 @@ class CommunityService: ObservableObject {
                 
                 let friend = Friend(
                     userId: profile.id,
-                    name: profile.name ?? profile.username ?? "Unknown",
+                    name: profile.username ?? profile.name ?? "Unknown",
                     profileImageName: profile.avatar_url ?? "nav-profile1x",
                     progress: progress,
                     emojis: emojis,
@@ -274,6 +274,20 @@ class CommunityService: ObservableObject {
         }
     }
     
+    // MARK: - Unfollow Friend (by friendId) — works in both directions
+    func unfollowFriend(friendId: String) async throws {
+        guard let supabase = supabase,
+              let currentUserId = currentUserId else {
+            throw NSError(domain: "CommunityService", code: 1, userInfo: [NSLocalizedDescriptionKey: "Not authenticated"])
+        }
+
+        try await supabase
+            .from("friends")
+            .delete()
+            .or("and(user_id.eq.\(currentUserId),friend_id.eq.\(friendId)),and(user_id.eq.\(friendId),friend_id.eq.\(currentUserId))")
+            .execute()
+    }
+
     // MARK: - Add to Favorites
     func addToFavorites(friendName: String) async throws {
         guard let supabase = supabase,
@@ -491,7 +505,7 @@ class CommunityService: ObservableObject {
                 
                 let friend = Friend(
                     userId: profile.id,
-                    name: profile.name ?? profile.username ?? "Unknown",
+                    name: profile.username ?? profile.name ?? "Unknown",
                     profileImageName: profile.avatar_url ?? "nav-profile1x",
                     progress: progress,
                     emojis: emojis,

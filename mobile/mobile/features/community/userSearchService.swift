@@ -103,11 +103,12 @@ class UserSearchService: ObservableObject {
         let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
         
         do {
-            // Search profiles by username only
+            // Search profiles by username OR name
+            let pattern = "%\(trimmedQuery)%"
             let profiles: [UserProfile] = try await supabase
                 .from("profiles")
                 .select("*")
-                .ilike("username", value: "%\(trimmedQuery)%")
+                .or("username.ilike.\(pattern),name.ilike.\(pattern)")
                 .neq("id", value: currentUserId) // Exclude current user
                 .limit(20)
                 .execute()
@@ -137,10 +138,10 @@ class UserSearchService: ObservableObject {
     /// Returns a page of suggested users and whether more pages are available.
     /// - `offset`: number of pool-based suggestions already loaded (outgoing requests are always page-0 only)
     /// - `limit`: how many new suggestions to return this page (default 10)
-    func getSuggestedUsers(offset: Int = 0, limit: Int = 10) async throws -> (results: [UserSearchResult], hasMore: Bool) {
+    func getSuggestedUsers(offset: Int = 0, limit: Int = 10) async throws -> (results: [UserSearchResult], hasMore: Bool, nextOffset: Int) {
         guard let supabase = supabase,
               let currentUserId = currentUserId else {
-            return ([], false)
+            return ([], false, offset)
         }
         
         do {
@@ -216,13 +217,14 @@ class UserSearchService: ObservableObject {
                     .sorted { $0.mutualFriendsCount > $1.mutualFriendsCount }
                     .prefix(remainingCapacity)
                 suggestions.append(contentsOf: fillers)
-                
+
                 // If the DB returned fewer rows than we asked for, there's nothing left
                 let hasMore = poolProfiles.count >= fetchSize
-                return (suggestions, hasMore)
+                let nextOffset = offset + poolProfiles.count
+                return (suggestions, hasMore, nextOffset)
             }
-            
-            return (suggestions, true)
+
+            return (suggestions, true, offset)
         } catch {
             throw error
         }

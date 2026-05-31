@@ -526,7 +526,7 @@ struct FriendMenuSheet: View {
     }
     
     private func handleUnfollow() {
-        viewModel.unfollowFriend(named: friend.name)
+        viewModel.unfollowFriend(friendId: friend.userId)
         onClose()
     }
     
