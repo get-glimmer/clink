@@ -441,6 +441,16 @@ class TaskListViewModel: ObservableObject {
                 .eq("userid", value: userId)
                 .execute()
 
+            if task.isCompleted {
+                AnalyticsService.shared.trackEvent("task_completed",
+                    screenName: "Home",
+                    source: "checkbox",
+                    properties: ["task_id": task.id.uuidString])
+                AnalyticsService.shared.trackOnce("starter_task_completed",
+                    screenName: "Home",
+                    properties: ["task_id": task.id.uuidString])
+            }
+
             updateAllCompleted()
 
             // Brings shaker data that will be applied to tracker
@@ -614,7 +624,14 @@ class TaskListViewModel: ObservableObject {
                 "tasktitle": newTitle,
                 "privacy_status": isPrivate ? "user_only" : "public"
             ]).execute()
-            
+
+            AnalyticsService.shared.trackEvent("task_created",
+                screenName: "Home",
+                properties: ["category_id": categoryId.uuidString])
+            AnalyticsService.shared.trackOnce("first_task_created",
+                screenName: "Home",
+                properties: ["category_id": categoryId.uuidString])
+
             // Remove temporary task and refresh from server
             // removeTemporaryTask(task: task)
             fetchCategoriesAndTasks()
@@ -728,6 +745,11 @@ class TaskListViewModel: ObservableObject {
                 .eq("taskid", value: task.id)
                 .eq("userid", value: userId)
                 .execute()
+
+            AnalyticsService.shared.trackEvent("task_deleted",
+                screenName: "Home",
+                properties: ["task_id": task.id.uuidString])
+
             // Remove from local list after successful deletion
             for (catIdx, cat) in categoriesWithTasks.enumerated() {
                 if let taskIdx = cat.tasks.firstIndex(where: { $0.id == task.id }) {
@@ -819,6 +841,12 @@ class TaskListViewModel: ObservableObject {
             // 2) history seed (so old date queries work)
             if let cat = created.first {
                 await insertEmojiHistory(categoryId: cat.id, emoji: emoji, effectiveDate: todayDate())
+                AnalyticsService.shared.trackEvent("category_created",
+                    screenName: "Home",
+                    properties: ["category_id": cat.id.uuidString, "category_type": type.rawValue])
+                AnalyticsService.shared.trackOnce("first_category_created",
+                    screenName: "Home",
+                    properties: ["category_id": cat.id.uuidString])
             }
 
             // 3) refresh both maps & lists
@@ -871,6 +899,10 @@ class TaskListViewModel: ObservableObject {
                 .eq("userid", value: userId)
                 .execute()
 
+            AnalyticsService.shared.trackEvent("category_edited",
+                screenName: "Home",
+                properties: ["category_id": categoryId.uuidString])
+
             // 2) insert emoji history only when changed
             if let old = oldLatest, old != emoji {
                 await insertEmojiHistory(categoryId: categoryId, emoji: emoji, effectiveDate: todayDate())
@@ -920,6 +952,10 @@ class TaskListViewModel: ObservableObject {
                 .eq("categoryid", value: categoryId)
                 .eq("userid", value: userId)
                 .execute()
+
+            AnalyticsService.shared.trackEvent("category_deleted",
+                screenName: "Home",
+                properties: ["category_id": categoryId.uuidString])
 
             await MainActor.run {
                 categoriesWithTasks.removeAll { $0.category.id == categoryId }

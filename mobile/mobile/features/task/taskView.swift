@@ -216,6 +216,9 @@ struct TaskView: View {
                         onTapCategories: {
                             showOptionsSheet = false
                             showCategoriesSheet = true
+                            AnalyticsService.shared.trackEvent("category_opened",
+                                screenName: "TaskDetail",
+                                source: "options_sheet")
                         },
 
                         onTapAddCategory: {
@@ -247,6 +250,7 @@ struct TaskView: View {
         .ignoresSafeArea(edges: .bottom)
         .navBarHidden(activeTaskMenu != nil)
         .onAppear {
+            AnalyticsService.shared.trackScreen("TaskDetail")
             sheetProgress = 0
             shakerRefreshId = UUID()
             viewModel.fetchCategoriesAndTasks()

@@ -309,6 +309,10 @@ class ChallengeService: ObservableObject {
             .eq("user_id", value: currentUserId)
             .execute()
 
+        AnalyticsService.shared.trackEvent("challenge_left",
+            screenName: "ChallengeDetail",
+            properties: ["challenge_id": challengeId.uuidString])
+
         guard ownerUserId.lowercased() == currentUserId.lowercased() else {
             return
         }

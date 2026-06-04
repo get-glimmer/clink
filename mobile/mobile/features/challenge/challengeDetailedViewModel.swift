@@ -353,6 +353,24 @@ final class ChallengeDetailViewModel: ObservableObject {
                         .execute()
                 }
             }
+
+            let completedCount = todayTasks.filter { $0.isCompleted }.count
+            if completedCount > 0 {
+                AnalyticsService.shared.trackEvent("challenge_task_completed",
+                    screenName: "ChallengeDetail",
+                    source: "submit",
+                    properties: ["challenge_id": challengeId.uuidString, "completed_count": completedCount])
+            }
+
+            // All of today's tasks done -> challenge completed for the day.
+            // Deduped per challenge + day so re-submits don't double-count.
+            if !todayTasks.isEmpty && completedCount == todayTasks.count {
+                AnalyticsService.shared.trackOnce("challenge_completed",
+                    dedupeKey: "challenge_completed_\(challengeId.uuidString)_\(today)",
+                    screenName: "ChallengeDetail",
+                    properties: ["challenge_id": challengeId.uuidString])
+            }
+
             // Optimistic local update for immediate jar/progress refresh.
             applyTodayCompletionOptimistically(userId: userId, date: today)
             buildUI()

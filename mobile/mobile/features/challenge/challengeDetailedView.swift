@@ -93,6 +93,10 @@ struct ChallengeDetailView: View {
         .task {
             await viewModel.load()
         }
+        .onAppear {
+            AnalyticsService.shared.trackScreen("ChallengeDetail")
+            AnalyticsService.shared.trackEvent("challenge_viewed", screenName: "ChallengeDetail")
+        }
         .onChange(of: viewModel.jarItems.count) { count in
             // Force remount only when jar should become empty.
             if count == 0 {

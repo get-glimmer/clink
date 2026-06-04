@@ -499,8 +499,12 @@ class UserSearchService: ObservableObject {
             .from("friends")
             .insert(friendRequest)
             .execute()
+
+        AnalyticsService.shared.trackEvent("friend_added",
+            screenName: "FriendList",
+            source: "search")
     }
-    
+
     // MARK: - Accept Friend Request
     func acceptFriendRequest(from userId: String) async throws {
         guard let supabase = supabase,
@@ -520,8 +524,12 @@ class UserSearchService: ObservableObject {
             .eq("user_id", value: userId)
             .eq("friend_id", value: currentUserId)
             .execute()
+
+        AnalyticsService.shared.trackEvent("invite_accepted",
+            screenName: "FriendList",
+            source: "friend_request")
     }
-    
+
     // MARK: - Decline Friend Request (delete pending relation)
     func declineFriendRequest(from userId: String) async throws {
         try await removeFriend(userId: userId)

@@ -46,12 +46,10 @@ struct TaskListView: View {
                 .padding(.bottom, keyboardHeight)
             }
             .onChange(of: focusedTaskId) { newValue in // auto-scroll to focused input
-                guard let id = newValue else { return }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                    withAnimation(.easeInOut(duration: keyboardAnimationDuration)) {
-                        proxy.scrollTo(id, anchor: .top)
-                    }
-                }
+                scrollToFocusedTask(proxy: proxy)
+            }
+            .onChange(of: keyboardHeight) { _ in // re-scroll once the keyboard height is known
+                scrollToFocusedTask(proxy: proxy)
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { note in
@@ -75,6 +73,21 @@ struct TaskListView: View {
             }
         }
         .scrollDismissesKeyboard(.interactively)
+    }
+
+    // Scrolls the focused task into a comfortable position above the keyboard.
+    // Runs on both focus changes and keyboard-height changes so the new-task
+    // field is brought into view even when the keyboard reports its size after
+    // the field appears (otherwise a near-bottom row stays hidden underneath it).
+    private func scrollToFocusedTask(proxy: ScrollViewProxy) {
+        guard let id = focusedTaskId else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            withAnimation(.easeInOut(duration: keyboardAnimationDuration)) {
+                // upper-third anchor keeps the row visible and roughly centered
+                // in the space remaining above the keyboard
+                proxy.scrollTo(id, anchor: UnitPoint(x: 0.5, y: 0.3))
+            }
+        }
     }
     
     // MARK: - Headers
@@ -266,6 +279,10 @@ struct TaskListView: View {
     private func taskMenuButton(for task: TaskListItem) -> some View {
         Button {
             activeTask = task
+            AnalyticsService.shared.trackEvent("task_opened",
+                screenName: "Home",
+                source: "task_menu",
+                properties: ["task_id": task.id.uuidString])
         } label: {
             Image(systemName: "ellipsis")
                 .foregroundColor(.primary)

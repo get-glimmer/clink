@@ -50,10 +50,10 @@ struct TaskMenuOverlay: View {
             ZStack(alignment: .bottom) {
                 // Standard repo modal backdrop: dark blur plus dim layer.
                 ZStack {
-                    DarkBlurView(style: .systemThinMaterialDark)
+                    DarkBlurView(style: .systemUltraThinMaterialDark)
                         .ignoresSafeArea()
 
-                    Color.black.opacity(0.35)
+                    Color.black.opacity(0)
                         .ignoresSafeArea()
                 }
                 .opacity(backdropVisible ? 1 : 0)

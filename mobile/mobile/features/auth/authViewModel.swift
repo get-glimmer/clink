@@ -308,6 +308,7 @@ class AuthViewModel: ObservableObject {
 
             await loadProfile()
             isAuthenticated = true
+            AnalyticsService.shared.trackEvent("sign_in_completed", source: "email")
             PushNotificationService.shared.requestPermissionAndRegister()
         } catch {
             isAuthenticated = false
@@ -345,6 +346,7 @@ class AuthViewModel: ObservableObject {
             // FinishSignupView to pick a username, which creates the profile.
             await loadProfile()
             isAuthenticated = true
+            AnalyticsService.shared.trackEvent("sign_in_completed", source: "apple")
             PushNotificationService.shared.requestPermissionAndRegister()
         } catch {
             isAuthenticated = false
@@ -379,6 +381,7 @@ class AuthViewModel: ObservableObject {
             // row yet; RootView routes them to FinishSignupView, which creates it.
             await loadProfile()
             isAuthenticated = true
+            AnalyticsService.shared.trackEvent("sign_in_completed", source: "google")
             PushNotificationService.shared.requestPermissionAndRegister()
         } catch {
             print("⚠️ Google sign-in failed: \(error)")

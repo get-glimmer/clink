@@ -88,6 +88,9 @@ struct FriendDetailView: View {
         .navigationBarHidden(true)
         // Buffer emoji drops while calendar is visible; replay when returning to shaker
         .onAppear {
+            AnalyticsService.shared.trackEvent("friend_profile_viewed",
+                screenName: "FriendList",
+                properties: ["friend_id": friend.userId])
             // Avoid multiple observers
             if emojiObserver == nil {
                 emojiObserver = NotificationCenter.default.addObserver(forName: .friendShakerEmojiReactionAdded, object: nil, queue: .main) { note in

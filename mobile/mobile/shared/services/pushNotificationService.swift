@@ -13,7 +13,11 @@ class PushNotificationService {
     private init() {}
 
     func requestPermissionAndRegister() {
+        AnalyticsService.shared.trackEvent("notification_permission_requested")
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, _ in
+            AnalyticsService.shared.trackEvent(
+                granted ? "notification_permission_granted" : "notification_permission_denied"
+            )
             guard granted else { return }
             DispatchQueue.main.async {
                 UIApplication.shared.registerForRemoteNotifications()

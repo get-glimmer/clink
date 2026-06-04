@@ -169,6 +169,15 @@ private final class ChallengeInvitationOverlayViewModel: ObservableObject {
                 .eq("id", value: invite.id.uuidString)
                 .execute()
 
+            AnalyticsService.shared.trackEvent("challenge_joined",
+                screenName: "ChallengeDetail",
+                source: "invite",
+                properties: ["challenge_id": invite.challengeId.uuidString])
+            AnalyticsService.shared.trackEvent("invite_accepted",
+                screenName: "ChallengeDetail",
+                source: "challenge_invite",
+                properties: ["challenge_id": invite.challengeId.uuidString])
+
             onJoined()
         } catch {
             let msg = error.localizedDescription

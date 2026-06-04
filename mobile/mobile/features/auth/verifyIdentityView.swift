@@ -85,6 +85,7 @@ struct VerifyIdentityView: View {
      * Starts the native Sign in with Apple flow.
      */
     private func startSignInWithApple() {
+        AnalyticsService.shared.trackEvent("sign_up_started", screenName: "SignUp", source: "apple")
         let raw = AppleNonce.random()
         authViewModel.appleRawNonce = raw
 
@@ -106,6 +107,7 @@ struct VerifyIdentityView: View {
      */
     @MainActor
     private func startSignInWithGoogle() async {
+        AnalyticsService.shared.trackEvent("sign_up_started", screenName: "SignUp", source: "google")
         guard let presenter = UIApplication.shared.connectedScenes
             .compactMap({ ($0 as? UIWindowScene)?.keyWindow?.rootViewController })
             .first else { return }

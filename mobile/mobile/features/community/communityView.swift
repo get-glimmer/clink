@@ -202,6 +202,9 @@ struct CommunityView: View {
         .task {
             await friendRequestRT.start()
         }
+        .onAppear {
+            AnalyticsService.shared.trackScreen("FriendList")
+        }
         .onReceive(NotificationCenter.default.publisher(for: .friendRequestsChanged)) { _ in
             // Refresh friends list to show a newly-accepted friend
             viewModel.refreshFriends()

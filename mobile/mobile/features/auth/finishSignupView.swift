@@ -306,6 +306,7 @@ struct FinishSignupView: View {
                                 affectAuthState: false
                             )
                             await authViewModel.loadProfile()
+                            AnalyticsService.shared.trackEvent("onboarding_completed", screenName: "Onboarding")
                             isLoading = false
                             return
                         }
@@ -331,6 +332,7 @@ struct FinishSignupView: View {
 
 
                             // 3) Tell user to verify email
+                            AnalyticsService.shared.trackEvent("sign_up_completed", screenName: "SignUp", source: "email")
                             showVerificationAlert = true
 
                         } catch {
@@ -393,6 +395,12 @@ struct FinishSignupView: View {
             }
         }
         .onAppear {
+            if isProfileCompletion {
+                AnalyticsService.shared.trackScreen("Onboarding")
+                AnalyticsService.shared.trackEvent("onboarding_started", screenName: "Onboarding")
+            } else {
+                AnalyticsService.shared.trackScreen("SignUp")
+            }
             // Prefill the name Apple provided on first sign-in.
             if isProfileCompletion, fullName.isEmpty, let n = authViewModel.tempFullName {
                 fullName = n
