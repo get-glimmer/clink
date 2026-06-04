@@ -224,6 +224,14 @@ struct TaskView: View {
                 }
             }
             .animation(.easeInOut, value: scale)
+            // Collapsing the sheet (tapping above it / dragging it down so the
+            // shaker grows back) also discards the in-progress new task.
+            .onChange(of: sheetProgress) { newValue in
+                if newValue < 0.05 && viewModel.hasTemporaryTask {
+                    viewModel.cancelTemporaryTasks()
+                    dismissKeyboard()
+                }
+            }
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { note in
                 guard
                     let userInfo = note.userInfo,
