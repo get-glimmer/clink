@@ -576,6 +576,11 @@ class TaskListViewModel: ObservableObject {
     }
 
     // MARK: - create task
+    // True while a new (unsaved) task row is being edited.
+    var hasTemporaryTask: Bool {
+        categoriesWithTasks.contains { $0.tasks.contains(where: { $0.isTemporary }) }
+    }
+
     func createTemporaryTask(categoryId: UUID) {
         // Create a temporary task locally without server communication
         let temporaryTask = TaskListItem(
@@ -597,24 +602,29 @@ class TaskListViewModel: ObservableObject {
         updateAllCompleted()
     }
     
-    func saveTemporaryTask(task: TaskListItem, newTitle: String, isPrivate: Bool) async {
+    // Returns the category that currently holds the given task, if any.
+    func categoryId(forTaskId id: UUID) -> UUID? {
+        for cat in categoriesWithTasks where cat.tasks.contains(where: { $0.id == id }) {
+            return cat.category.id
+        }
+        return nil
+    }
+
+    // Removes every in-progress temporary task (used when the user taps out /
+    // dismisses the keyboard without submitting — discard what was being typed).
+    func cancelTemporaryTasks() {
+        for catIdx in categoriesWithTasks.indices {
+            categoriesWithTasks[catIdx].tasks.removeAll { $0.isTemporary }
+        }
+        updateAllCompleted()
+    }
+
+    // categoryId is resolved by the caller before the temporary row is removed,
+    // so saving no longer depends on the temp task still being in the list.
+    func saveTemporaryTask(categoryId: UUID, newTitle: String, isPrivate: Bool) async {
         guard let client = self.client else { return }
         guard let userId = self.userId else { return }
-        guard task.isTemporary else { return }
-        
-        // Find the category this task belongs to
-        var categoryId: UUID?
-        var categoryEmoji: String? = nil
-        for cat in categoriesWithTasks {
-            if cat.tasks.contains(where: { $0.id == task.id }) {
-                categoryId = cat.category.id
-                categoryEmoji = cat.category.emoji
-                break
-            }
-        }
-        
-        guard let categoryId = categoryId else { return }
-        
+
         do {
             // Save to server using the target date
             try await client.from("task").insert([
