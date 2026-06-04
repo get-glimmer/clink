@@ -99,6 +99,13 @@
 			);
 			target = B46B467F2F9012D800A809EC /* GlimmerWidgetExtension */;
 		};
+		B4AA0A4F2FCC8410002CBCB1 /* Exceptions for "mobile" folder in "GlimmerWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"GoogleService-Info.plist",
+			);
+			target = B46B467F2F9012D800A809EC /* GlimmerWidgetExtension */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -113,6 +120,7 @@
 				347454952E5B02AD00589856 /* Exceptions for "mobile" folder in "mobile" target */,
 				21F3E0DC2E946D6F00FA833D /* Exceptions for "mobile" folder in "mobileTests" target */,
 				21F3E0DD2E946D6F00FA833D /* Exceptions for "mobile" folder in "mobileUITests" target */,
+				B4AA0A4F2FCC8410002CBCB1 /* Exceptions for "mobile" folder in "GlimmerWidgetExtension" target */,
 			);
 			path = mobile;
 			sourceTree = "<group>";
@@ -361,6 +369,7 @@
 				B45C9A302E14D95C00E01F99 /* XCRemoteSwiftPackageReference "supabase-swift" */,
 				3474523E2E558BC800589856 /* XCRemoteSwiftPackageReference "MCEmojiPicker" */,
 				B4AA9CED2FC37C8100344F40 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
+				B4AA0A512FCC8B0E002CBCB1 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = B443470D2DFD212E00644724 /* Products */;
@@ -850,6 +859,14 @@
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 2.5.1;
+			};
+		};
+		B4AA0A512FCC8B0E002CBCB1 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.14.0;
 			};
 		};
 		B4AA9CED2FC37C8100344F40 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
