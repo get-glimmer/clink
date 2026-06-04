@@ -324,8 +324,11 @@ class TaskListViewModel: ObservableObject {
                     result.append(CategoryWithTasks(id: category.id, category: category, tasks: tasks))
                 }
 
+                // Apply the user's saved manual ordering before publishing
+                let orderedResult = applySavedCategoryOrder(result)
+
                 await MainActor.run {
-                    self.categoriesWithTasks = result
+                    self.categoriesWithTasks = orderedResult
                     self.updateAllCompleted()
                 }
 
@@ -925,7 +928,49 @@ class TaskListViewModel: ObservableObject {
         }
     }
 
-    // MARK: - reorder categories (local only)
+    // MARK: - category order persistence (UserDefaults)
+    // We persist the user's manual ordering of categories locally so it survives
+    // app restarts. The server has no "order" column, so we store the ordered list
+    // of category UUIDs keyed by the owner's userId.
+    private var categoryOrderKey: String? {
+        guard let userId = self.userId else { return nil }
+        return "categoryOrder_\(userId)"
+    }
+
+    private func savedCategoryOrder() -> [UUID] {
+        guard let key = categoryOrderKey,
+              let stored = UserDefaults.standard.array(forKey: key) as? [String]
+        else { return [] }
+        return stored.compactMap { UUID(uuidString: $0) }
+    }
+
+    private func persistCategoryOrder() {
+        guard let key = categoryOrderKey else { return }
+        let ids = categoriesWithTasks.map { $0.category.id.uuidString }
+        UserDefaults.standard.set(ids, forKey: key)
+    }
+
+    /// Reorders the fetched categories to match the saved manual order.
+    /// Categories present in the saved order come first (in that order); any
+    /// categories not yet in the saved order (e.g. newly created) are appended
+    /// afterwards in their original (createdat) order.
+    private func applySavedCategoryOrder(_ items: [CategoryWithTasks]) -> [CategoryWithTasks] {
+        let order = savedCategoryOrder()
+        guard !order.isEmpty else { return items }
+        let rank = Dictionary(uniqueKeysWithValues: order.enumerated().map { ($1, $0) })
+        return items.enumerated().sorted { lhs, rhs in
+            let lRank = rank[lhs.element.category.id]
+            let rRank = rank[rhs.element.category.id]
+            switch (lRank, rRank) {
+            case let (l?, r?): return l < r
+            case (_?, nil):    return true   // known order comes before unknown
+            case (nil, _?):    return false
+            case (nil, nil):   return lhs.offset < rhs.offset // preserve fetch order
+            }
+        }.map { $0.element }
+    }
+
+    // MARK: - reorder categories (persisted locally)
     func moveCategoriesWithinType(_ type: CategoryType, from source: IndexSet, to destination: Int) {
         // 1. Collect original indices of categories that match the given type
         let matchingOriginalIndices: [Int] = categoriesWithTasks.enumerated()
@@ -953,6 +998,9 @@ class TaskListViewModel: ObservableObject {
 
         // 4. Move on the original array
         categoriesWithTasks.move(fromOffsets: fromOffsetsInOriginal, toOffset: toOffsetInOriginal)
+
+        // 5. Persist the new ordering locally so it survives app restarts
+        persistCategoryOrder()
     }
     
     // MARK: - move task into another category

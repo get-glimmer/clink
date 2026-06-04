@@ -7,6 +7,7 @@ struct TaskMenuOverlay: View {
 
     @State private var backdropVisible = false
     @State private var sheetVisible = false
+    @State private var sheetLift: CGFloat = 0
 
     private var holder: CategoryWithTasks? {
         viewModel.categoriesWithTasks.first { $0.tasks.contains { $0.id == task.id } }
@@ -49,10 +50,10 @@ struct TaskMenuOverlay: View {
             ZStack(alignment: .bottom) {
                 // Standard repo modal backdrop: dark blur plus dim layer.
                 ZStack {
-                    DarkBlurView(style: .systemChromeMaterialDark)
+                    DarkBlurView(style: .systemThinMaterialDark)
                         .ignoresSafeArea()
 
-                    Color.black.opacity(0.7)
+                    Color.black.opacity(0.35)
                         .ignoresSafeArea()
                 }
                 .opacity(backdropVisible ? 1 : 0)
@@ -100,7 +101,7 @@ struct TaskMenuOverlay: View {
                     baseRoutineCategory: holder?.category
                 )
                 .frame(width: sheetWidth, height: sheetHeight)
-                .offset(x: -horizontalOverflow / 2, y: sheetVisible ? 0 : sheetHeight)
+                .offset(x: -horizontalOverflow / 2, y: sheetVisible ? -sheetLift : sheetHeight)
                 .ignoresSafeArea(edges: .bottom)
             }
             .ignoresSafeArea()
@@ -110,6 +111,24 @@ struct TaskMenuOverlay: View {
                 }
                 withAnimation(.spring(response: 0.34, dampingFraction: 0.92)) {
                     sheetVisible = true
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { notification in
+                guard let frame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return }
+                // Distance from the sheet's top edge down to the bottom of the title field
+                // (grabber top padding + grabber + header top padding + title field height),
+                // plus a small margin so the field sits clearly above the keyboard.
+                let titleFieldBottomInset: CGFloat = 70
+                let margin: CGFloat = 12
+                // Lift only enough for the title field to clear the keyboard's top edge.
+                let lift = max(0, frame.height + titleFieldBottomInset + margin - sheetHeight)
+                withAnimation(.easeOut(duration: 0.25)) {
+                    sheetLift = lift
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    sheetLift = 0
                 }
             }
         }
