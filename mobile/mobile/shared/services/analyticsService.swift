@@ -28,6 +28,10 @@ final class AnalyticsService {
     /// Last screen the user viewed, sent as `previous_screen`.
     private var previousScreen: String?
 
+    /// Start time of the current foreground session, used to compute
+    /// `session_duration_seconds` when the app is backgrounded.
+    private var sessionStartedAt: Date = Date()
+
     private init() {
         let key = "analytics_anonymous_id"
         if let existing = UserDefaults.standard.string(forKey: key) {
@@ -70,6 +74,32 @@ final class AnalyticsService {
                 properties: properties
             )
         }
+    }
+
+    /// Convenience for button taps: fires a single canonical `button_tapped`
+    /// event so all button usage lands in one queryable bucket. Identify the
+    /// control with `buttonId` (e.g. "add_task_fab", "tab_community", "logout").
+    func trackButtonTap(
+        _ buttonId: String,
+        screenName: String? = nil,
+        properties: [String: Any] = [:]
+    ) {
+        var props = properties
+        props["button_id"] = buttonId
+        trackEvent("button_tapped", screenName: screenName, source: "button", properties: props)
+    }
+
+    // MARK: - Session lifecycle
+
+    /// Marks the beginning of a foreground session. Call when the app enters the
+    /// foreground (cold launch or resume) so session duration can be measured.
+    func startSession() {
+        sessionStartedAt = Date()
+    }
+
+    /// Seconds since the current session began.
+    var currentSessionDuration: Int {
+        Int(Date().timeIntervalSince(sessionStartedAt))
     }
 
     /// Convenience for screen entries: sends `screen_viewed` with the screen

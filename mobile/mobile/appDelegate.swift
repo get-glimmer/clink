@@ -14,6 +14,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         UIApplication.shared.applicationIconBadgeNumber = 0
 
         // First lifecycle events (pre-login => Firebase only)
+        AnalyticsService.shared.startSession()
         AnalyticsService.shared.trackEvent("app_opened")
         AnalyticsService.shared.trackEvent("session_started")
         return true

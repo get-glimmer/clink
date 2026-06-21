@@ -73,7 +73,11 @@ class AuthViewModel: ObservableObject {
         await checkSession()
         if isAuthenticated {
             await loadProfile()
-            PushNotificationService.shared.requestPermissionAndRegister()
+            // device_tokens / notification_preferences FK to profiles(id), so we can
+            // only register once the profile row exists. Skip if onboarding is incomplete.
+            if !needsProfileSetup {
+                PushNotificationService.shared.requestPermissionAndRegister()
+            }
         }
         isAppReady = true
     }
@@ -309,10 +313,13 @@ class AuthViewModel: ObservableObject {
             await loadProfile()
             isAuthenticated = true
             AnalyticsService.shared.trackEvent("sign_in_completed", source: "email")
-            PushNotificationService.shared.requestPermissionAndRegister()
+            if !needsProfileSetup {
+                PushNotificationService.shared.requestPermissionAndRegister()
+            }
         } catch {
             isAuthenticated = false
             errorMessage = "Invalid email or password"
+            AnalyticsService.shared.trackEvent("sign_in_failed", source: "email")
         }
     }
 
@@ -347,10 +354,15 @@ class AuthViewModel: ObservableObject {
             await loadProfile()
             isAuthenticated = true
             AnalyticsService.shared.trackEvent("sign_in_completed", source: "apple")
-            PushNotificationService.shared.requestPermissionAndRegister()
+            // New OAuth users have no profile row yet (routed to FinishSignupView);
+            // registration happens there after the profile is created. See initializeApp.
+            if !needsProfileSetup {
+                PushNotificationService.shared.requestPermissionAndRegister()
+            }
         } catch {
             isAuthenticated = false
             errorMessage = "Apple sign-in failed"
+            AnalyticsService.shared.trackEvent("sign_in_failed", source: "apple")
         }
     }
 
@@ -382,11 +394,16 @@ class AuthViewModel: ObservableObject {
             await loadProfile()
             isAuthenticated = true
             AnalyticsService.shared.trackEvent("sign_in_completed", source: "google")
-            PushNotificationService.shared.requestPermissionAndRegister()
+            // New OAuth users have no profile row yet (routed to FinishSignupView);
+            // registration happens there after the profile is created. See initializeApp.
+            if !needsProfileSetup {
+                PushNotificationService.shared.requestPermissionAndRegister()
+            }
         } catch {
             print("⚠️ Google sign-in failed: \(error)")
             isAuthenticated = false
             errorMessage = "Google sign-in failed"
+            AnalyticsService.shared.trackEvent("sign_in_failed", source: "google")
         }
     }
 
@@ -424,6 +441,8 @@ class AuthViewModel: ObservableObject {
     func logout() async {
         guard let client = self.client else { return }
         do {
+            // Fire before signOut so the Supabase user_events insert still has a session.
+            AnalyticsService.shared.trackEvent("sign_out")
             await PushNotificationService.shared.removeDeviceToken()
             try await client.auth.signOut()
             isAuthenticated = false
@@ -441,6 +460,9 @@ class AuthViewModel: ObservableObject {
         guard let client = self.client else { return }
         
         do {
+            // Fire before the account (and its session) are torn down so the
+            // Supabase user_events insert still authenticates. Strongest churn signal.
+            AnalyticsService.shared.trackEvent("account_deleted")
             _ = try await client.functions.invoke("delete-user-rpc")
 
             isAuthenticated = false

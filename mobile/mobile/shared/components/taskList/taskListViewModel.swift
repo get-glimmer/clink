@@ -649,10 +649,13 @@ class TaskListViewModel: ObservableObject {
             
         } catch {
             // Keep the temporary task if save failed
+            AnalyticsService.shared.trackEvent("task_create_failed",
+                screenName: "Home",
+                properties: ["category_id": categoryId.uuidString])
         }
-        
+
     }
-    
+
     // MARK: - update task title
     func updateTaskTitle(taskId: UUID, newTitle: String) async {
         guard let client = self.client, let userId = self.userId else { return }

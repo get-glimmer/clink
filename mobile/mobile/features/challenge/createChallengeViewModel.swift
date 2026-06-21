@@ -216,6 +216,8 @@ class CreateChallengeViewModel: ObservableObject {
                 print("⛔️ createChallenge error: \(error)")
             }
             errorMessage = "Failed to create challenge: \(error.localizedDescription)"
+            AnalyticsService.shared.trackEvent("challenge_create_failed",
+                screenName: "ChallengeDetail")
         }
 
         isLoading = false

@@ -188,6 +188,8 @@ struct TaskListView: View {
     
     private func addTaskButton(for categoryId: UUID) -> some View {
         Button(action: {
+            AnalyticsService.shared.trackButtonTap("add_task", screenName: "Home",
+                properties: ["category_id": categoryId.uuidString])
             viewModel.createTemporaryTask(categoryId: categoryId)
         }) {
             Image(systemName: "plus")
