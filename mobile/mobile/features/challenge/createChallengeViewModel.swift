@@ -190,7 +190,16 @@ class CreateChallengeViewModel: ObservableObject {
                     .from("challenge_invites")
                     .insert(invite)
                     .execute()
+
+                AnalyticsService.shared.trackEvent("invite_sent",
+                    screenName: "ChallengeDetail",
+                    source: "challenge_create",
+                    properties: ["challenge_id": inserted.id.uuidString])
             }
+
+            AnalyticsService.shared.trackEvent("challenge_created",
+                screenName: "ChallengeDetail",
+                properties: ["challenge_id": inserted.id.uuidString])
 
             completeCreation()
 
@@ -207,6 +216,8 @@ class CreateChallengeViewModel: ObservableObject {
                 print("⛔️ createChallenge error: \(error)")
             }
             errorMessage = "Failed to create challenge: \(error.localizedDescription)"
+            AnalyticsService.shared.trackEvent("challenge_create_failed",
+                screenName: "ChallengeDetail")
         }
 
         isLoading = false

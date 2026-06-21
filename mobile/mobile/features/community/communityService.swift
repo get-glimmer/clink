@@ -811,6 +811,14 @@ class CommunityService: ObservableObject {
         // If both are empty/nil, nothing to submit
         if normalizedText.isEmpty && normalizedEmoji == nil { return }
 
+        // Analytics: never log note/message content — only the type of reaction.
+        if !normalizedText.isEmpty {
+            AnalyticsService.shared.trackEvent("friend_note_sent", screenName: "FriendList")
+        }
+        if normalizedEmoji != nil {
+            AnalyticsService.shared.trackEvent("emoji_reacted", screenName: "FriendList")
+        }
+
         // Encodable payloads to satisfy Postgrest API
         struct NoteUpdatePayload: Encodable {
             let note_content: String

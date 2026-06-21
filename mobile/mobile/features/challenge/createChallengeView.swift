@@ -521,6 +521,7 @@ struct CreateChallengeView: View {
     // MARK: - Continue button (navigates to Emoji Setup)
     private var createButton: some View {
         Button {
+            AnalyticsService.shared.trackButtonTap("challenge_create_continue", screenName: "CreateChallenge")
             showEmojiSetup = true
         } label: {
             Text("Continue")

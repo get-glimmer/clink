@@ -15,6 +15,7 @@ struct BottomSheet<Content: View>: View {
     let minHeight: CGFloat          // collapsed height
     let maxHeight: CGFloat          // fully-expanded height
     @Binding var progress: CGFloat  // 0 (collapsed) → 1 (expanded)
+    var expand: Bool = false        // when true, programmatically snap to expanded (e.g. keyboard shown)
 
     @ViewBuilder var content: () -> Content
 
@@ -116,6 +117,15 @@ struct BottomSheet<Content: View>: View {
             .onAppear {
                 currentHeight = collapsed
                 progress = 0
+            }
+            // Programmatic expand (e.g. when the keyboard appears so the editing
+            // area has room and the shaker shrinks out of the way).
+            .onChange(of: expand) { shouldExpand in
+                guard shouldExpand, currentHeight < expanded - epsilon else { return }
+                withAnimation(snapUpAnimation) {
+                    currentHeight = expanded
+                    progress = 1
+                }
             }
         }
         .ignoresSafeArea(edges: .bottom)

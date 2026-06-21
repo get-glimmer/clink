@@ -129,6 +129,7 @@ struct SettingsView: View {
                         Divider()
                         
                         Button {
+                            AnalyticsService.shared.trackButtonTap("privacy_policy", screenName: "Settings")
                             if let url = URL(string: "https://clink.framer.website/legal-terms/privacy-policy") {
                                 UIApplication.shared.open(url)
                             }
@@ -165,6 +166,7 @@ struct SettingsView: View {
                         Divider()
                         
                         Button {
+                            AnalyticsService.shared.trackButtonTap("terms_of_service", screenName: "Settings")
                             if let url = URL(string: "https://clink.framer.website/legal-terms/terms-and-conditions") {
                                 UIApplication.shared.open(url)
                             }
@@ -186,6 +188,7 @@ struct SettingsView: View {
                         Divider()
                         
                         Button {
+                            AnalyticsService.shared.trackButtonTap("support", screenName: "Settings")
                             if let url = URL(string: "https://clink.framer.website/support") {
                                 UIApplication.shared.open(url)
                             }
@@ -275,10 +278,22 @@ struct SettingsView: View {
         }
         .navBarHidden(true)
         .task { await loadPrefs() }
-        .onChange(of: notifChallenge) { _, _ in saveIfLoaded() }
-        .onChange(of: notifTasks)     { _, _ in saveIfLoaded() }
-        .onChange(of: notifCommunity) { _, _ in saveIfLoaded() }
-        .onChange(of: notifGeneral)   { _, _ in saveIfLoaded() }
+        .onChange(of: notifChallenge) { _, v in onPrefChanged("challenge", enabled: v) }
+        .onChange(of: notifTasks)     { _, v in onPrefChanged("tasks", enabled: v) }
+        .onChange(of: notifCommunity) { _, v in onPrefChanged("community", enabled: v) }
+        .onChange(of: notifGeneral)   { _, v in onPrefChanged("general", enabled: v) }
+    }
+
+    /// Persists the change and, once initial prefs have loaded (so we don't fire
+    /// on the load-time assignment), logs which preference toggled.
+    private func onPrefChanged(_ preference: String, enabled: Bool) {
+        guard prefsLoaded else { return }
+        AnalyticsService.shared.trackEvent(
+            "notification_preference_changed",
+            screenName: "Settings",
+            properties: ["preference": preference, "enabled": enabled]
+        )
+        Task { await savePrefs() }
     }
 
     private struct NotifPrefsRow: Codable {
@@ -311,11 +326,6 @@ struct SettingsView: View {
             print("notif prefs load error:", error.localizedDescription)
         }
         prefsLoaded = true
-    }
-
-    private func saveIfLoaded() {
-        guard prefsLoaded else { return }
-        Task { await savePrefs() }
     }
 
     private func savePrefs() async {

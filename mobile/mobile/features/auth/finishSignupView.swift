@@ -306,6 +306,11 @@ struct FinishSignupView: View {
                                 affectAuthState: false
                             )
                             await authViewModel.loadProfile()
+                            // Profile row now exists, so device_tokens / notification_preferences
+                            // (which FK to profiles) can be written. Register for push here rather
+                            // than at sign-in, which runs before the profile is created.
+                            PushNotificationService.shared.requestPermissionAndRegister()
+                            AnalyticsService.shared.trackEvent("onboarding_completed", screenName: "Onboarding")
                             isLoading = false
                             return
                         }
@@ -331,18 +336,26 @@ struct FinishSignupView: View {
 
 
                             // 3) Tell user to verify email
+                            AnalyticsService.shared.trackEvent("sign_up_completed", screenName: "SignUp", source: "email")
                             showVerificationAlert = true
 
                         } catch {
                             print("❌ Signup failed: \(error)")
                             let text = "\(error)".lowercased()
+                            let reason: String
                             if text.contains("over_email_send_rate_limit") || text.contains("rate limit") {
                                 signupErrorMessage = "Too many sign-up attempts. Please wait a little while and try again."
+                                reason = "rate_limit"
                             } else if text.contains("already registered") || text.contains("user_already_exists") {
                                 signupErrorMessage = "An account with this email already exists. Try logging in instead."
+                                reason = "already_exists"
                             } else {
                                 signupErrorMessage = error.localizedDescription
+                                reason = "other"
                             }
+                            AnalyticsService.shared.trackEvent("sign_up_failed",
+                                screenName: "SignUp", source: "email",
+                                properties: ["reason": reason])
                         }
 
                         isLoading = false
@@ -393,6 +406,12 @@ struct FinishSignupView: View {
             }
         }
         .onAppear {
+            if isProfileCompletion {
+                AnalyticsService.shared.trackScreen("Onboarding")
+                AnalyticsService.shared.trackEvent("onboarding_started", screenName: "Onboarding")
+            } else {
+                AnalyticsService.shared.trackScreen("SignUp")
+            }
             // Prefill the name Apple provided on first sign-in.
             if isProfileCompletion, fullName.isEmpty, let n = authViewModel.tempFullName {
                 fullName = n

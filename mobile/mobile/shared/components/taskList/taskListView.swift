@@ -35,22 +35,34 @@ struct TaskListView: View {
     
     // MARK: - Main View
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    dailyTaskHeader
-                    dailyCategoriesSection
-                    archivedTaskHeader
-                    archivedCategoriesSection
-                }
-                .padding(.bottom, keyboardHeight)
-            }
-            .onChange(of: focusedTaskId) { newValue in // auto-scroll to focused input
-                guard let id = newValue else { return }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                    withAnimation(.easeInOut(duration: keyboardAnimationDuration)) {
-                        proxy.scrollTo(id, anchor: .top)
+        GeometryReader { geo in
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        dailyTaskHeader
+                        dailyCategoriesSection
+                        archivedTaskHeader
+                        archivedCategoriesSection
                     }
+                    .padding(.bottom, 120) // breathing room at end of list (sheet itself lifts for the keyboard)
+                    // Fill the viewport so empty space below the list is still
+                    // tappable, and make any tap on that empty space cancel the
+                    // in-progress new task (rows / the temp field keep their own
+                    // gestures, so tapping them is unaffected).
+                    .frame(minHeight: geo.size.height, alignment: .top)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        if viewModel.hasTemporaryTask {
+                            viewModel.cancelTemporaryTasks()
+                            focusedTaskId = nil
+                        }
+                    }
+                }
+                .onChange(of: focusedTaskId) { newValue in // auto-scroll to focused input
+                    scrollToFocusedTask(proxy: proxy)
+                }
+                .onChange(of: keyboardHeight) { _ in // re-scroll once the keyboard height is known
+                    scrollToFocusedTask(proxy: proxy)
                 }
             }
         }
@@ -75,6 +87,27 @@ struct TaskListView: View {
             }
         }
         .scrollDismissesKeyboard(.interactively)
+    }
+
+    // Scrolls the focused task into a comfortable position above the keyboard.
+    // Runs on both focus changes and keyboard-height changes so the new-task
+    // field is brought into view even when the keyboard reports its size after
+    // the field appears (otherwise a near-bottom row stays hidden underneath it).
+    private func scrollToFocusedTask(proxy: ScrollViewProxy) {
+        guard let id = focusedTaskId else { return }
+        // Scroll twice: once immediately, then again after the sheet's
+        // expand animation settles (the sheet grows over ~0.7s as the shaker
+        // shrinks, which shifts the row's final resting position).
+        for delay in [0.05, 0.55] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                guard focusedTaskId == id else { return }
+                withAnimation(.easeInOut(duration: keyboardAnimationDuration)) {
+                    // upper-third anchor keeps the row visible and roughly centered
+                    // in the space remaining above the keyboard
+                    proxy.scrollTo(id, anchor: UnitPoint(x: 0.5, y: 0.3))
+                }
+            }
+        }
     }
     
     // MARK: - Headers
@@ -155,6 +188,8 @@ struct TaskListView: View {
     
     private func addTaskButton(for categoryId: UUID) -> some View {
         Button(action: {
+            AnalyticsService.shared.trackButtonTap("add_task", screenName: "Home",
+                properties: ["category_id": categoryId.uuidString])
             viewModel.createTemporaryTask(categoryId: categoryId)
         }) {
             Image(systemName: "plus")
@@ -162,6 +197,9 @@ struct TaskListView: View {
                 .frame(width: 27, height: 27)
                 .foregroundColor(.primary)
         }
+        // Only one new task may be created at a time.
+        .disabled(viewModel.hasTemporaryTask)
+        .opacity(viewModel.hasTemporaryTask ? 0.3 : 1)
     }
     
     private func tasksSection(for categoryWithTasks: CategoryWithTasks) -> some View {
@@ -195,10 +233,16 @@ struct TaskListView: View {
         }
         .contentShape(Rectangle())
         .onTapGesture {
-            focusedTaskId = nil
+            if task.isTemporary {
+                focusedTaskId = task.id // keep editing the new task
+            } else {
+                // Tapping a different (real) row discards the in-progress new task.
+                viewModel.cancelTemporaryTasks()
+                focusedTaskId = nil
+            }
         }
     }
-    
+
     private func taskCheckbox(for task: TaskListItem) -> some View {
         Button(action: {
             if !task.isTemporary {
@@ -266,6 +310,10 @@ struct TaskListView: View {
     private func taskMenuButton(for task: TaskListItem) -> some View {
         Button {
             activeTask = task
+            AnalyticsService.shared.trackEvent("task_opened",
+                screenName: "Home",
+                source: "task_menu",
+                properties: ["task_id": task.id.uuidString])
         } label: {
             Image(systemName: "ellipsis")
                 .foregroundColor(.primary)
@@ -287,16 +335,20 @@ struct TaskListView: View {
     }
     
     private func handleTaskSubmit(task: TaskListItem) {
-        let text = editingTexts[task.id] ?? ""
-        if !text.isEmpty {
+        let text = (editingTexts[task.id] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        if !text.isEmpty, let categoryId = viewModel.categoryId(forTaskId: task.id) {
             let isPrivate = editingPrivacyOn[task.id] ?? false // default unlocked
+            // Remove the temp row up front so the tap-out cancel (which also
+            // fires when the keyboard dismisses) can't race with the save.
+            viewModel.removeTemporaryTask(task: task)
             Task {
-                await viewModel.saveTemporaryTask(task: task, newTitle: text, isPrivate: isPrivate)
+                await viewModel.saveTemporaryTask(categoryId: categoryId, newTitle: text, isPrivate: isPrivate)
             }
         } else {
             viewModel.removeTemporaryTask(task: task)
         }
         editingTexts.removeValue(forKey: task.id)
+        editingPrivacyOn.removeValue(forKey: task.id)
         focusedTaskId = nil
     }
 }

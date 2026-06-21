@@ -179,6 +179,7 @@ struct TrackerView: View {
                         .padding(.bottom, 86)
                 }
                 .onAppear {
+                    AnalyticsService.shared.trackScreen("Home")
                     taskListViewModel.fetchCategoriesAndTasks()
                 }
             }

@@ -158,6 +158,9 @@ struct CategoriesSheet: View {
                 }
             )
         }
+        .onAppear {
+            AnalyticsService.shared.trackScreen("CategoryList")
+        }
 
     }
     

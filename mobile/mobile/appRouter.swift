@@ -77,6 +77,9 @@ struct CustomNavBar: View {
     @ViewBuilder
     private func navItem(_ tab: AppRouter.Tab, imageName: String) -> some View {
         Button {
+            if selectedTab != tab {
+                AnalyticsService.shared.trackButtonTap("tab_\(imageName)")
+            }
             selectedTab = tab
         } label: {
             Image(imageName)

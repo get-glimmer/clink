@@ -6,6 +6,10 @@ struct TaskView: View {
     @StateObject private var trackerViewModel: TrackerViewModel
     @State private var shakerRefreshId = UUID()
     @State private var sheetProgress: CGFloat = 0
+
+    // keyboard lift: how much the sheet must rise so the typing area clears the keyboard
+    @State private var keyboardHeight: CGFloat = 0
+    @State private var keyboardAnimationDuration: Double = 0.25
     @State private var showingNotesPopup: Bool = false
     @State private var showingStickyNotes: Bool = true
     
@@ -185,23 +189,63 @@ struct TaskView: View {
                 BottomSheet(
                     minHeight: minSheetHeight,
                     maxHeight: maxSheetHeight,
-                    progress: $sheetProgress
+                    progress: $sheetProgress,
+                    expand: keyboardHeight > 0
                 ) {
                     // --Task List Content--
                     if viewModel.isInitialLoadingCategoriesAndTasks {
                         Color.clear
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else {
-                        ScrollView {
-                            TaskListView(taskSelectedDate: $selectedDate, viewModel: viewModel, activeTask: $activeTaskMenu)
-                                .padding(.bottom, 120)
-                                //.padding(.top, -6) // for grabber hit area
-                        }
-                        .coordinateSpace(name: "BottomSheetScroll")
+                        // TaskListView is itself a ScrollView, so it must NOT be
+                        // wrapped in another ScrollView — nested scroll views make
+                        // the inner scrollTo a no-op (the outer one does the
+                        // scrolling), which is why the focused field never moved.
+                        TaskListView(taskSelectedDate: $selectedDate, viewModel: viewModel, activeTask: $activeTaskMenu)
                     }
+                }
+                // Lift the whole sheet above the keyboard so the new-task field
+                // (which lives near the sheet's bottom) is never hidden underneath it.
+                .offset(y: -keyboardHeight)
+                .animation(.easeInOut(duration: keyboardAnimationDuration), value: keyboardHeight)
+
+                // While editing a new task, tapping the area above the sheet
+                // (the shaker / empty space) dismisses the keyboard, which in
+                // turn discards the in-progress task via cancelTemporaryTasks().
+                if keyboardHeight > 0 {
+                    Color.clear
+                        .frame(height: max(0, screenHeight - maxSheetHeight - keyboardHeight))
+                        .frame(maxWidth: .infinity)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            viewModel.cancelTemporaryTasks()
+                            dismissKeyboard()
+                        }
                 }
             }
             .animation(.easeInOut, value: scale)
+            // Collapsing the sheet (tapping above it / dragging it down so the
+            // shaker grows back) also discards the in-progress new task.
+            .onChange(of: sheetProgress) { newValue in
+                if newValue < 0.05 && viewModel.hasTemporaryTask {
+                    viewModel.cancelTemporaryTasks()
+                    dismissKeyboard()
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { note in
+                guard
+                    let userInfo = note.userInfo,
+                    let endFrame = (userInfo[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue,
+                    let duration = userInfo[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double
+                else { return }
+                keyboardAnimationDuration = duration
+                let screen = UIScreen.main.bounds
+                keyboardHeight = max(0, screen.maxY - endFrame.minY)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { note in
+                keyboardAnimationDuration = (note.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double) ?? 0.25
+                keyboardHeight = 0
+            }
             //MARK: - "Options" popup
             .overlay(alignment: .topTrailing) {
                 if showOptionsSheet {
@@ -216,6 +260,9 @@ struct TaskView: View {
                         onTapCategories: {
                             showOptionsSheet = false
                             showCategoriesSheet = true
+                            AnalyticsService.shared.trackEvent("category_opened",
+                                screenName: "TaskDetail",
+                                source: "options_sheet")
                         },
 
                         onTapAddCategory: {
@@ -247,6 +294,7 @@ struct TaskView: View {
         .ignoresSafeArea(edges: .bottom)
         .navBarHidden(activeTaskMenu != nil)
         .onAppear {
+            AnalyticsService.shared.trackScreen("TaskDetail")
             sheetProgress = 0
             shakerRefreshId = UUID()
             viewModel.fetchCategoriesAndTasks()
@@ -324,6 +372,10 @@ struct TaskView: View {
             )
             .id(selectedNoteId ?? UUID())
         }
+    }
+
+    private func dismissKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 }
 //#Preview {TaskView()}

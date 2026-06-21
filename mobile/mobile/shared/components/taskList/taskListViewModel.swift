@@ -324,8 +324,11 @@ class TaskListViewModel: ObservableObject {
                     result.append(CategoryWithTasks(id: category.id, category: category, tasks: tasks))
                 }
 
+                // Apply the user's saved manual ordering before publishing
+                let orderedResult = applySavedCategoryOrder(result)
+
                 await MainActor.run {
-                    self.categoriesWithTasks = result
+                    self.categoriesWithTasks = orderedResult
                     self.updateAllCompleted()
                 }
 
@@ -437,6 +440,16 @@ class TaskListViewModel: ObservableObject {
                 .eq("taskid", value: task.id)
                 .eq("userid", value: userId)
                 .execute()
+
+            if task.isCompleted {
+                AnalyticsService.shared.trackEvent("task_completed",
+                    screenName: "Home",
+                    source: "checkbox",
+                    properties: ["task_id": task.id.uuidString])
+                AnalyticsService.shared.trackOnce("starter_task_completed",
+                    screenName: "Home",
+                    properties: ["task_id": task.id.uuidString])
+            }
 
             updateAllCompleted()
 
@@ -563,6 +576,11 @@ class TaskListViewModel: ObservableObject {
     }
 
     // MARK: - create task
+    // True while a new (unsaved) task row is being edited.
+    var hasTemporaryTask: Bool {
+        categoriesWithTasks.contains { $0.tasks.contains(where: { $0.isTemporary }) }
+    }
+
     func createTemporaryTask(categoryId: UUID) {
         // Create a temporary task locally without server communication
         let temporaryTask = TaskListItem(
@@ -584,24 +602,29 @@ class TaskListViewModel: ObservableObject {
         updateAllCompleted()
     }
     
-    func saveTemporaryTask(task: TaskListItem, newTitle: String, isPrivate: Bool) async {
+    // Returns the category that currently holds the given task, if any.
+    func categoryId(forTaskId id: UUID) -> UUID? {
+        for cat in categoriesWithTasks where cat.tasks.contains(where: { $0.id == id }) {
+            return cat.category.id
+        }
+        return nil
+    }
+
+    // Removes every in-progress temporary task (used when the user taps out /
+    // dismisses the keyboard without submitting — discard what was being typed).
+    func cancelTemporaryTasks() {
+        for catIdx in categoriesWithTasks.indices {
+            categoriesWithTasks[catIdx].tasks.removeAll { $0.isTemporary }
+        }
+        updateAllCompleted()
+    }
+
+    // categoryId is resolved by the caller before the temporary row is removed,
+    // so saving no longer depends on the temp task still being in the list.
+    func saveTemporaryTask(categoryId: UUID, newTitle: String, isPrivate: Bool) async {
         guard let client = self.client else { return }
         guard let userId = self.userId else { return }
-        guard task.isTemporary else { return }
-        
-        // Find the category this task belongs to
-        var categoryId: UUID?
-        var categoryEmoji: String? = nil
-        for cat in categoriesWithTasks {
-            if cat.tasks.contains(where: { $0.id == task.id }) {
-                categoryId = cat.category.id
-                categoryEmoji = cat.category.emoji
-                break
-            }
-        }
-        
-        guard let categoryId = categoryId else { return }
-        
+
         do {
             // Save to server using the target date
             try await client.from("task").insert([
@@ -611,7 +634,14 @@ class TaskListViewModel: ObservableObject {
                 "tasktitle": newTitle,
                 "privacy_status": isPrivate ? "user_only" : "public"
             ]).execute()
-            
+
+            AnalyticsService.shared.trackEvent("task_created",
+                screenName: "Home",
+                properties: ["category_id": categoryId.uuidString])
+            AnalyticsService.shared.trackOnce("first_task_created",
+                screenName: "Home",
+                properties: ["category_id": categoryId.uuidString])
+
             // Remove temporary task and refresh from server
             // removeTemporaryTask(task: task)
             fetchCategoriesAndTasks()
@@ -619,10 +649,13 @@ class TaskListViewModel: ObservableObject {
             
         } catch {
             // Keep the temporary task if save failed
+            AnalyticsService.shared.trackEvent("task_create_failed",
+                screenName: "Home",
+                properties: ["category_id": categoryId.uuidString])
         }
-        
+
     }
-    
+
     // MARK: - update task title
     func updateTaskTitle(taskId: UUID, newTitle: String) async {
         guard let client = self.client, let userId = self.userId else { return }
@@ -725,6 +758,11 @@ class TaskListViewModel: ObservableObject {
                 .eq("taskid", value: task.id)
                 .eq("userid", value: userId)
                 .execute()
+
+            AnalyticsService.shared.trackEvent("task_deleted",
+                screenName: "Home",
+                properties: ["task_id": task.id.uuidString])
+
             // Remove from local list after successful deletion
             for (catIdx, cat) in categoriesWithTasks.enumerated() {
                 if let taskIdx = cat.tasks.firstIndex(where: { $0.id == task.id }) {
@@ -816,6 +854,12 @@ class TaskListViewModel: ObservableObject {
             // 2) history seed (so old date queries work)
             if let cat = created.first {
                 await insertEmojiHistory(categoryId: cat.id, emoji: emoji, effectiveDate: todayDate())
+                AnalyticsService.shared.trackEvent("category_created",
+                    screenName: "Home",
+                    properties: ["category_id": cat.id.uuidString, "category_type": type.rawValue])
+                AnalyticsService.shared.trackOnce("first_category_created",
+                    screenName: "Home",
+                    properties: ["category_id": cat.id.uuidString])
             }
 
             // 3) refresh both maps & lists
@@ -868,6 +912,10 @@ class TaskListViewModel: ObservableObject {
                 .eq("userid", value: userId)
                 .execute()
 
+            AnalyticsService.shared.trackEvent("category_edited",
+                screenName: "Home",
+                properties: ["category_id": categoryId.uuidString])
+
             // 2) insert emoji history only when changed
             if let old = oldLatest, old != emoji {
                 await insertEmojiHistory(categoryId: categoryId, emoji: emoji, effectiveDate: todayDate())
@@ -918,6 +966,10 @@ class TaskListViewModel: ObservableObject {
                 .eq("userid", value: userId)
                 .execute()
 
+            AnalyticsService.shared.trackEvent("category_deleted",
+                screenName: "Home",
+                properties: ["category_id": categoryId.uuidString])
+
             await MainActor.run {
                 categoriesWithTasks.removeAll { $0.category.id == categoryId }
             }
@@ -925,7 +977,49 @@ class TaskListViewModel: ObservableObject {
         }
     }
 
-    // MARK: - reorder categories (local only)
+    // MARK: - category order persistence (UserDefaults)
+    // We persist the user's manual ordering of categories locally so it survives
+    // app restarts. The server has no "order" column, so we store the ordered list
+    // of category UUIDs keyed by the owner's userId.
+    private var categoryOrderKey: String? {
+        guard let userId = self.userId else { return nil }
+        return "categoryOrder_\(userId)"
+    }
+
+    private func savedCategoryOrder() -> [UUID] {
+        guard let key = categoryOrderKey,
+              let stored = UserDefaults.standard.array(forKey: key) as? [String]
+        else { return [] }
+        return stored.compactMap { UUID(uuidString: $0) }
+    }
+
+    private func persistCategoryOrder() {
+        guard let key = categoryOrderKey else { return }
+        let ids = categoriesWithTasks.map { $0.category.id.uuidString }
+        UserDefaults.standard.set(ids, forKey: key)
+    }
+
+    /// Reorders the fetched categories to match the saved manual order.
+    /// Categories present in the saved order come first (in that order); any
+    /// categories not yet in the saved order (e.g. newly created) are appended
+    /// afterwards in their original (createdat) order.
+    private func applySavedCategoryOrder(_ items: [CategoryWithTasks]) -> [CategoryWithTasks] {
+        let order = savedCategoryOrder()
+        guard !order.isEmpty else { return items }
+        let rank = Dictionary(uniqueKeysWithValues: order.enumerated().map { ($1, $0) })
+        return items.enumerated().sorted { lhs, rhs in
+            let lRank = rank[lhs.element.category.id]
+            let rRank = rank[rhs.element.category.id]
+            switch (lRank, rRank) {
+            case let (l?, r?): return l < r
+            case (_?, nil):    return true   // known order comes before unknown
+            case (nil, _?):    return false
+            case (nil, nil):   return lhs.offset < rhs.offset // preserve fetch order
+            }
+        }.map { $0.element }
+    }
+
+    // MARK: - reorder categories (persisted locally)
     func moveCategoriesWithinType(_ type: CategoryType, from source: IndexSet, to destination: Int) {
         // 1. Collect original indices of categories that match the given type
         let matchingOriginalIndices: [Int] = categoriesWithTasks.enumerated()
@@ -953,6 +1047,9 @@ class TaskListViewModel: ObservableObject {
 
         // 4. Move on the original array
         categoriesWithTasks.move(fromOffsets: fromOffsetsInOriginal, toOffset: toOffsetInOriginal)
+
+        // 5. Persist the new ordering locally so it survives app restarts
+        persistCategoryOrder()
     }
     
     // MARK: - move task into another category
