@@ -174,14 +174,17 @@ struct TrackerView: View {
 
 
                 // --- Task list ---
-                ScrollView {
-                    TaskListView(taskSelectedDate: $taskListViewModel.taskSelectedDate, viewModel: taskListViewModel, activeTask: $activeTaskMenu)
-                        .padding(.bottom, 86)
-                }
-                .onAppear {
-                    AnalyticsService.shared.trackScreen("Home")
-                    taskListViewModel.fetchCategoriesAndTasks()
-                }
+                // TaskListView manages its own ScrollView (and a GeometryReader
+                // inside it). Wrapping it in another ScrollView gives that
+                // GeometryReader an unbounded height, collapsing the whole list
+                // to zero height. Mount it directly so it fills the remaining
+                // space with a bounded height.
+                TaskListView(taskSelectedDate: $taskListViewModel.taskSelectedDate, viewModel: taskListViewModel, activeTask: $activeTaskMenu)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .onAppear {
+                        AnalyticsService.shared.trackScreen("Home")
+                        taskListViewModel.fetchCategoriesAndTasks()
+                    }
             }
             .frame(maxHeight: .infinity, alignment: .top)
             .zIndex(0) // base content at bottom layer
