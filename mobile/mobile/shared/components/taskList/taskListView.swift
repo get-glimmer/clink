@@ -146,18 +146,24 @@ struct TaskListView: View {
     
     // MARK: - categoryCard
     private func categoryCard(for categoryWithTasks: CategoryWithTasks) -> some View {
-        ZStack {
+        VStack(alignment: .leading, spacing: 25) {
+            categoryHeader(for: categoryWithTasks)
+            tasksSection(for: categoryWithTasks)
+        }
+        .padding(.top, 22)
+        .padding(.horizontal, 19)
+        .padding(.bottom, 26)
+        .frame(maxWidth: .infinity, minHeight: categoryWithTasks.tasks.isEmpty ? 60 : 120, alignment: .top)
+        .background(
             RoundedRectangle(cornerRadius: 16)
                 .foregroundColor(Color("Neutral-900"))
-            VStack(alignment: .leading, spacing: 25) {
-                categoryHeader(for: categoryWithTasks)
-                tasksSection(for: categoryWithTasks)
-            }
-            .padding(.top, 22)
-            .padding(.horizontal, 19)
-            .padding(.bottom, 26)
-        }
-        .frame(maxWidth: .infinity, minHeight: categoryWithTasks.tasks.isEmpty ? 60 : 120)
+        )
+        // Hug the content vertically. Without this the card's lone `minHeight`
+        // makes it greedy, so when the sheet is expanded and the list is shorter
+        // than the viewport (see the `.frame(minHeight: geo.size.height)` on the
+        // scroll content), the surrounding VStack hands its slack to the cards
+        // and they stretch. fixedSize pins each card to its natural height.
+        .fixedSize(horizontal: false, vertical: true)
         .padding(.vertical, 8)
     }
     
