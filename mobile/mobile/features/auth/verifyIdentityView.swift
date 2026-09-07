@@ -38,6 +38,10 @@ struct VerifyIdentityView: View {
             VStack(spacing: 0) {
                 Spacer()
 
+                Text("test")
+                    .appFont(AppFont.captionXS)
+                    .foregroundColor(Color("Neutral-400"))
+
                 Image("clink")
                     .resizable()
                     .scaledToFit()
